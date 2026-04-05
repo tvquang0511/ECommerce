@@ -1,0 +1,10 @@
+{
+  "name": "ecommerce",
+  "private": true,
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "deps:up": "docker compose -f infra/docker-compose.dev.yml up -d",
+    "deps:down": "docker compose -f infra/docker-compose.dev.yml down",
+    "deps:logs": "docker compose -f infra/docker-compose.dev.yml logs -f --tail=200"
+  }
+}
