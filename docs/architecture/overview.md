@@ -359,11 +359,17 @@ Redis trong hệ này có **2 vai trò khác nhau** (đừng trộn khái niệm
 - Apps/services chạy bằng pnpm trên host.
 
 ### 6.2 Compose + Nginx (single origin, optional)
-- Bật profile `edge` để chạy Nginx trong Docker.
+- Dùng compose overlay: `infra/docker-compose.edge.yml`.
 - Trong giai đoạn services chạy trên host, Nginx sẽ proxy tới `host.docker.internal:<port>`.
+
+### 6.3 Full stack bằng container (later)
+- `infra/docker-compose.yml` dùng để chạy infra + một phần app containers (phục vụ test nhanh).
 
 ---
 
 ## 7) Tài liệu liên quan
 - Component diagram (PlantUML): xem trong [docs/diagrams/component-diagram.md](../diagrams/component-diagram.md).
 - Roadmap/milestones: xem [README.md](../../README.md).
+- Chức năng chi tiết từng service: xem [docs/architecture/services.md](services.md).
+- Template cây thư mục (NestJS-first + Express user-service): xem [docs/architecture/folder-structure.md](folder-structure.md).
+- pnpm guide: xem [docs/pnpm.md](../pnpm.md).

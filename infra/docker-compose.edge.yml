@@ -1,0 +1,14 @@
+# Optional dev edge proxy (single-origin).
+# Usage:
+#   docker compose -f infra/docker-compose.dev.yml -f infra/docker-compose.edge.yml up -d
+#
+# This assumes your app services run on the HOST (pnpm dev), and Nginx runs in Docker.
+# Later (when you dockerize services), replace host.docker.internal with Docker service names.
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro

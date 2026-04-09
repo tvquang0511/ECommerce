@@ -1,3 +1,6 @@
+# Full stack (later): infra + app containers.
+# For day-1 dev, prefer infra-only: docker compose -f infra/docker-compose.dev.yml up -d
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -47,6 +50,31 @@ services:
       - "9001:9001"
     volumes:
       - minio_data:/data
+
+  product-subgraph:
+    build:
+      context: ..
+      dockerfile: services/product-subgraph/Dockerfile
+    environment:
+      PORT: "4002"
+    ports:
+      - "4002:4002"
+    depends_on:
+      - mongo
+      - redis
+      - minio
+
+  graphql-gateway:
+    build:
+      context: ..
+      dockerfile: services/graphql-gateway/Dockerfile
+    environment:
+      PORT: "4000"
+      PRODUCT_SUBGRAPH_URL: "http://product-subgraph:4002/graphql"
+    ports:
+      - "4000:4000"
+    depends_on:
+      - product-subgraph
 
 volumes:
   postgres_data:
