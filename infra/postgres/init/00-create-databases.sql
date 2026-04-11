@@ -4,14 +4,14 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'user') THEN
-    CREATE DATABASE "user";
+    CREATE DATABASE "user" OWNER ecommerce;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'payments') THEN
-    CREATE DATABASE payments;
+    CREATE DATABASE payments OWNER ecommerce;
   END IF;
 
   IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'inventory') THEN
-    CREATE DATABASE inventory;
+    CREATE DATABASE inventory OWNER ecommerce;
   END IF;
 END $$;

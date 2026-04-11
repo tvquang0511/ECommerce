@@ -49,8 +49,22 @@ dev-ps:
 dev-reset-postgres:
 	@echo "Resetting dev Postgres volume (DANGER: deletes only Postgres data)."
 	$(DC_DEV) rm -sf postgres
-	$(DOCKER) volume rm -f infra_postgres_data
+	$(DOCKER) volume rm -f ecommerce_postgres_data
 	$(DC_DEV) up -d postgres
+	$(MAKE) dev-wait-postgres
+
+.PHONY: dev-wait-postgres
+dev-wait-postgres:
+	@echo "Waiting for dev Postgres to accept connections..."
+	@for i in {1..60}; do \
+		$(DC_DEV) exec -T postgres pg_isready -U ecommerce -d user >/dev/null 2>&1 && \
+			echo "Postgres is ready." && exit 0; \
+		sleep 1; \
+	done; \
+	echo "Postgres did not become ready within 60s."; \
+	$(DC_DEV) ps; \
+	$(DC_DEV) logs --tail=200 postgres; \
+	exit 1
 
 .PHONY: edge-up edge-down
 edge-up:
