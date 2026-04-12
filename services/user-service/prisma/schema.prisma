@@ -13,11 +13,14 @@ model User {
   displayName  String
   avatarUrl    String?
 
+  twoFactorEnabled Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  emailOtps           EmailOtp[]
 
   @@map("users")
 }
@@ -25,7 +28,16 @@ model User {
 model RefreshToken {
   id        String   @id @default(uuid())
   userId    String
+
+  // Opaque refresh token format: <tokenId>.<secret>
+  // - tokenId is used for lookup
+  // - tokenHash is hash(secret + pepper)
+  tokenId   String   @unique
   tokenHash String   @unique
+
+  replacedByTokenId String?
+  lastUsedAt        DateTime?
+
   expiresAt DateTime
   revokedAt DateTime?
   createdAt DateTime @default(now())
@@ -34,6 +46,32 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+enum EmailOtpPurpose {
+  LOGIN_2FA
+}
+
+model EmailOtp {
+  id        String          @id @default(uuid())
+  userId    String
+  purpose   EmailOtpPurpose
+  codeHash  String
+  expiresAt DateTime
+
+  consumedAt DateTime?
+  attempts   Int      @default(0)
+
+  requestedIp String?
+  userAgent   String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+  @@index([expiresAt])
+  @@map("email_otps")
 }
 
 model PasswordResetToken {

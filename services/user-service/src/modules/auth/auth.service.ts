@@ -1,33 +1,31 @@
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
-import jwt, { type Secret } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { env } from '../../env.js';
 import { ApiError } from '@repo/common/errors';
 import { authRepo } from './auth.repo.js';
+import { getAccessJwtKeys } from './jwtKeys.js';
+import { parseDurationToMs } from '../../common/utils/duration.js';
+import { mailQueue } from '../mail/mail.queue.js';
+import { prisma } from '../../db/prisma.js';
 
 type JwtAccessPayload = {
   sub: string;
   email: string;
 };
 
-type JwtRefreshPayload = {
-  sub: string;
-  type: 'refresh';
+type OpaqueRefreshTokenRecord = {
+  tokenId: string;
+  tokenHash: string;
+  token: string;
 };
 
 function signAccessToken(user: { id: string; email: string }) {
+  const { privateKeyPem } = getAccessJwtKeys();
   return jwt.sign(
     { sub: user.id, email: user.email } satisfies JwtAccessPayload,
-    env.JWT_ACCESS_SECRET as Secret,
-    { expiresIn: env.JWT_ACCESS_TTL as any },
-  );
-}
-
-function signRefreshToken(user: { id: string }) {
-  return jwt.sign(
-    { sub: user.id, type: 'refresh' } satisfies JwtRefreshPayload,
-    env.JWT_REFRESH_SECRET as Secret,
-    { expiresIn: env.JWT_REFRESH_TTL as any },
+    privateKeyPem,
+    { algorithm: 'RS256', expiresIn: env.JWT_ACCESS_TTL as any },
   );
 }
 
@@ -35,16 +33,52 @@ function hashToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
+function hashRefreshSecret(secret: string) {
+  return crypto
+    .createHash('sha256')
+    .update(`${secret}.${env.REFRESH_TOKEN_PEPPER}`)
+    .digest('hex');
+}
+
+function makeOpaqueRefreshToken(): OpaqueRefreshTokenRecord {
+  const tokenId = crypto.randomBytes(16).toString('base64url');
+  const secret = crypto.randomBytes(32).toString('base64url');
+  const token = `${tokenId}.${secret}`;
+  const tokenHash = hashRefreshSecret(secret);
+  return { tokenId, tokenHash, token };
+}
+
+function parseOpaqueRefreshToken(token: string): { tokenId: string; secret: string } {
+  const idx = token.indexOf('.');
+  if (idx <= 0 || idx === token.length - 1) {
+    throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
+  }
+  const tokenId = token.slice(0, idx);
+  const secret = token.slice(idx + 1);
+  if (!tokenId || !secret) {
+    throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
+  }
+  return { tokenId, secret };
+}
+
+function computeRefreshExpiresAt(): Date {
+  const ms = parseDurationToMs(env.JWT_REFRESH_TTL);
+  return new Date(Date.now() + ms);
+}
+
 function makeResetToken() {
   return crypto.randomBytes(32).toString('base64url');
 }
 
-function parseJwtExpiresAt(token: string): Date {
-  const decoded = jwt.decode(token) as null | { exp?: number };
-  if (!decoded?.exp) {
-    throw new ApiError(500, 'AUTH_TOKEN_INVALID', 'Invalid token payload');
-  }
-  return new Date(decoded.exp * 1000);
+function makeOtpCode(): string {
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+}
+
+function hashOtpCode(code: string): string {
+  return crypto
+    .createHash('sha256')
+    .update(`${code}.${env.REFRESH_TOKEN_PEPPER}`)
+    .digest('hex');
 }
 
 function publicUser(user: { id: string; email: string; displayName: string; avatarUrl?: string | null }) {
@@ -72,12 +106,13 @@ export const authService = {
     });
 
     const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-    const tokenHash = hashToken(refreshToken);
-    const expiresAt = parseJwtExpiresAt(refreshToken);
-    await authRepo.createRefreshToken({ userId: user.id, tokenHash, expiresAt });
 
-    return { accessToken, refreshToken, user: publicUser(user) };
+    await authRepo.revokeAllRefreshTokensForUser(user.id);
+    const refresh = makeOpaqueRefreshToken();
+    const expiresAt = computeRefreshExpiresAt();
+    await authRepo.createRefreshToken({ userId: user.id, tokenId: refresh.tokenId, tokenHash: refresh.tokenHash, expiresAt });
+
+    return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
   },
 
   async login(input: { email: string; password: string }) {
@@ -92,57 +127,193 @@ export const authService = {
       throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
     }
 
-    const accessToken = signAccessToken(user);
-    const refreshToken = signRefreshToken(user);
-    const tokenHash = hashToken(refreshToken);
-    const expiresAt = parseJwtExpiresAt(refreshToken);
-    await authRepo.createRefreshToken({ userId: user.id, tokenHash, expiresAt });
+    if (user.twoFactorEnabled) {
+      const latest = await authRepo.findLatestActiveEmailOtpForUser({ userId: user.id, purpose: 'LOGIN_2FA' });
+      if (latest) {
+        const secondsSince = (Date.now() - latest.createdAt.getTime()) / 1000;
+        if (secondsSince < 30) {
+          throw new ApiError(429, 'AUTH_OTP_TOO_MANY_REQUESTS', 'Please wait before requesting another code', {
+            retryAfterSeconds: Math.ceil(30 - secondsSince),
+          });
+        }
+      }
 
-    return { accessToken, refreshToken, user: publicUser(user) };
+      const code = makeOtpCode();
+      const expiresAt = new Date(Date.now() + env.TWO_FACTOR_OTP_TTL_SECONDS * 1000);
+      const otp = await authRepo.createEmailOtp({
+        userId: user.id,
+        purpose: 'LOGIN_2FA',
+        codeHash: hashOtpCode(code),
+        expiresAt,
+      });
+
+      const enq = await mailQueue.enqueue({
+        type: 'otp',
+        to: user.email,
+        displayName: user.displayName,
+        code,
+        expiresInSeconds: env.TWO_FACTOR_OTP_TTL_SECONDS,
+      });
+
+      if (!enq.enqueued && env.NODE_ENV === 'production') {
+        throw new ApiError(503, 'AUTH_OTP_DELIVERY_UNAVAILABLE', 'OTP delivery is temporarily unavailable');
+      }
+
+      return {
+        twoFactorRequired: true as const,
+        challengeId: otp.id,
+        expiresAt: expiresAt.toISOString(),
+        ...(enq.enqueued ? {} : { devOtp: code }),
+      };
+    }
+
+    const accessToken = signAccessToken(user);
+
+    await authRepo.revokeAllRefreshTokensForUser(user.id);
+    const refresh = makeOpaqueRefreshToken();
+    const expiresAt = computeRefreshExpiresAt();
+    await authRepo.createRefreshToken({ userId: user.id, tokenId: refresh.tokenId, tokenHash: refresh.tokenHash, expiresAt });
+
+    return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
+  },
+
+  async verifyTwoFactor(input: { challengeId: string; code: string }) {
+    const otp = await authRepo.findEmailOtpById(input.challengeId);
+    if (!otp || otp.purpose !== 'LOGIN_2FA') {
+      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+    }
+
+    if (otp.consumedAt) {
+      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+    }
+
+    if (otp.expiresAt.getTime() <= Date.now()) {
+      throw new ApiError(400, 'AUTH_OTP_EXPIRED', 'OTP expired');
+    }
+
+    if (otp.attempts >= 5) {
+      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+    }
+
+    const expected = otp.codeHash;
+    const got = hashOtpCode(input.code);
+    if (expected !== got) {
+      await authRepo.incrementEmailOtpAttempts(otp.id);
+      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+    }
+
+    await authRepo.consumeEmailOtp(otp.id);
+
+    const user = await authRepo.findUserById(otp.userId);
+    if (!user) {
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+    }
+
+    const accessToken = signAccessToken(user);
+    await authRepo.revokeAllRefreshTokensForUser(user.id);
+    const refresh = makeOpaqueRefreshToken();
+    const expiresAt = computeRefreshExpiresAt();
+    await authRepo.createRefreshToken({ userId: user.id, tokenId: refresh.tokenId, tokenHash: refresh.tokenHash, expiresAt });
+    return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
   },
 
   async refresh(input: { refreshToken: string }) {
-    let payload: JwtRefreshPayload;
-    try {
-      payload = jwt.verify(input.refreshToken, env.JWT_REFRESH_SECRET as Secret) as JwtRefreshPayload;
-    } catch (e: any) {
-      if (e?.name === 'TokenExpiredError') {
-        throw new ApiError(401, 'AUTH_TOKEN_EXPIRED', 'Refresh token expired');
-      }
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
-    }
+    const { tokenId, secret } = parseOpaqueRefreshToken(input.refreshToken);
+    const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
 
-    if (payload.type !== 'refresh') {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
-    }
-
-    const tokenHash = hashToken(input.refreshToken);
-    const existing = await authRepo.findValidRefreshToken(tokenHash);
     if (!existing) {
-      throw new ApiError(401, 'AUTH_REFRESH_REVOKED', 'Refresh token revoked');
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
     }
 
-    const user = await authRepo.findUserById(payload.sub);
+    const now = Date.now();
+    if (existing.expiresAt.getTime() <= now) {
+      throw new ApiError(401, 'AUTH_TOKEN_EXPIRED', 'Refresh token expired');
+    }
+
+    const expectedHash = existing.tokenHash;
+    const gotHash = hashRefreshSecret(secret);
+    if (expectedHash !== gotHash) {
+      await authRepo.revokeAllRefreshTokensForUser(existing.userId);
+      throw new ApiError(
+        401,
+        'AUTH_REFRESH_COMPROMISED',
+        'Possible refresh token compromise detected. Please sign in again.',
+      );
+    }
+
+    if (existing.revokedAt) {
+      await authRepo.revokeAllRefreshTokensForUser(existing.userId);
+      throw new ApiError(
+        401,
+        'AUTH_REFRESH_COMPROMISED',
+        'Possible refresh token compromise detected. Please sign in again.',
+      );
+    }
+
+    const user = await authRepo.findUserById(existing.userId);
     if (!user) {
       throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
     }
 
     const newAccessToken = signAccessToken(user);
-    const newRefreshToken = signRefreshToken(user);
-    const newHash = hashToken(newRefreshToken);
-    const newExpiresAt = parseJwtExpiresAt(newRefreshToken);
+    const refresh = makeOpaqueRefreshToken();
+    const newExpiresAt = computeRefreshExpiresAt();
 
-    await authRepo.revokeRefreshToken(existing.id);
-    await authRepo.createRefreshToken({ userId: user.id, tokenHash: newHash, expiresAt: newExpiresAt });
+    const nowDate = new Date();
+    const rotated = await prisma.$transaction(async (tx) => {
+      const revokeRes = await tx.refreshToken.updateMany({
+        where: { id: existing.id, revokedAt: null },
+        data: {
+          revokedAt: nowDate,
+          replacedByTokenId: refresh.tokenId,
+          lastUsedAt: nowDate,
+        },
+      });
 
-    return { accessToken: newAccessToken, refreshToken: newRefreshToken };
+      // If the token was already revoked, this is a reuse attempt (likely leaked).
+      if (revokeRes.count !== 1) {
+        return false;
+      }
+
+      // Enforce single-device: revoke any other active refresh tokens.
+      await tx.refreshToken.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: nowDate },
+      });
+
+      await tx.refreshToken.create({
+        data: {
+          userId: user.id,
+          tokenId: refresh.tokenId,
+          tokenHash: refresh.tokenHash,
+          expiresAt: newExpiresAt,
+        },
+      });
+
+      return true;
+    });
+
+    if (!rotated) {
+      await authRepo.revokeAllRefreshTokensForUser(user.id);
+      throw new ApiError(
+        401,
+        'AUTH_REFRESH_COMPROMISED',
+        'Possible refresh token compromise detected. Please sign in again.',
+      );
+    }
+
+    return { accessToken: newAccessToken, refreshToken: refresh.token };
   },
 
   async logout(input: { refreshToken: string }) {
-    const tokenHash = hashToken(input.refreshToken);
-    const existing = await authRepo.findValidRefreshToken(tokenHash);
-    if (existing) {
-      await authRepo.revokeRefreshToken(existing.id);
+    try {
+      const { tokenId, secret } = parseOpaqueRefreshToken(input.refreshToken);
+      const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
+      if (existing && !existing.revokedAt && existing.tokenHash === hashRefreshSecret(secret)) {
+        await authRepo.revokeRefreshToken(existing.id, { lastUsedAt: new Date() });
+      }
+    } catch {
+      // Ignore invalid refresh token on logout.
     }
     return { ok: true };
   },
@@ -181,8 +352,22 @@ export const authService = {
     // In a real app, you'd email this URL.
     const resetUrl = `${env.APP_WEB_URL.replace(/\/$/, '')}/reset-password#token=${encodeURIComponent(token)}`;
 
-    // Dev-only helper for Postman testing.
-    if (env.NODE_ENV !== 'production') {
+    const enq = await mailQueue.enqueue({
+      type: 'forgot-password',
+      to: user.email,
+      displayName: user.displayName,
+      resetUrl,
+      expiresAtIso: expiresAt.toISOString(),
+    });
+
+    if (!enq.enqueued && env.NODE_ENV === 'production') {
+      // Keep response as ok=true to avoid leaking whether email exists.
+      // eslint-disable-next-line no-console
+      console.error('SMTP/BullMQ not configured; forgot-password email was not enqueued');
+    }
+
+    // Dev-only helper for Postman testing when SMTP isn't configured.
+    if (!enq.enqueued && env.NODE_ENV !== 'production') {
       return { ok: true, resetUrl, devResetToken: token, expiresAt: expiresAt.toISOString() };
     }
 
@@ -197,9 +382,15 @@ export const authService = {
     }
 
     const newHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
-    await authRepo.updateUserPasswordHash(prt.userId, newHash);
+    const user = await authRepo.updateUserPasswordHash(prt.userId, newHash);
     await authRepo.markPasswordResetTokenUsed(prt.id);
     await authRepo.revokeAllRefreshTokensForUser(prt.userId);
+
+    await mailQueue.enqueue({
+      type: 'password-reset-success',
+      to: user.email,
+      displayName: user.displayName,
+    });
     return { ok: true };
   },
 };

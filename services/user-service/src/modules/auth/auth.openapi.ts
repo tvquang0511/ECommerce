@@ -41,12 +41,60 @@ export function authOpenApi() {
       required: ['accessToken', 'user'],
     },
 
+    TwoFactorRequiredResponse: {
+      type: 'object',
+      properties: {
+        twoFactorRequired: { type: 'boolean', enum: [true] },
+        challengeId: { type: 'string', format: 'uuid' },
+        expiresAt: { type: 'string', format: 'date-time' },
+        devOtp: { type: 'string' },
+      },
+      required: ['twoFactorRequired', 'challengeId', 'expiresAt'],
+      additionalProperties: false,
+    },
+
+    LoginResponse: {
+      oneOf: [
+        { $ref: '#/components/schemas/AuthResponse' },
+        { $ref: '#/components/schemas/TwoFactorRequiredResponse' },
+      ],
+    },
+
+    VerifyTwoFactorRequest: {
+      type: 'object',
+      properties: {
+        challengeId: { type: 'string', format: 'uuid' },
+        code: { type: 'string', minLength: 6, maxLength: 6 },
+      },
+      required: ['challengeId', 'code'],
+    },
+
+    RefreshRequest: {
+      type: 'object',
+      description:
+        'Optional. By default the refresh token is read from HttpOnly cookie. This body is supported mainly for API clients like Postman.',
+      properties: {
+        refreshToken: { type: 'string', minLength: 1 },
+      },
+      additionalProperties: false,
+    },
+
     RefreshResponse: {
       type: 'object',
       properties: {
         accessToken: { type: 'string' },
       },
       required: ['accessToken'],
+    },
+
+    LogoutRequest: {
+      type: 'object',
+      description:
+        'Optional. If not provided, logout will revoke the refresh token from cookie (if present).',
+      properties: {
+        refreshToken: { type: 'string', minLength: 1 },
+      },
+      additionalProperties: false,
     },
 
     LogoutResponse: {
@@ -111,6 +159,12 @@ export function authOpenApi() {
         responses: {
           '201': {
             description: 'Created',
+            headers: {
+              'Set-Cookie': {
+                description: 'Sets HttpOnly refresh token cookie',
+                schema: { type: 'string' },
+              },
+            },
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/AuthResponse' },
@@ -126,7 +180,7 @@ export function authOpenApi() {
     '/api/users/auth/login': {
       post: {
         tags: ['Auth'],
-        summary: 'Login',
+        summary: 'Login (may require 2FA OTP)',
         requestBody: {
           required: true,
           content: {
@@ -138,14 +192,53 @@ export function authOpenApi() {
         responses: {
           '200': {
             description: 'OK',
+            headers: {
+              'Set-Cookie': {
+                description:
+                  'If 2FA is NOT required, sets HttpOnly refresh token cookie. If 2FA is required, cookie is set after /2fa/verify.',
+                schema: { type: 'string' },
+              },
+            },
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/LoginResponse' },
+              },
+            },
+          },
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/2fa/verify': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Verify 2FA OTP and finish login',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/VerifyTwoFactorRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'OK',
+            headers: {
+              'Set-Cookie': {
+                description: 'Sets HttpOnly refresh token cookie',
+                schema: { type: 'string' },
+              },
+            },
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/AuthResponse' },
               },
             },
           },
-          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
-          '401': { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '400': { description: 'Invalid/expired OTP', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },
@@ -172,10 +265,26 @@ export function authOpenApi() {
     '/api/users/auth/refresh': {
       post: {
         tags: ['Auth'],
-        summary: 'Refresh access token (uses refresh cookie)',
+        summary: 'Refresh access token (rotates refresh token)',
+        description:
+          'By default, reads refresh token from HttpOnly cookie. You can also send {refreshToken} in JSON body for tools like Postman.',
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/RefreshRequest' },
+            },
+          },
+        },
         responses: {
           '200': {
             description: 'OK',
+            headers: {
+              'Set-Cookie': {
+                description: 'Rotates (replaces) HttpOnly refresh token cookie',
+                schema: { type: 'string' },
+              },
+            },
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/RefreshResponse' },
@@ -191,9 +300,25 @@ export function authOpenApi() {
       post: {
         tags: ['Auth'],
         summary: 'Logout (revokes refresh token cookie)',
+        description:
+          'By default, revokes refresh token from HttpOnly cookie. You can also send {refreshToken} in JSON body for tools like Postman.',
+        requestBody: {
+          required: false,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/LogoutRequest' },
+            },
+          },
+        },
         responses: {
           '200': {
             description: 'OK',
+            headers: {
+              'Set-Cookie': {
+                description: 'Clears refresh token cookie',
+                schema: { type: 'string' },
+              },
+            },
             content: {
               'application/json': {
                 schema: { $ref: '#/components/schemas/LogoutResponse' },
@@ -207,7 +332,7 @@ export function authOpenApi() {
     '/api/users/auth/forgot-password': {
       post: {
         tags: ['Auth'],
-        summary: 'Start password reset (dev returns token)',
+        summary: 'Start password reset (enqueues email)',
         requestBody: {
           required: true,
           content: {
@@ -225,6 +350,7 @@ export function authOpenApi() {
               },
             },
           },
+          '503': { description: 'OTP/reset email delivery unavailable', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },

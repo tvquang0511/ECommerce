@@ -20,6 +20,10 @@ yarn-error.log*
 .env.*
 !.env.example
 
+# key
+*.pem
+*.key
+
 # editor/ide
 .vscode/
 .idea/

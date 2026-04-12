@@ -9,12 +9,14 @@ import {
   refresh,
   register,
   resetPassword,
+  verifyTwoFactor,
 } from './auth.controller.js';
 
 const router = Router();
 
 router.post('/register', asyncHandler(register));
 router.post('/login', asyncHandler(login));
+router.post('/2fa/verify', asyncHandler(verifyTwoFactor));
 router.get('/me', authJwt, asyncHandler(me));
 router.post('/refresh', asyncHandler(refresh));
 router.post('/logout', asyncHandler(logout));

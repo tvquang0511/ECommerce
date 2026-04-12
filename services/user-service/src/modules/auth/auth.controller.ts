@@ -2,6 +2,8 @@ import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { env } from '../../env.js';
 import { authService } from './auth.service.js';
+import { parseDurationToMs } from '../../common/utils/duration.js';
+import { ApiError } from '@repo/common/errors';
 
 const registerBodySchema = z.object({
   email: z.string().email(),
@@ -27,8 +29,13 @@ const resetPasswordBodySchema = z.object({
   newPassword: z.string().min(6),
 });
 
+const verifyTwoFactorBodySchema = z.object({
+  challengeId: z.string().min(1),
+  code: z.string().min(6).max(6),
+});
+
 function setRefreshCookie(res: Response, refreshToken: string) {
-  const maxAgeMs = 7 * 24 * 60 * 60 * 1000;
+  const maxAgeMs = parseDurationToMs(env.JWT_REFRESH_TTL);
   res.cookie(env.AUTH_COOKIE_NAME, refreshToken, {
     httpOnly: true,
     secure: env.AUTH_COOKIE_SECURE,
@@ -57,6 +64,16 @@ export const register = async (req: Request, res: Response) => {
 export const login = async (req: Request, res: Response) => {
   const input = loginBodySchema.parse(req.body);
   const result = await authService.login(input);
+  if ('twoFactorRequired' in result) {
+    return res.json(result);
+  }
+  setRefreshCookie(res, result.refreshToken);
+  return res.json({ accessToken: result.accessToken, user: result.user });
+};
+
+export const verifyTwoFactor = async (req: Request, res: Response) => {
+  const input = verifyTwoFactorBodySchema.parse(req.body);
+  const result = await authService.verifyTwoFactor(input);
   setRefreshCookie(res, result.refreshToken);
   return res.json({ accessToken: result.accessToken, user: result.user });
 };
@@ -83,9 +100,16 @@ export const refresh = async (req: Request, res: Response) => {
     });
   }
 
-  const result = await authService.refresh({ refreshToken });
-  setRefreshCookie(res, result.refreshToken);
-  return res.json({ accessToken: result.accessToken });
+  try {
+    const result = await authService.refresh({ refreshToken });
+    setRefreshCookie(res, result.refreshToken);
+    return res.json({ accessToken: result.accessToken });
+  } catch (e: any) {
+    if (e instanceof ApiError && e.code === 'AUTH_REFRESH_COMPROMISED') {
+      clearRefreshCookie(res);
+    }
+    throw e;
+  }
 };
 
 export const logout = async (req: Request, res: Response) => {

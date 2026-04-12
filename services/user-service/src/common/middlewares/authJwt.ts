@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
-import jwt, { type Secret } from 'jsonwebtoken';
-import { env } from '../../env.js';
+import jwt from 'jsonwebtoken';
 import { ApiError } from '@repo/common/errors';
+import { getAccessJwtKeys } from '../../modules/auth/jwtKeys.js';
 
 type JwtAccessPayload = {
   sub: string;
@@ -23,7 +23,8 @@ export function authJwt(req: Request, _res: Response, next: NextFunction) {
   }
 
   try {
-    const payload = jwt.verify(token, env.JWT_ACCESS_SECRET as Secret) as JwtAccessPayload;
+    const { publicKeyPem } = getAccessJwtKeys();
+    const payload = jwt.verify(token, publicKeyPem, { algorithms: ['RS256'] }) as JwtAccessPayload;
     req.user = {
       id: payload.sub,
       email: payload.email,

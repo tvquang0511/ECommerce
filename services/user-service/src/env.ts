@@ -38,10 +38,32 @@ export const env = {
 
   CORS_ORIGIN: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
 
-  JWT_ACCESS_SECRET: process.env.JWT_ACCESS_SECRET ?? 'dev-access-secret',
-  JWT_REFRESH_SECRET: process.env.JWT_REFRESH_SECRET ?? 'dev-refresh-secret',
   JWT_ACCESS_TTL: process.env.JWT_ACCESS_TTL ?? '15m',
   JWT_REFRESH_TTL: process.env.JWT_REFRESH_TTL ?? '7d',
+
+  // Access token: RS256
+  // Prefer *_B64 to avoid multi-line env issues on Windows.
+  JWT_ACCESS_PRIVATE_KEY_PEM_B64: process.env.JWT_ACCESS_PRIVATE_KEY_PEM_B64,
+  JWT_ACCESS_PUBLIC_KEY_PEM_B64: process.env.JWT_ACCESS_PUBLIC_KEY_PEM_B64,
+  JWT_ACCESS_PRIVATE_KEY_PEM: process.env.JWT_ACCESS_PRIVATE_KEY_PEM,
+  JWT_ACCESS_PUBLIC_KEY_PEM: process.env.JWT_ACCESS_PUBLIC_KEY_PEM,
+
+  // Refresh token: opaque + stored hash (server-only pepper).
+  REFRESH_TOKEN_PEPPER: process.env.REFRESH_TOKEN_PEPPER ?? 'dev-refresh-pepper',
+
+  // 2FA email OTP
+  TWO_FACTOR_OTP_TTL_SECONDS: parseIntEnv(process.env.TWO_FACTOR_OTP_TTL_SECONDS, 120),
+
+  // Redis (BullMQ + optional rate limiting)
+  REDIS_URL: process.env.REDIS_URL ?? 'redis://localhost:6379',
+
+  // SMTP
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: parseIntEnv(process.env.SMTP_PORT, 587),
+  SMTP_SECURE: parseBoolEnv(process.env.SMTP_SECURE, false),
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_FROM: process.env.SMTP_FROM,
 
   BCRYPT_ROUNDS: parseIntEnv(process.env.BCRYPT_ROUNDS, 10),
 
