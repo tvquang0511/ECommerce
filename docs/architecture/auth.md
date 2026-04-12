@@ -150,6 +150,19 @@ Mapping code (để dễ maintain):
 - Nếu không set RSA keys và `NODE_ENV!=production`, `user-service` sẽ tự generate keypair ephemeral để dev chạy nhanh.
 - Nếu SMTP chưa cấu hình, một số endpoint sẽ trả dev helper (ví dụ `devResetToken` hoặc `devOtp`) để test bằng Postman.
 
+### 6.1 Run API + mail worker bằng Docker Compose
+Repo có overlay compose để chạy `user-service` và `mail-worker` cùng với Postgres/Redis:
+
+```bash
+docker compose \
+  -f infra/docker-compose.dev.yml \
+  -f infra/docker-compose.user-service.dev.yml \
+  up -d --build
+```
+
+Ghi chú:
+- File `infra/docker-compose.user-service.dev.yml` load env từ `services/user-service/.env` (SMTP/keys/...) và override `DATABASE_URL`/`REDIS_URL` để trỏ vào container services (`postgres`, `redis`).
+
 ---
 
 ## 7) Generate RSA keypair + Base64 (Git Bash & PowerShell)

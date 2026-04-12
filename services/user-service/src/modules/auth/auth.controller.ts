@@ -34,6 +34,10 @@ const verifyTwoFactorBodySchema = z.object({
   code: z.string().min(6).max(6),
 });
 
+const twoFactorToggleBodySchema = z.object({
+  password: z.string().min(1),
+});
+
 function setRefreshCookie(res: Response, refreshToken: string) {
   const maxAgeMs = parseDurationToMs(env.JWT_REFRESH_TTL);
   res.cookie(env.AUTH_COOKIE_NAME, refreshToken, {
@@ -135,6 +139,23 @@ export const logout = async (req: Request, res: Response) => {
 export const me = async (req: Request, res: Response) => {
   const result = await authService.me(req.user!.id);
   return res.json(result.user);
+};
+
+export const twoFactorStatus = async (req: Request, res: Response) => {
+  const result = await authService.twoFactorStatus(req.user!.id);
+  return res.json(result);
+};
+
+export const enableTwoFactor = async (req: Request, res: Response) => {
+  const input = twoFactorToggleBodySchema.parse(req.body);
+  const result = await authService.enableTwoFactor({ userId: req.user!.id, password: input.password });
+  return res.json(result);
+};
+
+export const disableTwoFactor = async (req: Request, res: Response) => {
+  const input = twoFactorToggleBodySchema.parse(req.body);
+  const result = await authService.disableTwoFactor({ userId: req.user!.id, password: input.password });
+  return res.json(result);
 };
 
 export const forgotPassword = async (req: Request, res: Response) => {

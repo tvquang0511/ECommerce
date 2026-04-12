@@ -326,6 +326,50 @@ export const authService = {
     return { user: publicUser(user) };
   },
 
+  async twoFactorStatus(userId: string) {
+    const user = await authRepo.findUserById(userId);
+    if (!user) {
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+    }
+    return { enabled: Boolean(user.twoFactorEnabled) };
+  },
+
+  async enableTwoFactor(input: { userId: string; password: string }) {
+    const user = await authRepo.findUserById(input.userId);
+    if (!user) {
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+    }
+
+    const ok = await bcrypt.compare(input.password, user.passwordHash);
+    if (!ok) {
+      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+    }
+
+    if (!user.twoFactorEnabled) {
+      await authRepo.setTwoFactorEnabled(user.id, true);
+    }
+
+    return { enabled: true as const };
+  },
+
+  async disableTwoFactor(input: { userId: string; password: string }) {
+    const user = await authRepo.findUserById(input.userId);
+    if (!user) {
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+    }
+
+    const ok = await bcrypt.compare(input.password, user.passwordHash);
+    if (!ok) {
+      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+    }
+
+    if (user.twoFactorEnabled) {
+      await authRepo.setTwoFactorEnabled(user.id, false);
+    }
+
+    return { enabled: false as const };
+  },
+
   async forgotPassword(input: { email: string; requestedIp?: string | null; userAgent?: string | null }) {
     const email = input.email.toLowerCase();
     const user = await authRepo.findUserByEmail(email);

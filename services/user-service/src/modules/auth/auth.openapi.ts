@@ -69,6 +69,33 @@ export function authOpenApi() {
       required: ['challengeId', 'code'],
     },
 
+    TwoFactorStatusResponse: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean' },
+      },
+      required: ['enabled'],
+      additionalProperties: false,
+    },
+
+    TwoFactorToggleRequest: {
+      type: 'object',
+      properties: {
+        password: { type: 'string', minLength: 1 },
+      },
+      required: ['password'],
+      additionalProperties: false,
+    },
+
+    TwoFactorToggleResponse: {
+      type: 'object',
+      properties: {
+        enabled: { type: 'boolean' },
+      },
+      required: ['enabled'],
+      additionalProperties: false,
+    },
+
     RefreshRequest: {
       type: 'object',
       description:
@@ -239,6 +266,81 @@ export function authOpenApi() {
             },
           },
           '400': { description: 'Invalid/expired OTP', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/2fa': {
+      get: {
+        tags: ['Auth'],
+        summary: 'Get 2FA status for current user',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/TwoFactorStatusResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/2fa/enable': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Enable 2FA (requires password confirmation)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TwoFactorToggleRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/TwoFactorToggleResponse' },
+              },
+            },
+          },
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { description: 'Unauthorized/invalid password', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/2fa/disable': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Disable 2FA (requires password confirmation)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/TwoFactorToggleRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/TwoFactorToggleResponse' },
+              },
+            },
+          },
+          '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '401': { description: 'Unauthorized/invalid password', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },

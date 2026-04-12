@@ -148,4 +148,11 @@ export const authRepo = {
       data: { passwordHash },
     });
   },
+
+  setTwoFactorEnabled(userId: string, enabled: boolean) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { twoFactorEnabled: enabled },
+    });
+  },
 };
