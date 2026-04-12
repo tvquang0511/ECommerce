@@ -91,8 +91,11 @@ Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức
 - `GET /api/users/me`
 
 **Auth strategy**
-- Access token: JWT (TTL ngắn) gửi qua `Authorization`.
-- Refresh token: HttpOnly cookie.
+- Access token: JWT `RS256` (TTL ngắn) gửi qua `Authorization`.
+- Refresh token: opaque random token (không phải JWT) lưu hash trong DB, gửi qua HttpOnly cookie (rotation + reuse detection).
+- (Optional) 2FA: email OTP (TTL ngắn) qua mail worker.
+
+Chi tiết: xem `docs/architecture/auth.md`.
 
 **Events (RabbitMQ)**
 - Publish (optional): `user.registered.v1`

@@ -10,10 +10,11 @@ Mounted under: `/api/users/auth`
 
 - `POST /register`
 - `POST /login`
+- `POST /2fa/verify` (only if login requires 2FA)
 - `GET /me` (requires `Authorization: Bearer <accessToken>`)
 - `POST /refresh` (uses httpOnly refresh cookie; body refreshToken is accepted as fallback)
 - `POST /logout`
-- `POST /forgot-password` (dev returns `devResetToken`)
+- `POST /forgot-password` (enqueues email; dev may return `devResetToken` if SMTP not set)
 - `POST /reset-password`
 
 ## OpenAPI / Swagger
@@ -25,7 +26,7 @@ Bạn có thể import `openapi.json` vào Postman để test nhanh.
 ## Dev
 
 1) Start infra (Postgres)
-- `make deps-up`
+- `make dev-up`
 
 2) Configure env
 - Copy `.env.example` -> `.env`
@@ -35,6 +36,9 @@ Bạn có thể import `openapi.json` vào Postman để test nhanh.
 
 4) Run service
 - `pnpm --filter user-service dev`
+
+5) Run mail worker (SMTP + BullMQ)
+- `pnpm --filter user-service worker:mail`
 
 Default port: `4001`.
 
