@@ -46,6 +46,12 @@ Ví dụ: user-service
   - Response: `{ accessToken }` mới
   - Cookie refresh cũng sẽ bị rotate
 
+**Multi-device sessions (quản lý thiết bị)**
+- `GET {{baseUrl}}/api/users/auth/sessions`
+  - Header: `Authorization: Bearer {{accessToken}}`
+- `POST {{baseUrl}}/api/users/auth/sessions/:sessionId/revoke` (logout 1 thiết bị)
+- `POST {{baseUrl}}/api/users/auth/logout-all` (logout tất cả thiết bị)
+
 **Flow 2FA (email OTP)**
 1) `POST {{baseUrl}}/api/users/auth/login`
   - Nếu user bật 2FA sẽ trả `{ twoFactorRequired: true, challengeId, expiresAt }`

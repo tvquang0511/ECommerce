@@ -60,14 +60,22 @@ function clearRefreshCookie(res: Response) {
 
 export const register = async (req: Request, res: Response) => {
   const input = registerBodySchema.parse(req.body);
-  const result = await authService.register(input);
+  const result = await authService.register(input, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
   setRefreshCookie(res, result.refreshToken);
   return res.status(201).json({ accessToken: result.accessToken, user: result.user });
 };
 
 export const login = async (req: Request, res: Response) => {
   const input = loginBodySchema.parse(req.body);
-  const result = await authService.login(input);
+  const cookieToken = (req.cookies as any)?.[env.AUTH_COOKIE_NAME] as string | undefined;
+  const result = await authService.login(input, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+    existingRefreshToken: cookieToken,
+  });
   if ('twoFactorRequired' in result) {
     return res.json(result);
   }
@@ -77,7 +85,10 @@ export const login = async (req: Request, res: Response) => {
 
 export const verifyTwoFactor = async (req: Request, res: Response) => {
   const input = verifyTwoFactorBodySchema.parse(req.body);
-  const result = await authService.verifyTwoFactor(input);
+  const result = await authService.verifyTwoFactor(input, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
   setRefreshCookie(res, result.refreshToken);
   return res.json({ accessToken: result.accessToken, user: result.user });
 };
@@ -105,7 +116,13 @@ export const refresh = async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await authService.refresh({ refreshToken });
+    const result = await authService.refresh(
+      { refreshToken },
+      {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
     setRefreshCookie(res, result.refreshToken);
     return res.json({ accessToken: result.accessToken });
   } catch (e: any) {
@@ -136,6 +153,33 @@ export const logout = async (req: Request, res: Response) => {
   return res.json({ ok: true });
 };
 
+export const logoutAll = async (req: Request, res: Response) => {
+  await authService.logoutAll(req.user!.id);
+  clearRefreshCookie(res);
+  return res.json({ ok: true });
+};
+
+export const listSessions = async (req: Request, res: Response) => {
+  const result = await authService.listSessions(req.user!.id);
+  return res.json(result);
+};
+
+export const revokeSession = async (req: Request, res: Response) => {
+  const sessionId = String((req.params as any)?.sessionId ?? '');
+  if (!sessionId) {
+    return res.status(400).json({
+      error: {
+        code: 'VALIDATION_ERROR',
+        message: 'sessionId is required',
+        details: {},
+      },
+    });
+  }
+
+  await authService.revokeSession({ userId: req.user!.id, sessionId });
+  return res.json({ ok: true });
+};
+
 export const me = async (req: Request, res: Response) => {
   const result = await authService.me(req.user!.id);
   return res.json(result.user);
@@ -148,13 +192,19 @@ export const twoFactorStatus = async (req: Request, res: Response) => {
 
 export const enableTwoFactor = async (req: Request, res: Response) => {
   const input = twoFactorToggleBodySchema.parse(req.body);
-  const result = await authService.enableTwoFactor({ userId: req.user!.id, password: input.password });
+  const result = await authService.enableTwoFactor(
+    { userId: req.user!.id, password: input.password },
+    { ip: req.ip, userAgent: req.headers['user-agent'] },
+  );
   return res.json(result);
 };
 
 export const disableTwoFactor = async (req: Request, res: Response) => {
   const input = twoFactorToggleBodySchema.parse(req.body);
-  const result = await authService.disableTwoFactor({ userId: req.user!.id, password: input.password });
+  const result = await authService.disableTwoFactor(
+    { userId: req.user!.id, password: input.password },
+    { ip: req.ip, userAgent: req.headers['user-agent'] },
+  );
   return res.json(result);
 };
 
@@ -170,6 +220,9 @@ export const forgotPassword = async (req: Request, res: Response) => {
 
 export const resetPassword = async (req: Request, res: Response) => {
   const input = resetPasswordBodySchema.parse(req.body);
-  const result = await authService.resetPassword(input);
+  const result = await authService.resetPassword(input, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
   return res.json(result);
 };

@@ -132,6 +132,34 @@ export function authOpenApi() {
       required: ['ok'],
     },
 
+    Session: {
+      type: 'object',
+      properties: {
+        id: { type: 'string' },
+        createdAt: { type: 'string', format: 'date-time' },
+        lastUsedAt: { type: ['string', 'null'], format: 'date-time' },
+        revokedAt: { type: ['string', 'null'], format: 'date-time' },
+        createdByIp: { type: ['string', 'null'] },
+        createdByUserAgent: { type: ['string', 'null'] },
+        lastUsedIp: { type: ['string', 'null'] },
+        lastUsedUserAgent: { type: ['string', 'null'] },
+      },
+      required: ['id', 'createdAt', 'lastUsedAt', 'revokedAt', 'createdByIp', 'createdByUserAgent', 'lastUsedIp', 'lastUsedUserAgent'],
+      additionalProperties: false,
+    },
+
+    ListSessionsResponse: {
+      type: 'object',
+      properties: {
+        sessions: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Session' },
+        },
+      },
+      required: ['sessions'],
+      additionalProperties: false,
+    },
+
     ForgotPasswordRequest: {
       type: 'object',
       properties: {
@@ -144,9 +172,6 @@ export function authOpenApi() {
       type: 'object',
       properties: {
         ok: { type: 'boolean' },
-        resetUrl: { type: 'string' },
-        devResetToken: { type: 'string' },
-        expiresAt: { type: 'string', format: 'date-time' },
       },
       required: ['ok'],
       additionalProperties: false,
@@ -234,6 +259,7 @@ export function authOpenApi() {
           },
           '400': { description: 'Validation error', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
           '401': { description: 'Invalid credentials', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '429': { description: 'Rate limited', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },
@@ -266,6 +292,7 @@ export function authOpenApi() {
             },
           },
           '400': { description: 'Invalid/expired OTP', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '429': { description: 'Rate limited', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },
@@ -369,7 +396,7 @@ export function authOpenApi() {
         tags: ['Auth'],
         summary: 'Refresh access token (rotates refresh token)',
         description:
-          'By default, reads refresh token from HttpOnly cookie. You can also send {refreshToken} in JSON body for tools like Postman.',
+          'By default, reads refresh token from HttpOnly cookie. You can also send {refreshToken} in JSON body for tools like Postman. In multi-device mode, refresh rotates only the current session (device).',
         requestBody: {
           required: false,
           content: {
@@ -394,6 +421,79 @@ export function authOpenApi() {
             },
           },
           '401': { description: 'Invalid refresh token', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '429': { description: 'Rate limited', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/sessions': {
+      get: {
+        tags: ['Auth'],
+        summary: 'List active and revoked sessions (devices)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ListSessionsResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/sessions/{sessionId}/revoke': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Revoke a session (logout a device)',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: 'sessionId',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/LogoutResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '404': { description: 'Session not found', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/logout-all': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Logout all devices (revoke all sessions)',
+        security: [{ bearerAuth: [] }],
+        responses: {
+          '200': {
+            description: 'OK',
+            headers: {
+              'Set-Cookie': {
+                description: 'Clears refresh token cookie',
+                schema: { type: 'string' },
+              },
+            },
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/LogoutResponse' },
+              },
+            },
+          },
+          '401': { description: 'Unauthorized', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },
@@ -453,6 +553,7 @@ export function authOpenApi() {
             },
           },
           '503': { description: 'OTP/reset email delivery unavailable', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+          '429': { description: 'Rate limited', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
         },
       },
     },

@@ -8,6 +8,7 @@ import { getAccessJwtKeys } from './jwtKeys.js';
 import { parseDurationToMs } from '../../common/utils/duration.js';
 import { mailQueue } from '../mail/mail.queue.js';
 import { prisma } from '../../db/prisma.js';
+import { auditRepo } from '../audit/audit.repo.js';
 
 type JwtAccessPayload = {
   sub: string;
@@ -18,6 +19,12 @@ type OpaqueRefreshTokenRecord = {
   tokenId: string;
   tokenHash: string;
   token: string;
+};
+
+type RequestMeta = {
+  ip?: string | null;
+  userAgent?: string | null;
+  existingRefreshToken?: string | null;
 };
 
 function signAccessToken(user: { id: string; email: string }) {
@@ -90,8 +97,45 @@ function publicUser(user: { id: string; email: string; displayName: string; avat
   };
 }
 
+async function revokeAllSessionsForUser(userId: string) {
+  await prisma.$transaction(async (tx) => {
+    await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+  });
+}
+
+async function writeAuditSafe(input: Parameters<typeof auditRepo.write>[0]) {
+  try {
+    await auditRepo.write(input);
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[audit] failed to write audit log', err);
+  }
+}
+
+async function tryResolveExistingSessionId(userId: string, refreshToken: string | undefined) {
+  if (!refreshToken) return undefined;
+
+  try {
+    const { tokenId, secret } = parseOpaqueRefreshToken(refreshToken);
+    const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
+    if (!existing) return undefined;
+    if (existing.userId !== userId) return undefined;
+    if (existing.expiresAt.getTime() <= Date.now()) return undefined;
+    if (existing.revokedAt) return undefined;
+    if (existing.tokenHash !== hashRefreshSecret(secret)) return undefined;
+
+    const session = await authRepo.findAuthSessionById(existing.sessionId);
+    if (!session || session.revokedAt) return undefined;
+
+    return { sessionId: existing.sessionId, refreshTokenId: existing.id };
+  } catch {
+    return undefined;
+  }
+}
+
 export const authService = {
-  async register(input: { email: string; password: string; displayName: string }) {
+  async register(input: { email: string; password: string; displayName: string }, meta?: RequestMeta) {
     const email = input.email.toLowerCase();
     const existing = await authRepo.findUserByEmail(email);
     if (existing) {
@@ -107,15 +151,30 @@ export const authService = {
 
     const accessToken = signAccessToken(user);
 
-    await authRepo.revokeAllRefreshTokensForUser(user.id);
+    const nowDate = new Date();
+    const session = await authRepo.createAuthSession({
+      userId: user.id,
+      createdByIp: meta?.ip,
+      createdByUserAgent: meta?.userAgent,
+      lastUsedAt: nowDate,
+      lastUsedIp: meta?.ip,
+      lastUsedUserAgent: meta?.userAgent,
+    });
+
     const refresh = makeOpaqueRefreshToken();
     const expiresAt = computeRefreshExpiresAt();
-    await authRepo.createRefreshToken({ userId: user.id, tokenId: refresh.tokenId, tokenHash: refresh.tokenHash, expiresAt });
+    await authRepo.createRefreshToken({
+      userId: user.id,
+      sessionId: session.id,
+      tokenId: refresh.tokenId,
+      tokenHash: refresh.tokenHash,
+      expiresAt,
+    });
 
     return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
   },
 
-  async login(input: { email: string; password: string }) {
+  async login(input: { email: string; password: string }, meta?: RequestMeta) {
     const email = input.email.toLowerCase();
     const user = await authRepo.findUserByEmail(email);
     if (!user) {
@@ -169,15 +228,59 @@ export const authService = {
 
     const accessToken = signAccessToken(user);
 
-    await authRepo.revokeAllRefreshTokensForUser(user.id);
+    const nowDate = new Date();
+    const existingSession = await tryResolveExistingSessionId(user.id, meta?.existingRefreshToken ?? undefined);
+
+    const sessionId = existingSession?.sessionId ?? (
+      await authRepo.createAuthSession({
+        userId: user.id,
+        createdByIp: meta?.ip,
+        createdByUserAgent: meta?.userAgent,
+        lastUsedAt: nowDate,
+        lastUsedIp: meta?.ip,
+        lastUsedUserAgent: meta?.userAgent,
+      })
+    ).id;
+
     const refresh = makeOpaqueRefreshToken();
     const expiresAt = computeRefreshExpiresAt();
-    await authRepo.createRefreshToken({ userId: user.id, tokenId: refresh.tokenId, tokenHash: refresh.tokenHash, expiresAt });
+
+    await prisma.$transaction(async (tx) => {
+      if (existingSession?.refreshTokenId) {
+        await tx.refreshToken.update({
+          where: { id: existingSession.refreshTokenId },
+          data: {
+            revokedAt: nowDate,
+            replacedByTokenId: refresh.tokenId,
+            lastUsedAt: nowDate,
+          },
+        });
+      }
+
+      await tx.refreshToken.create({
+        data: {
+          userId: user.id,
+          sessionId,
+          tokenId: refresh.tokenId,
+          tokenHash: refresh.tokenHash,
+          expiresAt,
+        },
+      });
+
+      await tx.authSession.update({
+        where: { id: sessionId },
+        data: {
+          lastUsedAt: nowDate,
+          lastUsedIp: meta?.ip ?? null,
+          lastUsedUserAgent: meta?.userAgent ?? null,
+        },
+      });
+    });
 
     return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
   },
 
-  async verifyTwoFactor(input: { challengeId: string; code: string }) {
+  async verifyTwoFactor(input: { challengeId: string; code: string }, meta?: RequestMeta) {
     const otp = await authRepo.findEmailOtpById(input.challengeId);
     if (!otp || otp.purpose !== 'LOGIN_2FA') {
       throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
@@ -188,7 +291,7 @@ export const authService = {
     }
 
     if (otp.expiresAt.getTime() <= Date.now()) {
-      throw new ApiError(400, 'AUTH_OTP_EXPIRED', 'OTP expired');
+      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
     }
 
     if (otp.attempts >= 5) {
@@ -210,14 +313,31 @@ export const authService = {
     }
 
     const accessToken = signAccessToken(user);
-    await authRepo.revokeAllRefreshTokensForUser(user.id);
+
+    const nowDate = new Date();
+    const session = await authRepo.createAuthSession({
+      userId: user.id,
+      createdByIp: meta?.ip,
+      createdByUserAgent: meta?.userAgent,
+      lastUsedAt: nowDate,
+      lastUsedIp: meta?.ip,
+      lastUsedUserAgent: meta?.userAgent,
+    });
+
     const refresh = makeOpaqueRefreshToken();
     const expiresAt = computeRefreshExpiresAt();
-    await authRepo.createRefreshToken({ userId: user.id, tokenId: refresh.tokenId, tokenHash: refresh.tokenHash, expiresAt });
+
+    await authRepo.createRefreshToken({
+      userId: user.id,
+      sessionId: session.id,
+      tokenId: refresh.tokenId,
+      tokenHash: refresh.tokenHash,
+      expiresAt,
+    });
     return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
   },
 
-  async refresh(input: { refreshToken: string }) {
+  async refresh(input: { refreshToken: string }, meta?: RequestMeta) {
     const { tokenId, secret } = parseOpaqueRefreshToken(input.refreshToken);
     const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
 
@@ -233,7 +353,16 @@ export const authService = {
     const expectedHash = existing.tokenHash;
     const gotHash = hashRefreshSecret(secret);
     if (expectedHash !== gotHash) {
-      await authRepo.revokeAllRefreshTokensForUser(existing.userId);
+      await writeAuditSafe({
+        eventType: 'REFRESH_COMPROMISED',
+        actorUserId: existing.userId,
+        targetUserId: existing.userId,
+        sessionId: existing.sessionId,
+        ip: meta?.ip ?? null,
+        userAgent: meta?.userAgent ?? null,
+        metadata: { reason: 'HASH_MISMATCH', tokenId },
+      });
+      await revokeAllSessionsForUser(existing.userId);
       throw new ApiError(
         401,
         'AUTH_REFRESH_COMPROMISED',
@@ -242,12 +371,26 @@ export const authService = {
     }
 
     if (existing.revokedAt) {
-      await authRepo.revokeAllRefreshTokensForUser(existing.userId);
+      await writeAuditSafe({
+        eventType: 'REFRESH_COMPROMISED',
+        actorUserId: existing.userId,
+        targetUserId: existing.userId,
+        sessionId: existing.sessionId,
+        ip: meta?.ip ?? null,
+        userAgent: meta?.userAgent ?? null,
+        metadata: { reason: 'REUSE_REVOKED_TOKEN', tokenId },
+      });
+      await revokeAllSessionsForUser(existing.userId);
       throw new ApiError(
         401,
         'AUTH_REFRESH_COMPROMISED',
         'Possible refresh token compromise detected. Please sign in again.',
       );
+    }
+
+    const session = await authRepo.findAuthSessionById(existing.sessionId);
+    if (!session || session.revokedAt) {
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh session revoked');
     }
 
     const user = await authRepo.findUserById(existing.userId);
@@ -275,18 +418,22 @@ export const authService = {
         return false;
       }
 
-      // Enforce single-device: revoke any other active refresh tokens.
-      await tx.refreshToken.updateMany({
-        where: { userId: user.id, revokedAt: null },
-        data: { revokedAt: nowDate },
-      });
-
       await tx.refreshToken.create({
         data: {
           userId: user.id,
+          sessionId: existing.sessionId,
           tokenId: refresh.tokenId,
           tokenHash: refresh.tokenHash,
           expiresAt: newExpiresAt,
+        },
+      });
+
+      await tx.authSession.update({
+        where: { id: existing.sessionId },
+        data: {
+          lastUsedAt: nowDate,
+          lastUsedIp: meta?.ip ?? null,
+          lastUsedUserAgent: meta?.userAgent ?? null,
         },
       });
 
@@ -294,7 +441,16 @@ export const authService = {
     });
 
     if (!rotated) {
-      await authRepo.revokeAllRefreshTokensForUser(user.id);
+      await writeAuditSafe({
+        eventType: 'REFRESH_COMPROMISED',
+        actorUserId: user.id,
+        targetUserId: user.id,
+        sessionId: existing.sessionId,
+        ip: meta?.ip ?? null,
+        userAgent: meta?.userAgent ?? null,
+        metadata: { reason: 'REUSE_RACE', tokenId },
+      });
+      await revokeAllSessionsForUser(user.id);
       throw new ApiError(
         401,
         'AUTH_REFRESH_COMPROMISED',
@@ -310,11 +466,59 @@ export const authService = {
       const { tokenId, secret } = parseOpaqueRefreshToken(input.refreshToken);
       const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
       if (existing && !existing.revokedAt && existing.tokenHash === hashRefreshSecret(secret)) {
-        await authRepo.revokeRefreshToken(existing.id, { lastUsedAt: new Date() });
+        const nowDate = new Date();
+        await prisma.$transaction(async (tx) => {
+          await tx.refreshToken.updateMany({
+            where: { sessionId: existing.sessionId, revokedAt: null },
+            data: { revokedAt: nowDate, lastUsedAt: nowDate },
+          });
+          await tx.authSession.update({
+            where: { id: existing.sessionId },
+            data: { revokedAt: nowDate, lastUsedAt: nowDate },
+          });
+        });
       }
     } catch {
       // Ignore invalid refresh token on logout.
     }
+    return { ok: true };
+  },
+
+  async logoutAll(userId: string) {
+    await revokeAllSessionsForUser(userId);
+    return { ok: true };
+  },
+
+  async listSessions(userId: string) {
+    const sessions = await authRepo.listAuthSessionsForUser(userId);
+    return {
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        createdAt: s.createdAt.toISOString(),
+        lastUsedAt: s.lastUsedAt ? s.lastUsedAt.toISOString() : null,
+        revokedAt: s.revokedAt ? s.revokedAt.toISOString() : null,
+        createdByIp: s.createdByIp ?? null,
+        createdByUserAgent: s.createdByUserAgent ?? null,
+        lastUsedIp: s.lastUsedIp ?? null,
+        lastUsedUserAgent: s.lastUsedUserAgent ?? null,
+      })),
+    };
+  },
+
+  async revokeSession(input: { userId: string; sessionId: string }) {
+    const session = await authRepo.findAuthSessionById(input.sessionId);
+    if (!session || session.userId !== input.userId) {
+      throw new ApiError(404, 'AUTH_SESSION_NOT_FOUND', 'Session not found');
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.refreshToken.updateMany({
+        where: { sessionId: session.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      });
+      await tx.authSession.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+    });
+
     return { ok: true };
   },
 
@@ -334,7 +538,7 @@ export const authService = {
     return { enabled: Boolean(user.twoFactorEnabled) };
   },
 
-  async enableTwoFactor(input: { userId: string; password: string }) {
+  async enableTwoFactor(input: { userId: string; password: string }, meta?: RequestMeta) {
     const user = await authRepo.findUserById(input.userId);
     if (!user) {
       throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
@@ -347,12 +551,19 @@ export const authService = {
 
     if (!user.twoFactorEnabled) {
       await authRepo.setTwoFactorEnabled(user.id, true);
+      await writeAuditSafe({
+        eventType: 'TWO_FACTOR_ENABLED',
+        actorUserId: user.id,
+        targetUserId: user.id,
+        ip: meta?.ip ?? null,
+        userAgent: meta?.userAgent ?? null,
+      });
     }
 
     return { enabled: true as const };
   },
 
-  async disableTwoFactor(input: { userId: string; password: string }) {
+  async disableTwoFactor(input: { userId: string; password: string }, meta?: RequestMeta) {
     const user = await authRepo.findUserById(input.userId);
     if (!user) {
       throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
@@ -365,6 +576,13 @@ export const authService = {
 
     if (user.twoFactorEnabled) {
       await authRepo.setTwoFactorEnabled(user.id, false);
+      await writeAuditSafe({
+        eventType: 'TWO_FACTOR_DISABLED',
+        actorUserId: user.id,
+        targetUserId: user.id,
+        ip: meta?.ip ?? null,
+        userAgent: meta?.userAgent ?? null,
+      });
     }
 
     return { enabled: false as const };
@@ -410,15 +628,10 @@ export const authService = {
       console.error('SMTP/BullMQ not configured; forgot-password email was not enqueued');
     }
 
-    // Dev-only helper for Postman testing when SMTP isn't configured.
-    if (!enq.enqueued && env.NODE_ENV !== 'production') {
-      return { ok: true, resetUrl, devResetToken: token, expiresAt: expiresAt.toISOString() };
-    }
-
     return { ok: true };
   },
 
-  async resetPassword(input: { token: string; newPassword: string }) {
+  async resetPassword(input: { token: string; newPassword: string }, meta?: RequestMeta) {
     const tokenHash = hashToken(input.token);
     const prt = await authRepo.findValidPasswordResetToken(tokenHash);
     if (!prt) {
@@ -428,13 +641,22 @@ export const authService = {
     const newHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
     const user = await authRepo.updateUserPasswordHash(prt.userId, newHash);
     await authRepo.markPasswordResetTokenUsed(prt.id);
-    await authRepo.revokeAllRefreshTokensForUser(prt.userId);
+    await revokeAllSessionsForUser(prt.userId);
 
     await mailQueue.enqueue({
       type: 'password-reset-success',
       to: user.email,
       displayName: user.displayName,
     });
+
+    await writeAuditSafe({
+      eventType: 'PASSWORD_RESET_SUCCESS',
+      actorUserId: user.id,
+      targetUserId: user.id,
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+    });
+
     return { ok: true };
   },
 };

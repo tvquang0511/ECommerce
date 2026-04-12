@@ -13,14 +13,71 @@ export const authRepo = {
     return prisma.user.create({ data });
   },
 
-  createRefreshToken(data: { userId: string; tokenId: string; tokenHash: string; expiresAt: Date }) {
+  createRefreshToken(data: { userId: string; sessionId: string; tokenId: string; tokenHash: string; expiresAt: Date }) {
     return prisma.refreshToken.create({
       data: {
         userId: data.userId,
+        sessionId: data.sessionId,
         tokenId: data.tokenId,
         tokenHash: data.tokenHash,
         expiresAt: data.expiresAt,
       },
+    });
+  },
+
+  createAuthSession(data: {
+    userId: string;
+    createdByIp?: string | null;
+    createdByUserAgent?: string | null;
+    lastUsedAt?: Date | null;
+    lastUsedIp?: string | null;
+    lastUsedUserAgent?: string | null;
+  }) {
+    return prisma.authSession.create({
+      data: {
+        userId: data.userId,
+        createdByIp: data.createdByIp ?? null,
+        createdByUserAgent: data.createdByUserAgent ?? null,
+        lastUsedAt: data.lastUsedAt ?? null,
+        lastUsedIp: data.lastUsedIp ?? null,
+        lastUsedUserAgent: data.lastUsedUserAgent ?? null,
+      },
+    });
+  },
+
+  findAuthSessionById(id: string) {
+    return prisma.authSession.findUnique({ where: { id } });
+  },
+
+  listAuthSessionsForUser(userId: string) {
+    return prisma.authSession.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+    });
+  },
+
+  touchAuthSession(id: string, data: { lastUsedAt?: Date; lastUsedIp?: string | null; lastUsedUserAgent?: string | null }) {
+    return prisma.authSession.update({
+      where: { id },
+      data: {
+        lastUsedAt: data.lastUsedAt,
+        lastUsedIp: data.lastUsedIp ?? undefined,
+        lastUsedUserAgent: data.lastUsedUserAgent ?? undefined,
+      },
+    });
+  },
+
+  revokeAuthSession(id: string) {
+    return prisma.authSession.update({
+      where: { id },
+      data: { revokedAt: new Date() },
+    });
+  },
+
+  revokeAllAuthSessionsForUser(userId: string) {
+    return prisma.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
     });
   },
 
@@ -42,6 +99,13 @@ export const authRepo = {
   revokeAllRefreshTokensForUser(userId: string) {
     return prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  },
+
+  revokeAllRefreshTokensForSession(sessionId: string) {
+    return prisma.refreshToken.updateMany({
+      where: { sessionId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   },

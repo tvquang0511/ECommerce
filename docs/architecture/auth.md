@@ -5,6 +5,7 @@ Tài liệu này mô tả thiết kế auth hiện tại của `user-service` sa
 - Chuyển **refresh token** sang **opaque random token** (không phải JWT) + lưu **hash trong DB**.
 - Thêm **2FA (email OTP)** với TTL 2 phút.
 - Tách việc gửi email sang **BullMQ worker** (mức B: 1 process khác, vẫn thuộc user-service).
+- Nâng cấp **refresh token** từ single-device sang **multi-device sessions**.
 
 ---
 
@@ -19,24 +20,46 @@ Tài liệu này mô tả thiết kế auth hiện tại của `user-service` sa
 
 **Mục tiêu**: loại bỏ yêu cầu “mọi service phải share cùng secret key”, giảm blast radius nếu bị lộ.
 
+So sánh nhanh HMAC vs RSA:
+- HMAC (HS256): sign/verify đều dùng **cùng 1 secret** → service nào verify được thì cũng sign được (nếu lộ secret thì blast radius lớn).
+- RSA (RS256): sign dùng **private key** (chỉ user-service giữ), verify dùng **public key** (có thể phân phối cho nhiều service) → giảm rủi ro lộ key ở downstream.
+
 **Key distribution**
 - Dev/simple: copy public key vào env của các service cần verify.
-- Chuẩn hơn (giai đoạn sau): expose JWKS endpoint (ví dụ `/.well-known/jwks.json`) để các service fetch + cache theo `kid` (hỗ trợ rotation).
 
-### 1.2 Refresh token (opaque, single-device, rotation)
+### (Future) JWKS + key rotation
+Ghi chú để làm sau (vì tương đối phức tạp):
+- Mục tiêu: service khác **không cần** copy public key thủ công qua env; thay vào đó fetch từ `/.well-known/jwks.json` và cache.
+- Rotation đúng nghĩa là: theo thời gian sẽ có **nhiều public keys hợp lệ** (key cũ để verify token chưa hết hạn + key mới để sign token mới).
+- Cần thêm các khái niệm:
+  - `kid` trong JWT header
+  - JWKS endpoint trả danh sách public keys
+  - Cache/refresh policy ở downstream services
+- Lợi ích: rotate key không downtime, giảm effort redeploy đồng loạt, và phản ứng nhanh hơn nếu nghi ngờ private key bị lộ.
+
+### 1.2 Refresh token (opaque) + multi-device sessions
 Refresh token **không phải JWT**.
 
 - **Format**: `<tokenId>.<secret>`
   - `tokenId`: random, dùng để lookup nhanh
   - `secret`: random, không lưu plaintext
-- **Lưu DB**: bảng `refresh_tokens`
+
+**Persistence model (multi-device)**
+- Bảng `auth_sessions`: đại diện 1 “thiết bị / trình duyệt” (1 session)
+  - `id` (session id)
+  - `userId`
+  - `revokedAt`, `createdAt`, `lastUsedAt`
+  - `createdByIp/userAgent`, `lastUsedIp/userAgent` (audit)
+- Bảng `refresh_tokens`: mỗi session có thể có nhiều refresh token theo thời gian (rotation chain)
+  - `sessionId` (FK)
   - `tokenId` (unique)
   - `tokenHash = sha256(secret + "." + REFRESH_TOKEN_PEPPER)`
   - `revokedAt`, `expiresAt`, `replacedByTokenId`, `lastUsedAt`
 
-**Single-device**
-- Mỗi user chỉ nên có 1 refresh token active.
-- Khi login/register hoặc refresh rotation, hệ thống revoke các refresh token active khác.
+**Multi-device**
+- Một user có thể có nhiều `auth_sessions` đang active (nhiều thiết bị).
+- Mỗi thiết bị có refresh cookie riêng.
+- Refresh rotation chỉ ảnh hưởng **session hiện tại**, không logout các thiết bị khác.
 
 **Rotation**
 - Mỗi lần gọi `POST /api/users/auth/refresh` thành công:
@@ -46,9 +69,13 @@ Refresh token **không phải JWT**.
 
 **Reuse detection (token bị lộ)**
 - Nếu refresh token đã bị revoke mà vẫn được dùng lại (reuse) hoặc secret mismatch:
-  - Revoke toàn bộ refresh token active của user ngay lập tức
+  - Để an toàn, revoke toàn bộ sessions + refresh tokens active của user ngay lập tức
   - Trả lỗi `AUTH_REFRESH_COMPROMISED`
   - Client phải ép user login lại
+
+So sánh nhanh single-device vs multi-device:
+- Single-device: mỗi user chỉ có 1 refresh token/session active → đơn giản, an toàn hơn mặc định, nhưng UX kém (login thiết bị mới sẽ đá thiết bị cũ).
+- Multi-device: mỗi thiết bị có 1 session riêng → UX tốt (quản lý thiết bị), nhưng cần thêm endpoints để list/revoke sessions và policy xử lý compromise rõ ràng.
 
 ---
 
@@ -57,7 +84,10 @@ Refresh token **không phải JWT**.
 ### 2.1 User flag
 - `users.twoFactorEnabled`: nếu `true` thì login yêu cầu OTP.
 
-> Lưu ý: hiện tại doc tập trung vào flow auth. Cơ chế “enable/disable 2FA” (settings UI/API) có thể bổ sung sau.
+2FA management endpoints (đã có):
+- `GET /api/users/auth/2fa`
+- `POST /api/users/auth/2fa/enable`
+- `POST /api/users/auth/2fa/disable`
 
 ### 2.2 OTP persistence
 - Bảng `email_otps`
@@ -98,7 +128,7 @@ Refresh token **không phải JWT**.
 
 Mapping code (để dễ maintain):
 - API-side (enqueue): `src/modules/mail/mail.queue.ts`
-- Worker-side (consume): `src/workers/mail/worker.ts` + entry `src/workers/mail/index.ts`
+- Worker-side (consume): `src/workers/worker.ts` + entry `src/workers/main.ts`
 - Worker templates: `src/workers/mail/templates/*`
 
 ### 3.3 Mail templates
@@ -117,6 +147,9 @@ Mapping code (để dễ maintain):
 - `GET /api/users/auth/me` (Bearer access token)
 - `POST /api/users/auth/refresh` (refresh cookie; rotate; detect reuse)
 - `POST /api/users/auth/logout` (revoke refresh cookie)
+- `POST /api/users/auth/logout-all` (revoke all sessions)
+- `GET /api/users/auth/sessions` (list sessions)
+- `POST /api/users/auth/sessions/:sessionId/revoke` (revoke 1 session)
 - `POST /api/users/auth/forgot-password` (enqueue mail)
 - `POST /api/users/auth/reset-password` (revoke refresh tokens; enqueue mail)
 
@@ -148,7 +181,75 @@ Mapping code (để dễ maintain):
 ## 6) Dev notes
 
 - Nếu không set RSA keys và `NODE_ENV!=production`, `user-service` sẽ tự generate keypair ephemeral để dev chạy nhanh.
-- Nếu SMTP chưa cấu hình, một số endpoint sẽ trả dev helper (ví dụ `devResetToken` hoặc `devOtp`) để test bằng Postman.
+- Nếu SMTP chưa cấu hình, flow 2FA có thể trả dev helper (ví dụ `devOtp`) để test bằng Postman.
+
+### 6.3 Hardening (giai đoạn 1)
+Phạm vi: làm những thứ “đủ dùng” để giảm brute force + có trace sự kiện bảo mật, chưa làm metrics/worker health nâng cao.
+
+#### 6.3.1 Rate limit theo route (Redis)
+Mục tiêu: chặn brute force/spam ở các route nhạy cảm, và giảm “enumeration” theo email.
+
+Đã áp dụng rate limit (Redis-backed) cho 4 route:
+- `POST /api/users/auth/login`
+- `POST /api/users/auth/2fa/verify`
+- `POST /api/users/auth/forgot-password`
+- `POST /api/users/auth/refresh`
+
+Rule hiện tại (hard-code trong router, có thể đưa ra env sau):
+- Login
+  - theo IP: `10 / 60s`
+  - theo email: `5 / 60s`
+- 2FA verify
+  - theo IP: `20 / 60s`
+  - theo challengeId: `10 / 5m`
+- Forgot password
+  - theo IP: `10 / 1h`
+  - theo email: `3 / 1h`
+- Refresh
+  - theo IP: `120 / 60s`
+  - theo tokenId: `60 / 60s`
+
+Response khi bị limit:
+- HTTP `429`
+- error envelope: `{ error: { code: "RATE_LIMITED", message: "Too many requests" } }`
+
+Ghi chú triển khai:
+- Nếu Redis tạm down/unreachable, limiter **fail-open** (không chặn request) nhưng sẽ log warning 1 lần để tránh spam log.
+
+#### 6.3.2 Generic responses (anti-enumeration)
+Mục tiêu: giảm khả năng “đoán email tồn tại hay không” hoặc leak trạng thái OTP.
+
+Đã sửa:
+- `POST /forgot-password` luôn trả `{ ok: true }` dù email có tồn tại hay không.
+- `POST /2fa/verify`:
+  - OTP hết hạn / sai / đã dùng / challengeId không tồn tại đều trả chung lỗi `AUTH_OTP_INVALID` với message `OTP invalid or expired`.
+
+Lưu ý: trong dev, flow 2FA có thể trả `devOtp` khi SMTP chưa cấu hình (chỉ để test). `forgot-password` đã bỏ dev helper (`devResetToken`, `resetUrl`) để giảm leak.
+
+#### 6.3.3 Audit logs (DB)
+Mục tiêu: có lịch sử sự kiện bảo mật quan trọng để debug và điều tra.
+
+Persistence:
+- Bảng `audit_logs` (Postgres)
+- Field chính: `eventType`, `actorUserId`, `targetUserId`, `sessionId`, `ip`, `userAgent`, `metadata`, `createdAt`
+
+Sự kiện đang ghi:
+- `TWO_FACTOR_ENABLED`
+- `TWO_FACTOR_DISABLED`
+- `REFRESH_COMPROMISED` (khi hash mismatch, reuse token revoked, hoặc race/reuse trong rotation)
+- `PASSWORD_RESET_SUCCESS`
+
+Policy quan trọng:
+- Không log plaintext OTP/reset/refresh token.
+- `REFRESH_COMPROMISED` sẽ revoke **tất cả sessions** của user ngay lập tức (ép login lại mọi thiết bị).
+
+Quick verify (DB):
+```sql
+SELECT "eventType", "actorUserId", "targetUserId", "ip", "createdAt", "metadata"
+FROM "audit_logs"
+ORDER BY "createdAt" DESC
+LIMIT 50;
+```
 
 ### 6.1 Run API + mail worker bằng Docker Compose
 Repo có overlay compose để chạy `user-service` và `mail-worker` cùng với Postgres/Redis:
@@ -162,6 +263,16 @@ docker compose \
 
 Ghi chú:
 - File `infra/docker-compose.user-service.dev.yml` load env từ `services/user-service/.env` (SMTP/keys/...) và override `DATABASE_URL`/`REDIS_URL` để trỏ vào container services (`postgres`, `redis`).
+
+### 6.2 Prisma migrate (bắt buộc khi đổi schema)
+Sau khi pull thay đổi multi-device sessions:
+
+```bash
+pnpm --filter user-service prisma:migrate
+pnpm --filter user-service prisma:generate
+```
+
+Nếu không chạy 2 lệnh này, Prisma Client sẽ chưa có model/field mới (`AuthSession`, `RefreshToken.sessionId`).
 
 ---
 
