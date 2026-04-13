@@ -86,6 +86,9 @@ user:
 mail:
 	pnpm --filter user-service worker:mail
 
+app:
+	pnpm --filter web dev
+
 federation:
 	@echo "Starting product-subgraph + graphql-gateway (Ctrl+C to stop both)"
 	@trap 'kill 0' INT; \
