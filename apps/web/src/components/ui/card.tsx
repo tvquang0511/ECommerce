@@ -10,7 +10,7 @@ function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border bg-card text-card-foreground shadow",
+        "rounded-xl border border-white/70 bg-card/95 text-card-foreground shadow-[0_12px_30px_-16px_rgba(15,23,42,0.28)] backdrop-blur",
         size === "sm" ? "text-sm" : "",
         className
       )}

@@ -4,6 +4,7 @@ import { authJwt } from '../../common/middlewares/authJwt.js';
 import { rateLimit } from '../../common/middlewares/rateLimit.js';
 import { env } from '../../env.js';
 import {
+  changePassword,
   disableTwoFactor,
   enableTwoFactor,
   forgotPassword,
@@ -76,6 +77,7 @@ router.post('/sessions/:sessionId/revoke', authJwt, asyncHandler(revokeSession))
 router.post('/logout-all', authJwt, asyncHandler(logoutAll));
 
 router.get('/me', authJwt, asyncHandler(me));
+router.post('/change-password', authJwt, asyncHandler(changePassword));
 router.post(
   '/refresh',
   rateLimit({

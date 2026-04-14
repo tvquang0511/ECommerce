@@ -1,10 +1,12 @@
 import { env } from '../env.js';
 import { authOpenApi } from '../modules/auth/auth.openapi.js';
+import { usersOpenApi } from '../modules/users/users.openapi.js';
 
 type OpenApiSpec = Record<string, any>;
 
 export function buildOpenApiSpec(): OpenApiSpec {
   const auth = authOpenApi();
+  const users = usersOpenApi();
 
   return {
     openapi: '3.0.3',
@@ -14,7 +16,7 @@ export function buildOpenApiSpec(): OpenApiSpec {
       description: 'User/Auth REST APIs for the ecommerce learning project.',
     },
     servers: [{ url: `http://localhost:${env.PORT}` }],
-    tags: [...auth.tags],
+    tags: [...auth.tags, ...users.tags],
     components: {
       securitySchemes: {
         bearerAuth: {
@@ -40,10 +42,12 @@ export function buildOpenApiSpec(): OpenApiSpec {
           required: ['error'],
         },
         ...auth.schemas,
+        ...users.schemas,
       },
     },
     paths: {
       ...auth.paths,
+      ...users.paths,
     },
   };
 }

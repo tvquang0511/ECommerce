@@ -1,16 +1,17 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { ApiErrorAlert } from '@/components/ApiErrorAlert';
+import { AuthScreen } from '@/components/AuthScreen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useAccessToken } from '@/lib/auth/useAccessToken';
 import { userService } from '@/lib/http/userService';
 
@@ -32,7 +33,7 @@ function isTwoFactorRequired(res: unknown): res is LoginTwoFactor {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { accessToken, setToken, clearToken } = useAccessToken();
+  const { accessToken, setToken } = useAccessToken();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -42,6 +43,13 @@ export default function LoginPage() {
   const [result, setResult] = useState<unknown>(null);
 
   const twoFactor = useMemo(() => (isTwoFactorRequired(result) ? result : null), [result]);
+
+  useEffect(() => {
+    if (accessToken) {
+      router.replace('/account/profile');
+      return;
+    }
+  }, [accessToken, router, setToken]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -56,8 +64,14 @@ export default function LoginPage() {
       if (!isTwoFactorRequired(res)) {
         const success = res as LoginSuccess;
         setToken(success.accessToken);
-        router.replace('/');
+        toast.success(`Xin chào ${success.user.displayName}, đăng nhập thành công`);
+        router.replace('/account/profile');
+        return;
       }
+
+      const tf = res as LoginTwoFactor;
+      toast.info('Tài khoản của bạn yêu cầu xác minh 2FA');
+      router.push(`/auth/2fa?challengeId=${encodeURIComponent(tf.challengeId)}`);
     } catch (err) {
       setError(err);
     } finally {
@@ -66,11 +80,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-linear-to-br from-blue-50 via-white to-indigo-100 px-4 py-10">
-      <Card className="w-full max-w-md">
+    <AuthScreen variant="login">
+      <Card className="w-full max-w-md border-white/85 bg-white/90 shadow-xl backdrop-blur">
         <CardHeader className="space-y-2 text-center">
           <div className="mb-2 flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground shadow">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-blue-500 to-cyan-500 text-lg font-bold text-white shadow-lg">
               E
             </div>
           </div>
@@ -119,51 +133,11 @@ export default function LoginPage() {
               {isLoading ? 'Đang đăng nhập…' : 'Đăng nhập'}
             </Button>
 
-            <Button type="button" variant="outline" onClick={clearToken} disabled={isLoading} className="w-full">
-              Xoá access token
-            </Button>
-
-            {twoFactor ? (
+            {twoFactor?.devOtp ? (
               <div className="w-full rounded-md border bg-muted/50 p-3 text-left text-sm">
-                <div className="font-medium">Yêu cầu 2FA</div>
-                <div className="mt-2 grid gap-1">
-                  <div>
-                    <span className="text-muted-foreground">challengeId:</span>{' '}
-                    <span className="font-mono text-xs">{twoFactor.challengeId}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">expiresAt:</span>{' '}
-                    <span className="font-mono text-xs">{twoFactor.expiresAt}</span>
-                  </div>
-                  {twoFactor.devOtp ? (
-                    <div>
-                      <span className="text-muted-foreground">devOtp:</span>{' '}
-                      <span className="font-mono text-xs">{twoFactor.devOtp}</span>
-                    </div>
-                  ) : null}
-                </div>
-                <div className="mt-3">
-                  <Button asChild variant="secondary" className="w-full">
-                    <Link href={`/auth/2fa?challengeId=${encodeURIComponent(twoFactor.challengeId)}`}>Đi tới xác minh 2FA</Link>
-                  </Button>
-                </div>
+                <div className="font-medium">Dev OTP</div>
+                <div className="mt-1 font-mono text-xs">{twoFactor.devOtp}</div>
               </div>
-            ) : null}
-
-            <Separator />
-
-            <div className="w-full text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Đã có access token</span>
-                <span className="font-mono text-xs">{accessToken ? 'yes' : 'no'}</span>
-              </div>
-            </div>
-
-            {result ? (
-              <details className="w-full rounded-md border bg-muted p-3">
-                <summary className="cursor-pointer text-sm font-medium">Response</summary>
-                <pre className="mt-2 max-h-80 overflow-auto text-xs">{JSON.stringify(result, null, 2)}</pre>
-              </details>
             ) : null}
 
             <div className="text-center text-sm text-muted-foreground">
@@ -175,6 +149,6 @@ export default function LoginPage() {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </AuthScreen>
   );
 }

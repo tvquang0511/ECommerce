@@ -3,8 +3,10 @@
 import { useState } from 'react';
 
 import Link from 'next/link';
+import { toast } from 'sonner';
 
 import { ApiErrorAlert } from '@/components/ApiErrorAlert';
+import { AuthScreen } from '@/components/AuthScreen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -16,17 +18,18 @@ export default function ForgotPasswordPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [result, setResult] = useState<unknown>(null);
+  const [sent, setSent] = useState(false);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    setResult(null);
+    setSent(false);
 
     try {
-      const res = await userService.forgotPassword({ email });
-      setResult(res);
+      await userService.forgotPassword({ email });
+      setSent(true);
+      toast.success('Yêu cầu đặt lại mật khẩu đã được gửi');
     } catch (err) {
       setError(err);
     } finally {
@@ -35,11 +38,11 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-linear-to-br from-blue-50 via-white to-indigo-100 px-4 py-10">
-      <Card className="w-full max-w-md">
+    <AuthScreen variant="forgot">
+      <Card className="w-full max-w-md border-white/85 bg-white/90 shadow-xl backdrop-blur">
         <CardHeader className="space-y-2 text-center">
           <div className="mb-2 flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground shadow">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-emerald-500 to-cyan-500 text-lg font-bold text-white shadow-lg">
               E
             </div>
           </div>
@@ -70,11 +73,10 @@ export default function ForgotPasswordPage() {
               {isLoading ? 'Đang gửi…' : 'Gửi email đặt lại mật khẩu'}
             </Button>
 
-            {result ? (
-              <details className="w-full rounded-md border bg-muted p-3">
-                <summary className="cursor-pointer text-sm font-medium">Response</summary>
-                <pre className="mt-2 max-h-80 overflow-auto text-xs">{JSON.stringify(result, null, 2)}</pre>
-              </details>
+            {sent ? (
+              <div className="w-full rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+                Nếu email tồn tại trong hệ thống, bạn sẽ nhận được email kèm link đặt lại mật khẩu.
+              </div>
             ) : null}
 
             <div className="text-center text-sm text-muted-foreground">
@@ -85,6 +87,6 @@ export default function ForgotPasswordPage() {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </AuthScreen>
   );
 }

@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
-import { clearAccessToken, getAccessToken, setAccessToken } from './tokenStore';
+import { clearAccessToken, getAccessToken, setAccessToken, subscribeAccessToken } from './tokenStore';
 
 type UseAccessTokenResult = {
   accessToken: string | null;
@@ -11,20 +11,14 @@ type UseAccessTokenResult = {
 };
 
 export function useAccessToken(): UseAccessTokenResult {
-  const [accessToken, setAccessTokenState] = useState<string | null>(null);
-
-  useEffect(() => {
-    setAccessTokenState(getAccessToken());
-  }, []);
+  const accessToken = useSyncExternalStore(subscribeAccessToken, getAccessToken, () => null);
 
   const setToken = useCallback((token: string) => {
     setAccessToken(token);
-    setAccessTokenState(token);
   }, []);
 
   const clearToken = useCallback(() => {
     clearAccessToken();
-    setAccessTokenState(null);
   }, []);
 
   return { accessToken, setToken, clearToken };

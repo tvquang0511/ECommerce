@@ -13,6 +13,11 @@ model User {
   displayName  String
   avatarUrl    String?
 
+  bio         String?
+  dateOfBirth DateTime?
+  phoneNumber String?  @unique
+  gender      Gender?
+
   twoFactorEnabled Boolean @default(false)
 
   createdAt DateTime @default(now())
@@ -27,6 +32,13 @@ model User {
   auditLogsAsTarget AuditLog[] @relation("AuditLogTarget")
 
   @@map("users")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNSPECIFIED
 }
 
 model AuditLog {

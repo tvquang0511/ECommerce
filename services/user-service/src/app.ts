@@ -3,6 +3,7 @@ import cookieParser from 'cookie-parser';
 import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import path from 'node:path';
 import swaggerUi from 'swagger-ui-express';
 
 import { env } from './env.js';
@@ -10,6 +11,7 @@ import { asyncHandler } from './common/middlewares/asyncHandler.js';
 import { errorHandler } from './common/middlewares/errorHandler.js';
 import { prisma } from './db/prisma.js';
 import authRouter from './modules/auth/auth.router.js';
+import usersRouter from './modules/users/users.router.js';
 import { buildOpenApiSpec } from './openapi/buildOpenApiSpec.js';
 
 export function createApp() {
@@ -44,6 +46,17 @@ export function createApp() {
   });
 
   app.use('/api/users/auth', authRouter);
+  app.use('/api/users', usersRouter);
+
+  const uploadsRoot = path.resolve(process.cwd(), 'uploads');
+  app.use(
+    '/api/users/files',
+    express.static(uploadsRoot, {
+      setHeaders(res) {
+        res.setHeader('Cache-Control', 'public, max-age=3600');
+      },
+    }),
+  );
 
   app.use(errorHandler);
 

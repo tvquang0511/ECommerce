@@ -20,10 +20,10 @@ function jsonError(status: number, code: string, message: string, details?: Reco
 }
 
 function getUpstreamBaseUrl(): { ok: true; baseUrl: string } | { ok: false; message: string } {
-  const raw = process.env.USER_SERVICE_URL;
-  if (!raw) {
-    return { ok: false, message: 'Missing USER_SERVICE_URL' };
-  }
+  const raw =
+    process.env.USER_SERVICE_URL ??
+    (process.env.NODE_ENV !== 'production' ? 'http://localhost:4001' : undefined);
+  if (!raw) return { ok: false, message: 'Missing USER_SERVICE_URL' };
 
   try {
     const parsed = new URL(raw);

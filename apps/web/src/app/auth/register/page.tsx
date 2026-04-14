@@ -1,16 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { ApiErrorAlert } from '@/components/ApiErrorAlert';
+import { AuthScreen } from '@/components/AuthScreen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useAccessToken } from '@/lib/auth/useAccessToken';
 import { userService } from '@/lib/http/userService';
 
@@ -21,22 +22,33 @@ export default function RegisterPage() {
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [result, setResult] = useState<unknown>(null);
+
+  useEffect(() => {
+    if (accessToken) {
+      router.replace('/account/profile');
+    }
+  }, [accessToken, router]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    setResult(null);
+
+    if (password !== confirmPassword) {
+      setIsLoading(false);
+      setError(new Error('Mật khẩu xác nhận không khớp.'));
+      return;
+    }
 
     try {
       const res = await userService.register({ displayName, email, password });
-      setResult(res);
       setToken(res.accessToken);
-      router.replace('/');
+      toast.success('Tạo tài khoản thành công');
+      router.replace('/account/profile');
     } catch (err) {
       setError(err);
     } finally {
@@ -45,11 +57,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-linear-to-br from-blue-50 via-white to-indigo-100 px-4 py-10">
-      <Card className="w-full max-w-md">
+    <AuthScreen variant="register">
+      <Card className="w-full max-w-md border-white/85 bg-white/90 shadow-xl backdrop-blur">
         <CardHeader className="space-y-2 text-center">
           <div className="mb-2 flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground shadow">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-rose-500 to-orange-500 text-lg font-bold text-white shadow-lg">
               E
             </div>
           </div>
@@ -98,34 +110,25 @@ export default function RegisterPage() {
                 required
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Xác nhận mật khẩu</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+            </div>
           </CardContent>
 
           <CardFooter className="flex flex-col gap-3">
             <Button type="submit" disabled={isLoading} className="w-full">
               {isLoading ? 'Đang đăng ký…' : 'Tạo tài khoản'}
             </Button>
-
-            <Separator />
-
-            <div className="w-full space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Đã có access token</span>
-                <span className="font-mono text-xs">{accessToken ? 'yes' : 'no'}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Tiếp theo</span>
-                <Link href="/auth/login" className="font-medium text-primary hover:underline">
-                  Đi tới đăng nhập
-                </Link>
-              </div>
-            </div>
-
-            {result ? (
-              <details className="w-full rounded-md border bg-muted p-3">
-                <summary className="cursor-pointer text-sm font-medium">Response</summary>
-                <pre className="mt-2 max-h-80 overflow-auto text-xs">{JSON.stringify(result, null, 2)}</pre>
-              </details>
-            ) : null}
 
             <div className="text-center text-sm text-muted-foreground">
               Đã có tài khoản?{' '}
@@ -136,6 +139,6 @@ export default function RegisterPage() {
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </AuthScreen>
   );
 }

@@ -29,6 +29,11 @@ const resetPasswordBodySchema = z.object({
   newPassword: z.string().min(6),
 });
 
+const changePasswordBodySchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6),
+});
+
 const verifyTwoFactorBodySchema = z.object({
   challengeId: z.string().min(1),
   code: z.string().min(6).max(6),
@@ -224,5 +229,21 @@ export const resetPassword = async (req: Request, res: Response) => {
     ip: req.ip,
     userAgent: req.headers['user-agent'],
   });
+  return res.json(result);
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+  const input = changePasswordBodySchema.parse(req.body);
+  const result = await authService.changePassword(
+    {
+      userId: req.user!.id,
+      currentPassword: input.currentPassword,
+      newPassword: input.newPassword,
+    },
+    {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    },
+  );
   return res.json(result);
 };

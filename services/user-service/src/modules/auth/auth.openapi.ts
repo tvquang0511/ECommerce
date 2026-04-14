@@ -9,8 +9,12 @@ export function authOpenApi() {
         email: { type: 'string', format: 'email' },
         displayName: { type: 'string' },
         avatarUrl: { type: ['string', 'null'] },
+        bio: { type: ['string', 'null'] },
+        dateOfBirth: { type: ['string', 'null'], format: 'date' },
+        phoneNumber: { type: ['string', 'null'] },
+        gender: { type: ['string', 'null'], enum: ['MALE', 'FEMALE', 'OTHER', 'UNSPECIFIED', null] },
       },
-      required: ['id', 'email', 'displayName', 'avatarUrl'],
+      required: ['id', 'email', 'displayName', 'avatarUrl', 'bio', 'dateOfBirth', 'phoneNumber', 'gender'],
     },
 
     RegisterRequest: {
@@ -192,6 +196,25 @@ export function authOpenApi() {
         ok: { type: 'boolean' },
       },
       required: ['ok'],
+    },
+
+    ChangePasswordRequest: {
+      type: 'object',
+      properties: {
+        currentPassword: { type: 'string', minLength: 1 },
+        newPassword: { type: 'string', minLength: 6 },
+      },
+      required: ['currentPassword', 'newPassword'],
+      additionalProperties: false,
+    },
+
+    ChangePasswordResponse: {
+      type: 'object',
+      properties: {
+        ok: { type: 'boolean' },
+      },
+      required: ['ok'],
+      additionalProperties: false,
     },
   };
 
@@ -580,6 +603,40 @@ export function authOpenApi() {
             },
           },
           '400': { description: 'Invalid/expired token', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } } },
+        },
+      },
+    },
+
+    '/api/users/auth/change-password': {
+      post: {
+        tags: ['Auth'],
+        summary: 'Change password for current user (requires current password)',
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ChangePasswordRequest' },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                schema: { $ref: '#/components/schemas/ChangePasswordResponse' },
+              },
+            },
+          },
+          '400': {
+            description: 'Validation error',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
+          '401': {
+            description: 'Unauthorized/invalid password',
+            content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' } } },
+          },
         },
       },
     },

@@ -1,13 +1,10 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load service-local .env (ignored by git). Keep this as the single place that touches dotenv.
+// Load service-local .env (ignored by git).
+// Keep this as the single place that touches dotenv.
 dotenv.config({
-  path: path.resolve(__dirname, '..', '.env'),
+  path: path.resolve(process.cwd(), '.env'),
 });
 
 function parsePort(value: string, fallback: number): number {
@@ -73,6 +70,16 @@ export const env = {
   AUTH_COOKIE_PATH: process.env.AUTH_COOKIE_PATH ?? '/api/users/auth',
 
   APP_WEB_URL: process.env.APP_WEB_URL ?? 'http://localhost:3000',
+
+  // MinIO / S3-compatible object storage (avatars)
+  MINIO_ENDPOINT: process.env.MINIO_ENDPOINT ?? 'localhost',
+  MINIO_PORT: parseIntEnv(process.env.MINIO_PORT, 9000),
+  MINIO_USE_SSL: parseBoolEnv(process.env.MINIO_USE_SSL, false),
+  MINIO_ACCESS_KEY: process.env.MINIO_ACCESS_KEY ?? 'minio',
+  MINIO_SECRET_KEY: process.env.MINIO_SECRET_KEY ?? 'minio123456',
+  MINIO_PUBLIC_BUCKET: process.env.MINIO_PUBLIC_BUCKET ?? 'user-public',
+  // Public base URL that browsers can GET objects from (should match your MinIO port mapping)
+  MINIO_PUBLIC_URL: process.env.MINIO_PUBLIC_URL ?? 'http://localhost:9000',
 } as const;
 
 function envBoolDefaultSecure() {

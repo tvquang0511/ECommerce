@@ -6,7 +6,8 @@ export type AuditEventType =
   | 'TWO_FACTOR_ENABLED'
   | 'TWO_FACTOR_DISABLED'
   | 'REFRESH_COMPROMISED'
-  | 'PASSWORD_RESET_SUCCESS';
+  | 'PASSWORD_RESET_SUCCESS'
+  | 'PASSWORD_CHANGED';
 
 export type AuditLogInput = {
   eventType: AuditEventType;

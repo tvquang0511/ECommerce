@@ -4,26 +4,26 @@ import { useEffect, useState } from 'react';
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 import { ApiErrorAlert } from '@/components/ApiErrorAlert';
+import { AuthScreen } from '@/components/AuthScreen';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
 import { useAccessToken } from '@/lib/auth/useAccessToken';
 import { userService } from '@/lib/http/userService';
 
 export default function TwoFactorVerifyPage() {
   const router = useRouter();
-  const { accessToken, setToken } = useAccessToken();
+  const { setToken } = useAccessToken();
 
   const [challengeId, setChallengeId] = useState('');
   const [code, setCode] = useState('');
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
-  const [result, setResult] = useState<unknown>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -35,13 +35,12 @@ export default function TwoFactorVerifyPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    setResult(null);
 
     try {
       const res = await userService.verifyTwoFactor({ challengeId, code });
-      setResult(res);
       setToken(res.accessToken);
-      router.replace('/');
+      toast.success('Xác minh 2FA thành công');
+      router.replace('/account/profile');
     } catch (err) {
       setError(err);
     } finally {
@@ -50,11 +49,11 @@ export default function TwoFactorVerifyPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center bg-linear-to-br from-blue-50 via-white to-indigo-100 px-4 py-10">
-      <Card className="w-full max-w-md">
+    <AuthScreen variant="two-factor">
+      <Card className="w-full max-w-md border-white/85 bg-white/90 shadow-xl backdrop-blur">
         <CardHeader className="space-y-2 text-center">
           <div className="mb-2 flex justify-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-lg font-bold text-primary-foreground shadow">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-orange-500 to-lime-500 text-lg font-bold text-white shadow-lg">
               E
             </div>
           </div>
@@ -82,7 +81,7 @@ export default function TwoFactorVerifyPage() {
               <Input
                 id="code"
                 value={code}
-                onChange={(e) => setCode(e.target.value)}
+                onChange={(e) => setCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                 placeholder="123456"
                 inputMode="numeric"
                 required
@@ -95,30 +94,17 @@ export default function TwoFactorVerifyPage() {
               {isLoading ? 'Đang xác minh…' : 'Xác minh'}
             </Button>
 
-            <Separator />
-
-            <div className="w-full space-y-2 text-sm">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Đã có access token</span>
-                <span className="font-mono text-xs">{accessToken ? 'yes' : 'no'}</span>
-              </div>
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-muted-foreground">Tiếp theo</span>
-                <Link href="/account/profile" className="font-medium text-primary hover:underline">
-                  Đi tới hồ sơ
+            <div className="text-center text-sm text-muted-foreground">
+              <div className="mb-1">
+                <Link href="/auth/login" className="font-medium text-primary hover:underline">
+                  Quay lại đăng nhập
                 </Link>
               </div>
+              Sau khi xác minh thành công bạn sẽ được chuyển tới hồ sơ.
             </div>
-
-            {result ? (
-              <details className="w-full rounded-md border bg-muted p-3">
-                <summary className="cursor-pointer text-sm font-medium">Response</summary>
-                <pre className="mt-2 max-h-80 overflow-auto text-xs">{JSON.stringify(result, null, 2)}</pre>
-              </details>
-            ) : null}
           </CardFooter>
         </form>
       </Card>
-    </div>
+    </AuthScreen>
   );
 }

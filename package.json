@@ -15,5 +15,8 @@
     "full:up": "docker compose -f infra/docker-compose.yml up -d",
     "full:down": "docker compose -f infra/docker-compose.yml down",
     "full:build": "docker compose -f infra/docker-compose.yml build"
+  },
+  "dependencies": {
+    "minio": "^8.0.7"
   }
 }

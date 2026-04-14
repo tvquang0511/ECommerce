@@ -45,3 +45,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# runtime uploads (local filesystem)
+uploads/
+services/**/uploads/

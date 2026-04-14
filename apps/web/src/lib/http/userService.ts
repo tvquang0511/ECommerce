@@ -67,9 +67,22 @@ async function request<T>(
 const USERS_API_PREFIX = '/api/users';
 const AUTH_API_PREFIX = `${USERS_API_PREFIX}/auth`;
 
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED';
+
+export type PublicUser = {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+  dateOfBirth: string | null;
+  phoneNumber: string | null;
+  gender: Gender | null;
+};
+
 export const userService = {
   register(input: { email: string; password: string; displayName: string }) {
-    return request<{ accessToken: string; user: { id: string; email: string; displayName: string; avatarUrl: string | null } }>(
+    return request<{ accessToken: string; user: PublicUser }>(
       `${AUTH_API_PREFIX}/register`,
       {
         method: 'POST',
@@ -81,7 +94,7 @@ export const userService = {
 
   login(input: { email: string; password: string }) {
     return request<
-      | { accessToken: string; user: { id: string; email: string; displayName: string; avatarUrl: string | null } }
+      | { accessToken: string; user: PublicUser }
       | { twoFactorRequired: true; challengeId: string; expiresAt: string; devOtp?: string }
     >(`${AUTH_API_PREFIX}/login`, {
       method: 'POST',
@@ -91,7 +104,7 @@ export const userService = {
   },
 
   verifyTwoFactor(input: { challengeId: string; code: string }) {
-    return request<{ accessToken: string; user: { id: string; email: string; displayName: string; avatarUrl: string | null } }>(
+    return request<{ accessToken: string; user: PublicUser }>(
       `${AUTH_API_PREFIX}/2fa/verify`,
       {
         method: 'POST',
@@ -102,10 +115,51 @@ export const userService = {
   },
 
   me(accessToken: string) {
-    return request<{ id: string; email: string; displayName: string; avatarUrl: string | null }>(
+    return request<PublicUser>(
       `${AUTH_API_PREFIX}/me`,
       { method: 'GET', accessToken },
     );
+  },
+
+  usersMe(accessToken: string) {
+    return request<PublicUser>(`${USERS_API_PREFIX}/me`, { method: 'GET', accessToken });
+  },
+
+  updateMe(accessToken: string, input: { displayName?: string }) {
+    return request<PublicUser>(`${USERS_API_PREFIX}/me`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+      accessToken,
+    });
+  },
+
+  updateMeProfile(
+    accessToken: string,
+    input: {
+      displayName?: string;
+      bio?: string | null;
+      dateOfBirth?: string | null;
+      phoneNumber?: string | null;
+      gender?: Gender | null;
+    },
+  ) {
+    return request<PublicUser>(`${USERS_API_PREFIX}/me`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+      accessToken,
+    });
+  },
+
+  uploadAvatar(accessToken: string, avatar: File) {
+    const body = new FormData();
+    body.set('avatar', avatar);
+    return request<PublicUser>(`${USERS_API_PREFIX}/me/avatar`, {
+      method: 'POST',
+      body,
+      accessToken,
+    });
   },
 
   refresh() {
@@ -188,6 +242,18 @@ export const userService = {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(input),
+      },
+    );
+  },
+
+  changePassword(accessToken: string, input: { currentPassword: string; newPassword: string }) {
+    return request<{ ok: true }>(
+      `${AUTH_API_PREFIX}/change-password`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+        accessToken,
       },
     );
   },

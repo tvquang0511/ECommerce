@@ -88,12 +88,25 @@ function hashOtpCode(code: string): string {
     .digest('hex');
 }
 
-function publicUser(user: { id: string; email: string; displayName: string; avatarUrl?: string | null }) {
+function publicUser(user: {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  dateOfBirth?: Date | null;
+  phoneNumber?: string | null;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED' | null;
+}) {
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
+    bio: user.bio ?? null,
+    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString().slice(0, 10) : null,
+    phoneNumber: user.phoneNumber ?? null,
+    gender: user.gender ?? null,
   };
 }
 
@@ -612,7 +625,9 @@ export const authService = {
     });
 
     // In a real app, you'd email this URL.
-    const resetUrl = `${env.APP_WEB_URL.replace(/\/$/, '')}/reset-password#token=${encodeURIComponent(token)}`;
+    // Keep it aligned with the Next.js route at /auth/reset-password.
+    // Using hash token reduces leakage via referrer/server logs.
+    const resetUrl = `${env.APP_WEB_URL.replace(/\/$/, '')}/auth/reset-password#token=${encodeURIComponent(token)}`;
 
     const enq = await mailQueue.enqueue({
       type: 'forgot-password',
@@ -651,6 +666,44 @@ export const authService = {
 
     await writeAuditSafe({
       eventType: 'PASSWORD_RESET_SUCCESS',
+      actorUserId: user.id,
+      targetUserId: user.id,
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+    });
+
+    return { ok: true };
+  },
+
+  async changePassword(
+    input: { userId: string; currentPassword: string; newPassword: string },
+    meta?: RequestMeta,
+  ) {
+    const user = await authRepo.findUserById(input.userId);
+    if (!user) {
+      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+    }
+
+    const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
+    if (!ok) {
+      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+    }
+
+    const newHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
+    await authRepo.updateUserPasswordHash(user.id, newHash);
+
+    // Security default: revoke all sessions (multi-device) after password change.
+    // Note: access tokens are JWTs and can't be force-invalidated without additional checks.
+    await revokeAllSessionsForUser(user.id);
+
+    await mailQueue.enqueue({
+      type: 'password-reset-success',
+      to: user.email,
+      displayName: user.displayName,
+    });
+
+    await writeAuditSafe({
+      eventType: 'PASSWORD_CHANGED',
       actorUserId: user.id,
       targetUserId: user.id,
       ip: meta?.ip ?? null,
