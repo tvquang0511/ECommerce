@@ -358,15 +358,15 @@ Redis trong hệ này có **2 vai trò khác nhau** (đừng trộn khái niệm
 ## 6) Dev topology (khi chạy local)
 
 ### 6.1 Compose chỉ chạy hạ tầng
-- `infra/docker-compose.dev.yml` chạy: Postgres, Mongo, Redis, RabbitMQ, MinIO.
+- `infra/docker/docker-compose.dev.yml` chạy: Postgres, Mongo, Redis, RabbitMQ, MinIO.
 - Apps/services chạy bằng pnpm trên host.
 
 ### 6.2 Compose + Nginx (single origin, optional)
-- Dùng compose overlay: `infra/docker-compose.edge.yml`.
+- Dùng compose overlay: `infra/docker/docker-compose.edge.yml`.
 - Trong giai đoạn services chạy trên host, Nginx sẽ proxy tới `host.docker.internal:<port>`.
 
 ### 6.3 Full stack bằng container (later)
-- `infra/docker-compose.yml` dùng để chạy infra + một phần app containers (phục vụ test nhanh).
+- `infra/docker/docker-compose.yml` dùng để chạy infra + một phần app containers (phục vụ test nhanh).
 
 ---
 

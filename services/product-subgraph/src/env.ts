@@ -1,13 +1,9 @@
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// Load service-local .env (ignored by git). Keep this as the single place that touches dotenv.
+// Load service-local .env (ignored by git).
 dotenv.config({
-  path: path.resolve(__dirname, '..', '.env'),
+  path: path.resolve(process.cwd(), '.env'),
 });
 
 function parsePort(value: string, fallback: number): number {

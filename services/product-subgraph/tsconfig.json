@@ -1,4 +1,16 @@
 {
   "extends": "@repo/tsconfig/tsconfig.base.json",
-  "include": ["src"]
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2022",
+    "moduleResolution": "node",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "noEmit": false,
+    "outDir": "dist",
+    "sourceMap": true,
+    "incremental": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

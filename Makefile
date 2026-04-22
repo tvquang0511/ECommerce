@@ -10,9 +10,9 @@ ifeq ($(OS),Windows_NT)
 	endif
 endif
 
-DC_DEV := $(DOCKER) compose -f infra/docker-compose.dev.yml
-DC_EDGE := $(DOCKER) compose -f infra/docker-compose.dev.yml -f infra/docker-compose.edge.yml
-DC_FULL := $(DOCKER) compose -f infra/docker-compose.yml
+DC_DEV := $(DOCKER) compose -f infra/docker/docker-compose.dev.yml
+DC_EDGE := $(DOCKER) compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml
+DC_FULL := $(DOCKER) compose -f infra/docker/docker-compose.yml
 
 .PHONY: help
 help:

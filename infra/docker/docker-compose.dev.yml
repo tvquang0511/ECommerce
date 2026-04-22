@@ -9,7 +9,7 @@ services:
       - "5432:5432"
     volumes:
       - ecommerce_postgres_data:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ../postgres/init:/docker-entrypoint-initdb.d:ro
 
   mongo:
     image: mongo:7

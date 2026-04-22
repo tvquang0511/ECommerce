@@ -7,14 +7,14 @@
     "product": "pnpm --filter product-subgraph dev",
     "user": "pnpm --filter user-service dev",
     "federation": "pnpm -r --parallel --filter product-subgraph --filter graphql-gateway dev",
-    "deps:up": "docker compose -f infra/docker-compose.dev.yml up -d",
-    "deps:down": "docker compose -f infra/docker-compose.dev.yml down",
-    "deps:logs": "docker compose -f infra/docker-compose.dev.yml logs -f --tail=200",
-    "edge:up": "docker compose -f infra/docker-compose.dev.yml -f infra/docker-compose.edge.yml up -d",
-    "edge:down": "docker compose -f infra/docker-compose.dev.yml -f infra/docker-compose.edge.yml down",
-    "full:up": "docker compose -f infra/docker-compose.yml up -d",
-    "full:down": "docker compose -f infra/docker-compose.yml down",
-    "full:build": "docker compose -f infra/docker-compose.yml build"
+    "deps:up": "docker compose -f infra/docker/docker-compose.dev.yml up -d",
+    "deps:down": "docker compose -f infra/docker/docker-compose.dev.yml down",
+    "deps:logs": "docker compose -f infra/docker/docker-compose.dev.yml logs -f --tail=200",
+    "edge:up": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml up -d",
+    "edge:down": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml down",
+    "full:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "full:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "full:build": "docker compose -f infra/docker/docker-compose.yml build"
   },
   "dependencies": {
     "minio": "^8.0.7"

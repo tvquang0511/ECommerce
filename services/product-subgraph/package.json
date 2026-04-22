@@ -1,26 +1,28 @@
 {
   "name": "product-subgraph",
   "private": true,
-  "type": "module",
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts"
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "nest start",
+    "start:prod": "node dist/main.js"
   },
   "dependencies": {
-    "@apollo/server": "^4.10.5",
-    "@apollo/subgraph": "^2.9.3",
-    "cors": "^2.8.5",
+    "@apollo/server": "^4.12.2",
+    "@nestjs/apollo": "^13.2.1",
+    "@nestjs/common": "^11.1.6",
+    "@nestjs/core": "^11.1.6",
+    "@nestjs/graphql": "^13.2.0",
+    "@nestjs/platform-express": "^11.1.6",
     "dotenv": "^16.4.5",
-    "express": "^4.21.2",
     "graphql": "^16.9.0",
-    "graphql-tag": "^2.12.6"
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
   },
   "devDependencies": {
+    "@nestjs/cli": "^11.0.10",
     "@repo/tsconfig": "workspace:*",
-    "@types/cors": "^2.8.17",
     "@types/node": "^22.10.1",
-    "@types/express": "^4.17.21",
-    "tsx": "^4.19.2",
     "typescript": "^5.6.3"
   }
 }

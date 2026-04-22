@@ -301,9 +301,12 @@ Gợi ý layout:
 │  ├─ eslint-config/             # shared lint rules
 │  └─ tsconfig/                  # base tsconfig presets
 ├─ infra/
+│  ├─ docker/
+│  │  ├─ docker-compose.dev.yml
+│  │  ├─ docker-compose.edge.yml
+│  │  ├─ docker-compose.user-service.dev.yml
+│  │  └─ docker-compose.yml
 │  ├─ nginx/                     # nginx.conf (+ conf.d)
-│  ├─ docker-compose.dev.yml
-│  ├─ docker-compose.yml
 │  ├─ jenkins/                   # Jenkinsfile(s) / shared pipeline snippets
 │  └─ k8s/                       # Helm charts/manifests (phase Kubernetes)
 ├─ docs/
@@ -354,6 +357,7 @@ Tài liệu kiến trúc:
 - Overview: [docs/architecture/overview.md](docs/architecture/overview.md)
 - Chức năng từng service: [docs/architecture/services.md](docs/architecture/services.md)
 - Template cây thư mục (NestJS-first): [docs/architecture/folder-structure.md](docs/architecture/folder-structure.md)
+- Lộ trình học Apollo + NestJS (tách biệt product plan): [docs/architecture/apollo-nestjs-learning-roadmap.md](docs/architecture/apollo-nestjs-learning-roadmap.md)
 
 ---
 
@@ -396,8 +400,8 @@ Tài liệu kiến trúc:
   - Gateway compose từ subgraph bằng `IntrospectAndCompose`.
   - Nginx route `/graphql` → gateway.
 - Deliverables:
-  - `infra/docker-compose.dev.yml`: Postgres + Mongo + Redis + RabbitMQ + MinIO (hạ tầng dev).
-  - `infra/docker-compose.edge.yml`: (optional) Nginx single-origin.
+  - `infra/docker/docker-compose.dev.yml`: Postgres + Mongo + Redis + RabbitMQ + MinIO (hạ tầng dev).
+  - `infra/docker/docker-compose.edge.yml`: (optional) Nginx single-origin.
   - Next.js page gọi query `{ ping }`.
 - Done criteria:
   - `POST /graphql` qua Nginx trả `ping` OK.

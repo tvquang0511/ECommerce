@@ -256,13 +256,13 @@ Repo có overlay compose để chạy `user-service` và `mail-worker` cùng v�
 
 ```bash
 docker compose \
-  -f infra/docker-compose.dev.yml \
-  -f infra/docker-compose.user-service.dev.yml \
+  -f infra/docker/docker-compose.dev.yml \
+  -f infra/docker/docker-compose.user-service.dev.yml \
   up -d --build
 ```
 
 Ghi chú:
-- File `infra/docker-compose.user-service.dev.yml` load env từ `services/user-service/.env` (SMTP/keys/...) và override `DATABASE_URL`/`REDIS_URL` để trỏ vào container services (`postgres`, `redis`).
+- File `infra/docker/docker-compose.user-service.dev.yml` load env từ `services/user-service/.env` (SMTP/keys/...) và override `DATABASE_URL`/`REDIS_URL` để trỏ vào container services (`postgres`, `redis`).
 
 ### 6.2 Prisma migrate (bắt buộc khi đổi schema)
 Sau khi pull thay đổi multi-device sessions:
