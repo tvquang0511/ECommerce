@@ -1,9 +1,6 @@
 # product-subgraph
 
-NestJS GraphQL service cho catalog theo lộ trình 2 pha:
-
-1. `Apollo-first` (hiện tại): học GraphQL + Apollo trong NestJS, chưa dùng Federation.
-2. `Federation-ready` (phase tiếp theo): nâng cấp lên subgraph theo product plan.
+NestJS starter được reset từ đầu để học theo lộ trình cơ bản (module, controller, service) trước khi thêm GraphQL/Federation.
 
 ## Dev
 - Cài dependencies ở root workspace: `pnpm install`
@@ -11,11 +8,22 @@ NestJS GraphQL service cho catalog theo lộ trình 2 pha:
 
 Default port: `4002`.
 
-## Endpoints (Apollo-first)
-- GraphQL: `http://localhost:4002/graphql`
+## Endpoints
+- Root: `http://localhost:4002/`
 - Health: `http://localhost:4002/health`
+- Products: `http://localhost:4002/products`
+- Product by id: `http://localhost:4002/products/p1`
 
-## Note quan trọng
-- Ở pha `Apollo-first`, service này chưa expose Federation directives/entities.
-- Vì vậy `graphql-gateway` (Apollo Federation Gateway) có thể chưa compose được nếu trỏ vào service này ngay.
-- Khi bạn nắm vững Apollo trong NestJS, mình sẽ hỗ trợ chuyển sang Federation theo đúng `docs/architecture/product-service-plan.md`.
+## Lệnh ngắn
+- Chạy dev: `pnpm product` hoặc `make product`
+- Lint: `pnpm product:lint` hoặc `make product-lint`
+- Unit test: `pnpm product:test` hoặc `make product-test`
+- E2E test: `pnpm product:e2e` hoặc `make product-e2e`
+- Generate Nest file: `pnpm product:g -- controller products --no-spec`
+- Generate qua Makefile: `make product-g ARGS="controller products --no-spec"`
+
+## Lộ trình học đề xuất
+1. Làm quen NestJS core: `AppModule`, `AppController`, `AppService`.
+2. Thêm DTO + validation.
+3. Thêm database (Prisma/Mongoose).
+4. Sau đó mới thêm GraphQL (Apollo) và cuối cùng mới Federation.

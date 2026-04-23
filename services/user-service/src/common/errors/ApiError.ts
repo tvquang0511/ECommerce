@@ -1,1 +1,1 @@
-export { ApiError } from '@repo/common/errors';
+export { ApiError } from "@repo/common/errors";

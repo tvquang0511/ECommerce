@@ -1,4 +1,4 @@
-import { escapeHtml } from './escape.js';
+import { escapeHtml } from "./escape.js";
 
 type LayoutParams = {
   appName: string;
@@ -9,8 +9,10 @@ type LayoutParams = {
 };
 
 export function renderLayout(params: LayoutParams): string {
-  const preheader = (params.preheader ?? '').trim();
-  const footerText = (params.footerText ?? `${params.appName} · This is an automated message.`).trim();
+  const preheader = (params.preheader ?? "").trim();
+  const footerText = (
+    params.footerText ?? `${params.appName} · This is an automated message.`
+  ).trim();
 
   return `<!doctype html>
 <html lang="en">
@@ -21,7 +23,7 @@ export function renderLayout(params: LayoutParams): string {
   <title>${escapeHtml(params.title)}</title>
 </head>
 <body style="margin:0; padding:0; background:#f6f7fb; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; color:#111827;">
-  ${preheader ? `<div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">${escapeHtml(preheader)}</div>` : ''}
+  ${preheader ? `<div style="display:none; max-height:0; overflow:hidden; opacity:0; color:transparent;">${escapeHtml(preheader)}</div>` : ""}
 
   <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#f6f7fb; padding:24px 12px;">
     <tr>

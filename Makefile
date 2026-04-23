@@ -23,6 +23,11 @@ help:
 	@echo "  make dev-ps        # list containers (dev)"
 	@echo "  make gateway       # run graphql-gateway (dev)"
 	@echo "  make product       # run product-subgraph (dev)"
+	@echo "  make product-lint  # lint product-subgraph"
+	@echo "  make product-test  # run unit tests for product-subgraph"
+	@echo "  make product-e2e   # run e2e tests for product-subgraph"
+	@echo "  make product-g KIND=controller NAME=products OPTS=--no-spec # nest generate in product-subgraph"
+	@echo "  make service-g SVC=product-subgraph KIND=controller NAME=products OPTS=--no-spec # generic nest generate"
 	@echo "  make user          # run user-service (dev)"
 	@echo "  make federation    # run product + gateway together"
 	@echo "  make edge-up       # start infra + nginx edge (optional)"
@@ -73,12 +78,41 @@ edge-up:
 edge-down:
 	$(DC_EDGE) down
 
-.PHONY: gateway product user federation
+.PHONY: gateway product product-lint product-test product-e2e product-g service-g user federation mail app
 gateway:
 	pnpm --filter graphql-gateway dev
 
 product:
 	pnpm --filter product-subgraph dev
+
+product-lint:
+	pnpm --filter product-subgraph lint
+
+product-test:
+	pnpm --filter product-subgraph test
+
+product-e2e:
+	pnpm --filter product-subgraph test:e2e
+
+product-g:
+	$(MAKE) service-g SVC=product-subgraph KIND="$(KIND)" NAME="$(NAME)" OPTS="$(OPTS)" ARGS="$(ARGS)"
+
+service-g:
+	@if [ -z "$(SVC)" ]; then \
+		echo "Usage: make service-g SVC=<service-name> KIND=<type> NAME=<name> OPTS=<options>"; \
+		echo "Example: make service-g SVC=product-subgraph KIND=controller NAME=products OPTS=--no-spec"; \
+		exit 1; \
+	fi
+	@if [ -n "$(ARGS)" ]; then \
+		pnpm --filter $(SVC) exec nest g $(ARGS); \
+		exit $$?; \
+	fi
+	@if [ -z "$(KIND)" ] || [ -z "$(NAME)" ]; then \
+		echo "Missing KIND or NAME."; \
+		echo "Usage: make service-g SVC=<service-name> KIND=<type> NAME=<name> OPTS=<options>"; \
+		exit 1; \
+	fi
+	pnpm --filter $(SVC) exec nest g $(KIND) $(NAME) $(OPTS)
 
 user:
 	pnpm --filter user-service dev

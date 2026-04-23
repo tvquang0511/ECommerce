@@ -1,11 +1,11 @@
-import type { MailJob } from '../../../modules/mail/mail.types.js';
-import { escapeHtml } from './escape.js';
-import { renderLayout } from './layout.js';
+import type { MailJob } from "../../../modules/mail/mail.types.js";
+import { escapeHtml } from "./escape.js";
+import { renderLayout } from "./layout.js";
 
-export function buildOtpMail(job: Extract<MailJob, { type: 'otp' }>) {
-  const appName = 'Ecommerce';
+export function buildOtpMail(job: Extract<MailJob, { type: "otp" }>) {
+  const appName = "Ecommerce";
   const minutes = Math.max(1, Math.round(job.expiresInSeconds / 60));
-  const displayName = job.displayName ? ` ${job.displayName}` : '';
+  const displayName = job.displayName ? ` ${job.displayName}` : "";
   const subject = `[${appName}] Your verification code`;
 
   const text =
@@ -15,7 +15,7 @@ export function buildOtpMail(job: Extract<MailJob, { type: 'otp' }>) {
     `If you didn't request this, you can ignore this email.\n`;
 
   const bodyHtml = `
-    <p style="margin:0 0 10px 0; color:#111827;">Hi${job.displayName ? ` <strong>${escapeHtml(job.displayName)}</strong>` : ''},</p>
+    <p style="margin:0 0 10px 0; color:#111827;">Hi${job.displayName ? ` <strong>${escapeHtml(job.displayName)}</strong>` : ""},</p>
     <p style="margin:0 0 12px 0; color:#111827; line-height:1.6;">
       Use this verification code to finish signing in:
     </p>
@@ -32,7 +32,7 @@ export function buildOtpMail(job: Extract<MailJob, { type: 'otp' }>) {
 
   const html = renderLayout({
     appName,
-    title: 'Your verification code',
+    title: "Your verification code",
     preheader: `Your code is ${job.code}. It expires soon.`,
     bodyHtml,
   });

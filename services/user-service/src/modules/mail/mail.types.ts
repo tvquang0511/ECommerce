@@ -1,18 +1,18 @@
 export type MailJob =
   | {
-      type: 'forgot-password';
+      type: "forgot-password";
       to: string;
       displayName?: string | null;
       resetUrl: string;
       expiresAtIso: string;
     }
   | {
-      type: 'password-reset-success';
+      type: "password-reset-success";
       to: string;
       displayName?: string | null;
     }
   | {
-      type: 'otp';
+      type: "otp";
       to: string;
       displayName?: string | null;
       code: string;

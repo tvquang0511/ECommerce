@@ -6,6 +6,7 @@
     "predev": "prisma generate",
     "dev": "tsx watch src/server.ts",
     "dev:nodemon": "nodemon --watch src --ext ts --exec tsx src/server.ts",
+    "lint": "eslint \"src/**/*.ts\" --fix",
     "worker:mail": "tsx watch src/workers/main.ts",
     "prestart": "prisma generate",
     "start": "tsx src/server.ts",
@@ -36,6 +37,7 @@
     "minio": "^8.0.7"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.8",
@@ -47,6 +49,7 @@
     "@types/node": "^22.10.1",
     "@types/nodemailer": "^6.4.17",
     "@types/swagger-ui-express": "^4.1.8",
+    "eslint": "^9.18.0",
     "nodemon": "^3.1.9",
     "prisma": "^7.0.0",
     "tsx": "^4.19.2",

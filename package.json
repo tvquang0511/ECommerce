@@ -5,6 +5,10 @@
   "scripts": {
     "gateway": "pnpm --filter graphql-gateway dev",
     "product": "pnpm --filter product-subgraph dev",
+    "product:lint": "pnpm --filter product-subgraph lint",
+    "product:test": "pnpm --filter product-subgraph test",
+    "product:e2e": "pnpm --filter product-subgraph test:e2e",
+    "product:g": "pnpm --filter product-subgraph exec nest g",
     "user": "pnpm --filter user-service dev",
     "federation": "pnpm -r --parallel --filter product-subgraph --filter graphql-gateway dev",
     "deps:up": "docker compose -f infra/docker/docker-compose.dev.yml up -d",

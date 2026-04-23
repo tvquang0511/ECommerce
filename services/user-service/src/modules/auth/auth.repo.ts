@@ -1,4 +1,4 @@
-import { prisma } from '../../db/prisma.js';
+import { prisma } from "../../db/prisma.js";
 
 export const authRepo = {
   findUserByEmail(email: string) {
@@ -9,11 +9,21 @@ export const authRepo = {
     return prisma.user.findUnique({ where: { id } });
   },
 
-  createUser(data: { email: string; passwordHash: string; displayName: string }) {
+  createUser(data: {
+    email: string;
+    passwordHash: string;
+    displayName: string;
+  }) {
     return prisma.user.create({ data });
   },
 
-  createRefreshToken(data: { userId: string; sessionId: string; tokenId: string; tokenHash: string; expiresAt: Date }) {
+  createRefreshToken(data: {
+    userId: string;
+    sessionId: string;
+    tokenId: string;
+    tokenHash: string;
+    expiresAt: Date;
+  }) {
     return prisma.refreshToken.create({
       data: {
         userId: data.userId,
@@ -52,11 +62,18 @@ export const authRepo = {
   listAuthSessionsForUser(userId: string) {
     return prisma.authSession.findMany({
       where: { userId },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   },
 
-  touchAuthSession(id: string, data: { lastUsedAt?: Date; lastUsedIp?: string | null; lastUsedUserAgent?: string | null }) {
+  touchAuthSession(
+    id: string,
+    data: {
+      lastUsedAt?: Date;
+      lastUsedIp?: string | null;
+      lastUsedUserAgent?: string | null;
+    },
+  ) {
     return prisma.authSession.update({
       where: { id },
       data: {
@@ -85,7 +102,10 @@ export const authRepo = {
     return prisma.refreshToken.findUnique({ where: { tokenId } });
   },
 
-  revokeRefreshToken(id: string, data?: { replacedByTokenId?: string | null; lastUsedAt?: Date | null }) {
+  revokeRefreshToken(
+    id: string,
+    data?: { replacedByTokenId?: string | null; lastUsedAt?: Date | null },
+  ) {
     return prisma.refreshToken.update({
       where: { id },
       data: {
@@ -112,7 +132,7 @@ export const authRepo = {
 
   createEmailOtp(data: {
     userId: string;
-    purpose: 'LOGIN_2FA';
+    purpose: "LOGIN_2FA";
     codeHash: string;
     expiresAt: Date;
     requestedIp?: string | null;
@@ -134,7 +154,10 @@ export const authRepo = {
     return prisma.emailOtp.findUnique({ where: { id } });
   },
 
-  findLatestActiveEmailOtpForUser(data: { userId: string; purpose: 'LOGIN_2FA' }) {
+  findLatestActiveEmailOtpForUser(data: {
+    userId: string;
+    purpose: "LOGIN_2FA";
+  }) {
     return prisma.emailOtp.findFirst({
       where: {
         userId: data.userId,
@@ -142,7 +165,7 @@ export const authRepo = {
         consumedAt: null,
         expiresAt: { gt: new Date() },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
   },
 

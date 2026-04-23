@@ -1,14 +1,14 @@
-import bcrypt from 'bcryptjs';
-import crypto from 'node:crypto';
-import jwt from 'jsonwebtoken';
-import { env } from '../../env.js';
-import { ApiError } from '@repo/common/errors';
-import { authRepo } from './auth.repo.js';
-import { getAccessJwtKeys } from './jwtKeys.js';
-import { parseDurationToMs } from '../../common/utils/duration.js';
-import { mailQueue } from '../mail/mail.queue.js';
-import { prisma } from '../../db/prisma.js';
-import { auditRepo } from '../audit/audit.repo.js';
+import bcrypt from "bcryptjs";
+import crypto from "node:crypto";
+import jwt from "jsonwebtoken";
+import { env } from "../../env.js";
+import { ApiError } from "@repo/common/errors";
+import { authRepo } from "./auth.repo.js";
+import { getAccessJwtKeys } from "./jwtKeys.js";
+import { parseDurationToMs } from "../../common/utils/duration.js";
+import { mailQueue } from "../mail/mail.queue.js";
+import { prisma } from "../../db/prisma.js";
+import { auditRepo } from "../audit/audit.repo.js";
 
 type JwtAccessPayload = {
   sub: string;
@@ -32,38 +32,41 @@ function signAccessToken(user: { id: string; email: string }) {
   return jwt.sign(
     { sub: user.id, email: user.email } satisfies JwtAccessPayload,
     privateKeyPem,
-    { algorithm: 'RS256', expiresIn: env.JWT_ACCESS_TTL as any },
+    { algorithm: "RS256", expiresIn: env.JWT_ACCESS_TTL as any },
   );
 }
 
 function hashToken(token: string) {
-  return crypto.createHash('sha256').update(token).digest('hex');
+  return crypto.createHash("sha256").update(token).digest("hex");
 }
 
 function hashRefreshSecret(secret: string) {
   return crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(`${secret}.${env.REFRESH_TOKEN_PEPPER}`)
-    .digest('hex');
+    .digest("hex");
 }
 
 function makeOpaqueRefreshToken(): OpaqueRefreshTokenRecord {
-  const tokenId = crypto.randomBytes(16).toString('base64url');
-  const secret = crypto.randomBytes(32).toString('base64url');
+  const tokenId = crypto.randomBytes(16).toString("base64url");
+  const secret = crypto.randomBytes(32).toString("base64url");
   const token = `${tokenId}.${secret}`;
   const tokenHash = hashRefreshSecret(secret);
   return { tokenId, tokenHash, token };
 }
 
-function parseOpaqueRefreshToken(token: string): { tokenId: string; secret: string } {
-  const idx = token.indexOf('.');
+function parseOpaqueRefreshToken(token: string): {
+  tokenId: string;
+  secret: string;
+} {
+  const idx = token.indexOf(".");
   if (idx <= 0 || idx === token.length - 1) {
-    throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
+    throw new ApiError(401, "AUTH_TOKEN_INVALID", "Refresh token invalid");
   }
   const tokenId = token.slice(0, idx);
   const secret = token.slice(idx + 1);
   if (!tokenId || !secret) {
-    throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
+    throw new ApiError(401, "AUTH_TOKEN_INVALID", "Refresh token invalid");
   }
   return { tokenId, secret };
 }
@@ -74,18 +77,18 @@ function computeRefreshExpiresAt(): Date {
 }
 
 function makeResetToken() {
-  return crypto.randomBytes(32).toString('base64url');
+  return crypto.randomBytes(32).toString("base64url");
 }
 
 function makeOtpCode(): string {
-  return crypto.randomInt(0, 1_000_000).toString().padStart(6, '0');
+  return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
 
 function hashOtpCode(code: string): string {
   return crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(`${code}.${env.REFRESH_TOKEN_PEPPER}`)
-    .digest('hex');
+    .digest("hex");
 }
 
 function publicUser(user: {
@@ -96,7 +99,7 @@ function publicUser(user: {
   bio?: string | null;
   dateOfBirth?: Date | null;
   phoneNumber?: string | null;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED' | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED" | null;
 }) {
   return {
     id: user.id,
@@ -104,7 +107,9 @@ function publicUser(user: {
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
     bio: user.bio ?? null,
-    dateOfBirth: user.dateOfBirth ? user.dateOfBirth.toISOString().slice(0, 10) : null,
+    dateOfBirth: user.dateOfBirth
+      ? user.dateOfBirth.toISOString().slice(0, 10)
+      : null,
     phoneNumber: user.phoneNumber ?? null,
     gender: user.gender ?? null,
   };
@@ -112,8 +117,14 @@ function publicUser(user: {
 
 async function revokeAllSessionsForUser(userId: string) {
   await prisma.$transaction(async (tx) => {
-    await tx.refreshToken.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
-    await tx.authSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+    await tx.refreshToken.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    await tx.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
   });
 }
 
@@ -121,12 +132,14 @@ async function writeAuditSafe(input: Parameters<typeof auditRepo.write>[0]) {
   try {
     await auditRepo.write(input);
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error('[audit] failed to write audit log', err);
+    console.error("[audit] failed to write audit log", err);
   }
 }
 
-async function tryResolveExistingSessionId(userId: string, refreshToken: string | undefined) {
+async function tryResolveExistingSessionId(
+  userId: string,
+  refreshToken: string | undefined,
+) {
   if (!refreshToken) return undefined;
 
   try {
@@ -148,11 +161,14 @@ async function tryResolveExistingSessionId(userId: string, refreshToken: string 
 }
 
 export const authService = {
-  async register(input: { email: string; password: string; displayName: string }, meta?: RequestMeta) {
+  async register(
+    input: { email: string; password: string; displayName: string },
+    meta?: RequestMeta,
+  ) {
     const email = input.email.toLowerCase();
     const existing = await authRepo.findUserByEmail(email);
     if (existing) {
-      throw new ApiError(409, 'AUTH_EMAIL_EXISTS', 'Email already exists');
+      throw new ApiError(409, "AUTH_EMAIL_EXISTS", "Email already exists");
     }
 
     const passwordHash = await bcrypt.hash(input.password, env.BCRYPT_ROUNDS);
@@ -191,44 +207,66 @@ export const authService = {
     const email = input.email.toLowerCase();
     const user = await authRepo.findUserByEmail(email);
     if (!user) {
-      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+      throw new ApiError(
+        401,
+        "AUTH_INVALID_CREDENTIALS",
+        "Invalid credentials",
+      );
     }
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) {
-      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+      throw new ApiError(
+        401,
+        "AUTH_INVALID_CREDENTIALS",
+        "Invalid credentials",
+      );
     }
 
     if (user.twoFactorEnabled) {
-      const latest = await authRepo.findLatestActiveEmailOtpForUser({ userId: user.id, purpose: 'LOGIN_2FA' });
+      const latest = await authRepo.findLatestActiveEmailOtpForUser({
+        userId: user.id,
+        purpose: "LOGIN_2FA",
+      });
       if (latest) {
         const secondsSince = (Date.now() - latest.createdAt.getTime()) / 1000;
         if (secondsSince < 30) {
-          throw new ApiError(429, 'AUTH_OTP_TOO_MANY_REQUESTS', 'Please wait before requesting another code', {
-            retryAfterSeconds: Math.ceil(30 - secondsSince),
-          });
+          throw new ApiError(
+            429,
+            "AUTH_OTP_TOO_MANY_REQUESTS",
+            "Please wait before requesting another code",
+            {
+              retryAfterSeconds: Math.ceil(30 - secondsSince),
+            },
+          );
         }
       }
 
       const code = makeOtpCode();
-      const expiresAt = new Date(Date.now() + env.TWO_FACTOR_OTP_TTL_SECONDS * 1000);
+      const expiresAt = new Date(
+        Date.now() + env.TWO_FACTOR_OTP_TTL_SECONDS * 1000,
+      );
       const otp = await authRepo.createEmailOtp({
         userId: user.id,
-        purpose: 'LOGIN_2FA',
+        purpose: "LOGIN_2FA",
         codeHash: hashOtpCode(code),
         expiresAt,
       });
 
       const enq = await mailQueue.enqueue({
-        type: 'otp',
+        type: "otp",
         to: user.email,
         displayName: user.displayName,
         code,
         expiresInSeconds: env.TWO_FACTOR_OTP_TTL_SECONDS,
       });
 
-      if (!enq.enqueued && env.NODE_ENV === 'production') {
-        throw new ApiError(503, 'AUTH_OTP_DELIVERY_UNAVAILABLE', 'OTP delivery is temporarily unavailable');
+      if (!enq.enqueued && env.NODE_ENV === "production") {
+        throw new ApiError(
+          503,
+          "AUTH_OTP_DELIVERY_UNAVAILABLE",
+          "OTP delivery is temporarily unavailable",
+        );
       }
 
       return {
@@ -242,18 +280,23 @@ export const authService = {
     const accessToken = signAccessToken(user);
 
     const nowDate = new Date();
-    const existingSession = await tryResolveExistingSessionId(user.id, meta?.existingRefreshToken ?? undefined);
+    const existingSession = await tryResolveExistingSessionId(
+      user.id,
+      meta?.existingRefreshToken ?? undefined,
+    );
 
-    const sessionId = existingSession?.sessionId ?? (
-      await authRepo.createAuthSession({
-        userId: user.id,
-        createdByIp: meta?.ip,
-        createdByUserAgent: meta?.userAgent,
-        lastUsedAt: nowDate,
-        lastUsedIp: meta?.ip,
-        lastUsedUserAgent: meta?.userAgent,
-      })
-    ).id;
+    const sessionId =
+      existingSession?.sessionId ??
+      (
+        await authRepo.createAuthSession({
+          userId: user.id,
+          createdByIp: meta?.ip,
+          createdByUserAgent: meta?.userAgent,
+          lastUsedAt: nowDate,
+          lastUsedIp: meta?.ip,
+          lastUsedUserAgent: meta?.userAgent,
+        })
+      ).id;
 
     const refresh = makeOpaqueRefreshToken();
     const expiresAt = computeRefreshExpiresAt();
@@ -293,36 +336,39 @@ export const authService = {
     return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
   },
 
-  async verifyTwoFactor(input: { challengeId: string; code: string }, meta?: RequestMeta) {
+  async verifyTwoFactor(
+    input: { challengeId: string; code: string },
+    meta?: RequestMeta,
+  ) {
     const otp = await authRepo.findEmailOtpById(input.challengeId);
-    if (!otp || otp.purpose !== 'LOGIN_2FA') {
-      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+    if (!otp || otp.purpose !== "LOGIN_2FA") {
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
     }
 
     if (otp.consumedAt) {
-      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
     }
 
     if (otp.expiresAt.getTime() <= Date.now()) {
-      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
     }
 
     if (otp.attempts >= 5) {
-      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
     }
 
     const expected = otp.codeHash;
     const got = hashOtpCode(input.code);
     if (expected !== got) {
       await authRepo.incrementEmailOtpAttempts(otp.id);
-      throw new ApiError(400, 'AUTH_OTP_INVALID', 'OTP invalid or expired');
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
     }
 
     await authRepo.consumeEmailOtp(otp.id);
 
     const user = await authRepo.findUserById(otp.userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
 
     const accessToken = signAccessToken(user);
@@ -355,60 +401,60 @@ export const authService = {
     const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
 
     if (!existing) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh token invalid');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "Refresh token invalid");
     }
 
     const now = Date.now();
     if (existing.expiresAt.getTime() <= now) {
-      throw new ApiError(401, 'AUTH_TOKEN_EXPIRED', 'Refresh token expired');
+      throw new ApiError(401, "AUTH_TOKEN_EXPIRED", "Refresh token expired");
     }
 
     const expectedHash = existing.tokenHash;
     const gotHash = hashRefreshSecret(secret);
     if (expectedHash !== gotHash) {
       await writeAuditSafe({
-        eventType: 'REFRESH_COMPROMISED',
+        eventType: "REFRESH_COMPROMISED",
         actorUserId: existing.userId,
         targetUserId: existing.userId,
         sessionId: existing.sessionId,
         ip: meta?.ip ?? null,
         userAgent: meta?.userAgent ?? null,
-        metadata: { reason: 'HASH_MISMATCH', tokenId },
+        metadata: { reason: "HASH_MISMATCH", tokenId },
       });
       await revokeAllSessionsForUser(existing.userId);
       throw new ApiError(
         401,
-        'AUTH_REFRESH_COMPROMISED',
-        'Possible refresh token compromise detected. Please sign in again.',
+        "AUTH_REFRESH_COMPROMISED",
+        "Possible refresh token compromise detected. Please sign in again.",
       );
     }
 
     if (existing.revokedAt) {
       await writeAuditSafe({
-        eventType: 'REFRESH_COMPROMISED',
+        eventType: "REFRESH_COMPROMISED",
         actorUserId: existing.userId,
         targetUserId: existing.userId,
         sessionId: existing.sessionId,
         ip: meta?.ip ?? null,
         userAgent: meta?.userAgent ?? null,
-        metadata: { reason: 'REUSE_REVOKED_TOKEN', tokenId },
+        metadata: { reason: "REUSE_REVOKED_TOKEN", tokenId },
       });
       await revokeAllSessionsForUser(existing.userId);
       throw new ApiError(
         401,
-        'AUTH_REFRESH_COMPROMISED',
-        'Possible refresh token compromise detected. Please sign in again.',
+        "AUTH_REFRESH_COMPROMISED",
+        "Possible refresh token compromise detected. Please sign in again.",
       );
     }
 
     const session = await authRepo.findAuthSessionById(existing.sessionId);
     if (!session || session.revokedAt) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'Refresh session revoked');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "Refresh session revoked");
     }
 
     const user = await authRepo.findUserById(existing.userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
 
     const newAccessToken = signAccessToken(user);
@@ -455,19 +501,19 @@ export const authService = {
 
     if (!rotated) {
       await writeAuditSafe({
-        eventType: 'REFRESH_COMPROMISED',
+        eventType: "REFRESH_COMPROMISED",
         actorUserId: user.id,
         targetUserId: user.id,
         sessionId: existing.sessionId,
         ip: meta?.ip ?? null,
         userAgent: meta?.userAgent ?? null,
-        metadata: { reason: 'REUSE_RACE', tokenId },
+        metadata: { reason: "REUSE_RACE", tokenId },
       });
       await revokeAllSessionsForUser(user.id);
       throw new ApiError(
         401,
-        'AUTH_REFRESH_COMPROMISED',
-        'Possible refresh token compromise detected. Please sign in again.',
+        "AUTH_REFRESH_COMPROMISED",
+        "Possible refresh token compromise detected. Please sign in again.",
       );
     }
 
@@ -478,7 +524,11 @@ export const authService = {
     try {
       const { tokenId, secret } = parseOpaqueRefreshToken(input.refreshToken);
       const existing = await authRepo.findRefreshTokenByTokenId(tokenId);
-      if (existing && !existing.revokedAt && existing.tokenHash === hashRefreshSecret(secret)) {
+      if (
+        existing &&
+        !existing.revokedAt &&
+        existing.tokenHash === hashRefreshSecret(secret)
+      ) {
         const nowDate = new Date();
         await prisma.$transaction(async (tx) => {
           await tx.refreshToken.updateMany({
@@ -521,7 +571,7 @@ export const authService = {
   async revokeSession(input: { userId: string; sessionId: string }) {
     const session = await authRepo.findAuthSessionById(input.sessionId);
     if (!session || session.userId !== input.userId) {
-      throw new ApiError(404, 'AUTH_SESSION_NOT_FOUND', 'Session not found');
+      throw new ApiError(404, "AUTH_SESSION_NOT_FOUND", "Session not found");
     }
 
     await prisma.$transaction(async (tx) => {
@@ -529,7 +579,10 @@ export const authService = {
         where: { sessionId: session.id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
-      await tx.authSession.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      await tx.authSession.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() },
+      });
     });
 
     return { ok: true };
@@ -538,7 +591,7 @@ export const authService = {
   async me(userId: string) {
     const user = await authRepo.findUserById(userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
     return { user: publicUser(user) };
   },
@@ -546,26 +599,33 @@ export const authService = {
   async twoFactorStatus(userId: string) {
     const user = await authRepo.findUserById(userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
     return { enabled: Boolean(user.twoFactorEnabled) };
   },
 
-  async enableTwoFactor(input: { userId: string; password: string }, meta?: RequestMeta) {
+  async enableTwoFactor(
+    input: { userId: string; password: string },
+    meta?: RequestMeta,
+  ) {
     const user = await authRepo.findUserById(input.userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) {
-      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+      throw new ApiError(
+        401,
+        "AUTH_INVALID_CREDENTIALS",
+        "Invalid credentials",
+      );
     }
 
     if (!user.twoFactorEnabled) {
       await authRepo.setTwoFactorEnabled(user.id, true);
       await writeAuditSafe({
-        eventType: 'TWO_FACTOR_ENABLED',
+        eventType: "TWO_FACTOR_ENABLED",
         actorUserId: user.id,
         targetUserId: user.id,
         ip: meta?.ip ?? null,
@@ -576,21 +636,28 @@ export const authService = {
     return { enabled: true as const };
   },
 
-  async disableTwoFactor(input: { userId: string; password: string }, meta?: RequestMeta) {
+  async disableTwoFactor(
+    input: { userId: string; password: string },
+    meta?: RequestMeta,
+  ) {
     const user = await authRepo.findUserById(input.userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
 
     const ok = await bcrypt.compare(input.password, user.passwordHash);
     if (!ok) {
-      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+      throw new ApiError(
+        401,
+        "AUTH_INVALID_CREDENTIALS",
+        "Invalid credentials",
+      );
     }
 
     if (user.twoFactorEnabled) {
       await authRepo.setTwoFactorEnabled(user.id, false);
       await writeAuditSafe({
-        eventType: 'TWO_FACTOR_DISABLED',
+        eventType: "TWO_FACTOR_DISABLED",
         actorUserId: user.id,
         targetUserId: user.id,
         ip: meta?.ip ?? null,
@@ -601,7 +668,11 @@ export const authService = {
     return { enabled: false as const };
   },
 
-  async forgotPassword(input: { email: string; requestedIp?: string | null; userAgent?: string | null }) {
+  async forgotPassword(input: {
+    email: string;
+    requestedIp?: string | null;
+    userAgent?: string | null;
+  }) {
     const email = input.email.toLowerCase();
     const user = await authRepo.findUserByEmail(email);
 
@@ -627,30 +698,39 @@ export const authService = {
     // In a real app, you'd email this URL.
     // Keep it aligned with the Next.js route at /auth/reset-password.
     // Using hash token reduces leakage via referrer/server logs.
-    const resetUrl = `${env.APP_WEB_URL.replace(/\/$/, '')}/auth/reset-password#token=${encodeURIComponent(token)}`;
+    const resetUrl = `${env.APP_WEB_URL.replace(/\/$/, "")}/auth/reset-password#token=${encodeURIComponent(token)}`;
 
     const enq = await mailQueue.enqueue({
-      type: 'forgot-password',
+      type: "forgot-password",
       to: user.email,
       displayName: user.displayName,
       resetUrl,
       expiresAtIso: expiresAt.toISOString(),
     });
 
-    if (!enq.enqueued && env.NODE_ENV === 'production') {
+    if (!enq.enqueued && env.NODE_ENV === "production") {
       // Keep response as ok=true to avoid leaking whether email exists.
-      // eslint-disable-next-line no-console
-      console.error('SMTP/BullMQ not configured; forgot-password email was not enqueued');
+
+      console.error(
+        "SMTP/BullMQ not configured; forgot-password email was not enqueued",
+      );
     }
 
     return { ok: true };
   },
 
-  async resetPassword(input: { token: string; newPassword: string }, meta?: RequestMeta) {
+  async resetPassword(
+    input: { token: string; newPassword: string },
+    meta?: RequestMeta,
+  ) {
     const tokenHash = hashToken(input.token);
     const prt = await authRepo.findValidPasswordResetToken(tokenHash);
     if (!prt) {
-      throw new ApiError(400, 'AUTH_RESET_TOKEN_INVALID', 'Reset token invalid or expired');
+      throw new ApiError(
+        400,
+        "AUTH_RESET_TOKEN_INVALID",
+        "Reset token invalid or expired",
+      );
     }
 
     const newHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
@@ -659,13 +739,13 @@ export const authService = {
     await revokeAllSessionsForUser(prt.userId);
 
     await mailQueue.enqueue({
-      type: 'password-reset-success',
+      type: "password-reset-success",
       to: user.email,
       displayName: user.displayName,
     });
 
     await writeAuditSafe({
-      eventType: 'PASSWORD_RESET_SUCCESS',
+      eventType: "PASSWORD_RESET_SUCCESS",
       actorUserId: user.id,
       targetUserId: user.id,
       ip: meta?.ip ?? null,
@@ -681,12 +761,16 @@ export const authService = {
   ) {
     const user = await authRepo.findUserById(input.userId);
     if (!user) {
-      throw new ApiError(401, 'AUTH_TOKEN_INVALID', 'User no longer exists');
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
     }
 
     const ok = await bcrypt.compare(input.currentPassword, user.passwordHash);
     if (!ok) {
-      throw new ApiError(401, 'AUTH_INVALID_CREDENTIALS', 'Invalid credentials');
+      throw new ApiError(
+        401,
+        "AUTH_INVALID_CREDENTIALS",
+        "Invalid credentials",
+      );
     }
 
     const newHash = await bcrypt.hash(input.newPassword, env.BCRYPT_ROUNDS);
@@ -697,13 +781,13 @@ export const authService = {
     await revokeAllSessionsForUser(user.id);
 
     await mailQueue.enqueue({
-      type: 'password-reset-success',
+      type: "password-reset-success",
       to: user.email,
       displayName: user.displayName,
     });
 
     await writeAuditSafe({
-      eventType: 'PASSWORD_CHANGED',
+      eventType: "PASSWORD_CHANGED",
       actorUserId: user.id,
       targetUserId: user.id,
       ip: meta?.ip ?? null,

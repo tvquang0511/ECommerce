@@ -1,13 +1,13 @@
-import crypto from 'node:crypto';
+import crypto from "node:crypto";
 
-import { prisma } from '../../db/prisma.js';
+import { prisma } from "../../db/prisma.js";
 
 export type AuditEventType =
-  | 'TWO_FACTOR_ENABLED'
-  | 'TWO_FACTOR_DISABLED'
-  | 'REFRESH_COMPROMISED'
-  | 'PASSWORD_RESET_SUCCESS'
-  | 'PASSWORD_CHANGED';
+  | "TWO_FACTOR_ENABLED"
+  | "TWO_FACTOR_DISABLED"
+  | "REFRESH_COMPROMISED"
+  | "PASSWORD_RESET_SUCCESS"
+  | "PASSWORD_CHANGED";
 
 export type AuditLogInput = {
   eventType: AuditEventType;

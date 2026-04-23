@@ -1,7 +1,7 @@
-import type { RequestHandler } from 'express';
-import { ApiError } from '@repo/common/errors';
+import type { RequestHandler } from "express";
+import { ApiError } from "@repo/common/errors";
 
-import { redis } from '../../db/redis.js';
+import { redis } from "../../db/redis.js";
 
 type RateLimitRule = {
   name: string;
@@ -32,9 +32,14 @@ export function rateLimit(rule: RateLimitRule): RequestHandler {
       // Fail if any identifier exceeds its limit.
       for (const id of ids) {
         const key = `rl:${rule.name}:${id}:${nowWindow}`;
-        const count = (await redis.eval(INCR_EXPIRE_LUA, 1, key, String(rule.windowSeconds))) as number;
+        const count = (await redis.eval(
+          INCR_EXPIRE_LUA,
+          1,
+          key,
+          String(rule.windowSeconds),
+        )) as number;
         if (count > rule.limit) {
-          throw new ApiError(429, 'RATE_LIMITED', 'Too many requests', {
+          throw new ApiError(429, "RATE_LIMITED", "Too many requests", {
             rule: rule.name,
             limit: rule.limit,
             windowSeconds: rule.windowSeconds,
@@ -48,8 +53,11 @@ export function rateLimit(rule: RateLimitRule): RequestHandler {
       if (isRedisConnectionError(err)) {
         if (!redisWarned) {
           redisWarned = true;
-          // eslint-disable-next-line no-console
-          console.warn('[rateLimit] Redis unavailable; failing open', err?.message ?? err);
+
+          console.warn(
+            "[rateLimit] Redis unavailable; failing open",
+            err?.message ?? err,
+          );
         }
         return next();
       }
@@ -60,14 +68,14 @@ export function rateLimit(rule: RateLimitRule): RequestHandler {
 }
 
 function isRedisConnectionError(err: unknown) {
-  if (!err || typeof err !== 'object') return false;
+  if (!err || typeof err !== "object") return false;
   const anyErr = err as any;
-  const message = String(anyErr.message ?? '');
+  const message = String(anyErr.message ?? "");
   return (
-    anyErr.code === 'ECONNREFUSED' ||
-    anyErr.code === 'ETIMEDOUT' ||
-    anyErr.code === 'NR_CLOSED' ||
-    message.toLowerCase().includes('connect') ||
-    message.toLowerCase().includes('connection')
+    anyErr.code === "ECONNREFUSED" ||
+    anyErr.code === "ETIMEDOUT" ||
+    anyErr.code === "NR_CLOSED" ||
+    message.toLowerCase().includes("connect") ||
+    message.toLowerCase().includes("connection")
   );
 }

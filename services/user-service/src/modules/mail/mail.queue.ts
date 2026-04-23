@@ -1,6 +1,6 @@
-import { Queue } from 'bullmq';
-import { env } from '../../env.js';
-import type { MailJob } from './mail.types.js';
+import { Queue } from "bullmq";
+import { env } from "../../env.js";
+import type { MailJob } from "./mail.types.js";
 
 let queue: Queue<MailJob> | undefined;
 
@@ -8,11 +8,11 @@ function getQueue(): Queue<MailJob> {
   if (queue) return queue;
 
   const connection = redisConnectionOptions();
-  queue = new Queue<MailJob>('mail', {
+  queue = new Queue<MailJob>("mail", {
     connection,
     defaultJobOptions: {
       attempts: 5,
-      backoff: { type: 'exponential', delay: 2000 },
+      backoff: { type: "exponential", delay: 2000 },
       removeOnComplete: 200,
       removeOnFail: 500,
     },
@@ -23,7 +23,10 @@ function getQueue(): Queue<MailJob> {
 function redisConnectionOptions() {
   const url = new URL(env.REDIS_URL);
   const port = url.port ? Number(url.port) : 6379;
-  const db = url.pathname && url.pathname !== '/' ? Number(url.pathname.replace('/', '')) : undefined;
+  const db =
+    url.pathname && url.pathname !== "/"
+      ? Number(url.pathname.replace("/", ""))
+      : undefined;
   return {
     host: url.hostname,
     port,

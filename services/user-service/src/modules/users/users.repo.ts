@@ -1,4 +1,4 @@
-import { prisma } from '../../db/prisma.js';
+import { prisma } from "../../db/prisma.js";
 
 export const usersRepo = {
   findUserById(id: string) {
@@ -12,7 +12,7 @@ export const usersRepo = {
       bio?: string | null;
       dateOfBirth?: Date | null;
       phoneNumber?: string | null;
-      gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNSPECIFIED' | null;
+      gender?: "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED" | null;
     },
   ) {
     return prisma.user.update({

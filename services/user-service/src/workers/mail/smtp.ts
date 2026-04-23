@@ -1,9 +1,11 @@
-import nodemailer from 'nodemailer';
-import { env } from '../../env.js';
+import nodemailer from "nodemailer";
+import { env } from "../../env.js";
 
 export function createSmtpTransport() {
   if (!env.SMTP_HOST || !env.SMTP_FROM) {
-    throw new Error('SMTP is not configured. Set SMTP_HOST and SMTP_FROM (and credentials if needed).');
+    throw new Error(
+      "SMTP is not configured. Set SMTP_HOST and SMTP_FROM (and credentials if needed).",
+    );
   }
 
   const auth = env.SMTP_USER
