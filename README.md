@@ -304,7 +304,7 @@ Gợi ý layout:
 │  ├─ docker/
 │  │  ├─ docker-compose.dev.yml
 │  │  ├─ docker-compose.edge.yml
-│  │  ├─ docker-compose.user-service.dev.yml
+│  │  ├─ docker-compose.tool.yml
 │  │  └─ docker-compose.yml
 │  ├─ nginx/                     # nginx.conf (+ conf.d)
 │  ├─ jenkins/                   # Jenkinsfile(s) / shared pipeline snippets
@@ -352,6 +352,11 @@ Tài liệu pnpm chi tiết: [docs/pnpm.md](docs/pnpm.md).
 - Nếu muốn bật Nginx (optional):
   - `make edge-up`
   - Truy cập qua `http://localhost:8080`
+- Nếu muốn bật tool xem DB (optional):
+  - `make tool-up` (hoặc `pnpm tools:up`)
+  - Mongo Express: `http://localhost:8081`
+  - Redis Commander: `http://localhost:8082`
+  - Redis Insight: `http://localhost:5540`
 
 Tài liệu kiến trúc:
 - Overview: [docs/architecture/overview.md](docs/architecture/overview.md)

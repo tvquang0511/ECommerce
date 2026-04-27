@@ -251,18 +251,34 @@ ORDER BY "createdAt" DESC
 LIMIT 50;
 ```
 
-### 6.1 Run API + mail worker bằng Docker Compose
-Repo có overlay compose để chạy `user-service` và `mail-worker` cùng với Postgres/Redis:
+### 6.1 Run API + mail worker (khuyến nghị hiện tại)
+Hiện tại repo không còn overlay compose riêng cho `user-service`.
+
+Luồng dev khuyến nghị:
+1) Chạy hạ tầng bằng compose:
+
+```bash
+docker compose -f infra/docker/docker-compose.dev.yml up -d
+```
+
+2) Chạy app trên host:
+
+```bash
+pnpm --filter user-service dev
+pnpm --filter user-service worker:mail
+```
+
+Tuỳ chọn bật UI xem DB:
 
 ```bash
 docker compose \
   -f infra/docker/docker-compose.dev.yml \
-  -f infra/docker/docker-compose.user-service.dev.yml \
-  up -d --build
+  -f infra/docker/docker-compose.tool.yml \
+  up -d
 ```
 
-Ghi chú:
-- File `infra/docker/docker-compose.user-service.dev.yml` load env từ `services/user-service/.env` (SMTP/keys/...) và override `DATABASE_URL`/`REDIS_URL` để trỏ vào container services (`postgres`, `redis`).
+- Mongo Express: `http://localhost:8081`
+- Redis Commander: `http://localhost:8082`
 
 ### 6.2 Prisma migrate (bắt buộc khi đổi schema)
 Sau khi pull thay đổi multi-device sessions:

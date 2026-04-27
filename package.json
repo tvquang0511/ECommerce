@@ -16,6 +16,9 @@
     "deps:logs": "docker compose -f infra/docker/docker-compose.dev.yml logs -f --tail=200",
     "edge:up": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml up -d",
     "edge:down": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml down",
+    "tools:up": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml up -d",
+    "tools:down": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml down",
+    "tools:logs": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml logs -f --tail=200 mongo-express redis-commander redis-insight",
     "full:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "full:down": "docker compose -f infra/docker/docker-compose.yml down",
     "full:build": "docker compose -f infra/docker/docker-compose.yml build"

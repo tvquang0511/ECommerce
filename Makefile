@@ -12,6 +12,7 @@ endif
 
 DC_DEV := $(DOCKER) compose -f infra/docker/docker-compose.dev.yml
 DC_EDGE := $(DOCKER) compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml
+DC_TOOL := $(DOCKER) compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml
 DC_FULL := $(DOCKER) compose -f infra/docker/docker-compose.yml
 
 .PHONY: help
@@ -32,6 +33,9 @@ help:
 	@echo "  make federation    # run product + gateway together"
 	@echo "  make edge-up       # start infra + nginx edge (optional)"
 	@echo "  make edge-down     # stop infra + nginx edge"
+	@echo "  make tool-up       # start infra + mongo/redis tool UIs"
+	@echo "  make tool-down     # stop infra + mongo/redis tool UIs"
+	@echo "  make tool-logs     # tail tool logs"
 	@echo "  make full-up       # start full stack (infra + app containers)"
 	@echo "  make full-down     # stop full stack"
 	@echo "  make full-build    # build app images in full stack"
@@ -77,6 +81,16 @@ edge-up:
 
 edge-down:
 	$(DC_EDGE) down
+
+.PHONY: tool-up tool-down tool-logs
+tool-up:
+	$(DC_TOOL) up -d
+
+tool-down:
+	$(DC_TOOL) down
+
+tool-logs:
+	$(DC_TOOL) logs -f --tail=200 mongo-express redis-commander redis-insight
 
 .PHONY: gateway product product-lint product-test product-e2e product-g service-g user federation mail app
 gateway:
