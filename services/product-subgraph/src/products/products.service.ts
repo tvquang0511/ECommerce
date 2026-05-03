@@ -1,60 +1,80 @@
 import { Injectable } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './product.type';
+import { ProductDocument, ProductModel } from './product.schema';
 
 @Injectable()
 export class ProductsService {
-  private readonly products: Product[] = [
-    { id: 'p1', name: 'Keyboard', price: 49.9 },
-    { id: 'p2', name: 'Mouse', price: 19.9 },
-    { id: 'p3', name: 'Monitor', price: 199.0 },
-  ];
+  constructor(
+    @InjectModel(ProductModel.name)
+    private readonly productModel: Model<ProductDocument>,
+  ) {}
 
-  findAll(): Product[] {
-    return this.products;
+  async findAll(): Promise<Product[]> {
+    const products = await this.productModel.find().exec();
+    return products.map((product) => this.toProduct(product));
   }
 
-  findById(id: string): Product | undefined {
-    return this.products.find((p) => p.id === id);
+  async findById(id: string): Promise<Product | undefined> {
+    const product = await this.productModel.findOne({ id }).exec();
+    return product ? this.toProduct(product) : undefined;
   }
 
-  create(input: CreateProductDto): Product {
-    const product: Product = {
-      id: `p${this.products.length + 1}`,
-      name: input.name,
-      price: input.price,
+  async create(input: CreateProductDto): Promise<Product> {
+    const nextId = await this.generateNextId();
+    const product = await this.productModel.create({
+      id: nextId,
+      ...input,
+    });
+    return this.toProduct(product);
+  }
+
+  async update(
+    id: string,
+    input: UpdateProductDto,
+  ): Promise<Product | undefined> {
+    const product = await this.productModel
+      .findOneAndUpdate({ id }, input, {
+        returnDocument: 'after',
+        runValidators: true,
+      })
+      .exec();
+
+    return product ? this.toProduct(product) : undefined;
+  }
+
+  async remove(id: string): Promise<boolean> {
+    const result = await this.productModel.deleteOne({ id }).exec();
+    return result.deletedCount > 0;
+  }
+
+  private toProduct(product: {
+    id: string;
+    name: string;
+    price: number;
+  }): Product {
+    return {
+      id: product.id,
+      name: product.name,
+      price: product.price,
     };
-
-    this.products.push(product);
-    return product;
   }
 
-  update(id: string, input: UpdateProductDto): Product | undefined {
-    const product = this.findById(id);
-    if (!product) {
-      return undefined;
-    }
+  private async generateNextId(): Promise<string> {
+    const products = await this.productModel.find({}, { id: 1 }).exec();
+    const nextNumber = products.reduce((maxId, product) => {
+      const match = /^p(\d+)$/.exec(product.id);
+      if (!match) {
+        return maxId;
+      }
 
-    if (input.name !== undefined) {
-      product.name = input.name;
-    }
+      return Math.max(maxId, Number(match[1]));
+    }, 0);
 
-    if (input.price !== undefined) {
-      product.price = input.price;
-    }
-
-    return product;
-  }
-
-  remove(id: string): boolean {
-    const index = this.products.findIndex((p) => p.id === id);
-    if (index === -1) {
-      return false;
-    }
-
-    this.products.splice(index, 1);
-    return true;
+    return `p${nextNumber + 1}`;
   }
 }

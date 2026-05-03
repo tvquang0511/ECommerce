@@ -20,23 +20,26 @@ export class ProductsController {
   constructor(private readonly productsService: ProductsService) {}
 
   @Get()
-  findAll(): Product[] {
+  async findAll(): Promise<Product[]> {
     return this.productsService.findAll();
   }
 
   @Get(':id')
-  findById(@Param('id') id: string): Product {
+  async findById(@Param('id') id: string): Promise<Product> {
     return this.getOrThrow(id);
   }
 
   @Post()
-  create(@Body() input: CreateProductDto): Product {
+  async create(@Body() input: CreateProductDto): Promise<Product> {
     return this.productsService.create(input);
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() input: UpdateProductDto): Product {
-    const product = this.productsService.update(id, input);
+  async update(
+    @Param('id') id: string,
+    @Body() input: UpdateProductDto,
+  ): Promise<Product> {
+    const product = await this.productsService.update(id, input);
     if (!product) {
       throw new NotFoundException(`Product ${id} not found`);
     }
@@ -46,15 +49,15 @@ export class ProductsController {
 
   @Delete(':id')
   @HttpCode(204)
-  remove(@Param('id') id: string): void {
-    const removed = this.productsService.remove(id);
+  async remove(@Param('id') id: string): Promise<void> {
+    const removed = await this.productsService.remove(id);
     if (!removed) {
       throw new NotFoundException(`Product ${id} not found`);
     }
   }
 
-  private getOrThrow(id: string): Product {
-    const product = this.productsService.findById(id);
+  private async getOrThrow(id: string): Promise<Product> {
+    const product = await this.productsService.findById(id);
     if (!product) {
       throw new NotFoundException(`Product ${id} not found`);
     }

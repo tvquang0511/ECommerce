@@ -1,26 +1,36 @@
 # product-subgraph
 
-NestJS starter được reset từ đầu để học theo lộ trình cơ bản (module, controller, service) trước khi thêm GraphQL/Federation.
+NestJS service cho sản phẩm, đang dùng MongoDB qua Mongoose theo hướng tối giản: `controller -> service -> model`.
 
 ## Dev
 - Cài dependencies ở root workspace: `pnpm install`
 - Chạy dev: `pnpm --filter product-subgraph dev`
 
+Biến môi trường:
+- `MONGO_URI`: chuỗi kết nối MongoDB. Nếu không set, app sẽ dùng `mongodb://127.0.0.1:27017/product-subgraph`.
+
 Default port: `4002`.
 
 ## Endpoints
-- Root: `http://localhost:4002/`
-- Health: `http://localhost:4002/health`
-- Products: `http://localhost:4002/products`
-- Product by id: `http://localhost:4002/products/p1`
-- Create product: `POST http://localhost:4002/products`
-- Update product: `PUT http://localhost:4002/products/:id`
-- Delete product: `DELETE http://localhost:4002/products/:id`
+- `GET /`
+- `GET /health`
+- `GET /products`
+- `GET /products/:id`
+- `POST /products`
+- `PUT /products/:id`
+- `DELETE /products/:id`
+
+## Cấu trúc gọn hiện tại
+- `src/products/products.controller.ts`
+- `src/products/products.service.ts`
+- `src/products/product.schema.ts`
+- `src/products/dto/create-product.dto.ts`
+- `src/products/dto/update-product.dto.ts`
 
 ## Data hiện tại
-- Đang dùng data ảo (in-memory) để học REST + DTO + ValidationPipe nhanh.
-- Data sẽ reset mỗi lần restart app.
-- Khi bạn sẵn sàng, mình sẽ chuyển qua database thật (Prisma hoặc Mongoose).
+- Dữ liệu nằm trong MongoDB, không còn in-memory.
+- API vẫn giữ cùng contract để sau này thay persistence layer sẽ ít ảnh hưởng.
+- E2E test đang chạy với `mongodb-memory-server` để không phụ thuộc Mongo thật khi test.
 
 ## Lệnh ngắn
 - Chạy dev: `pnpm product` hoặc `make product`

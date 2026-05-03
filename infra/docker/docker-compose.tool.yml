@@ -4,7 +4,6 @@
 #
 # UIs:
 # - Mongo Express: http://localhost:8081
-# - Redis Commander: http://localhost:8082
 # - Redis Insight: http://localhost:5540
 
 services:
@@ -17,15 +16,6 @@ services:
       ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
     ports:
       - "8081:8081"
-
-  # redis-commander:
-  #   image: rediscommander/redis-commander:latest
-  #   depends_on:
-  #     - redis
-  #   environment:
-  #     REDIS_HOSTS: local:redis:6379
-  #   ports:
-  #     - "8082:8081"
 
   redis-insight:
     image: redis/redisinsight:latest
