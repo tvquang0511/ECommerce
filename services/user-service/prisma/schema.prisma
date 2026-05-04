@@ -23,6 +23,11 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  // RBAC relations
+  roles          UserRole[]
+  permissions    UserPermission[]
+  sellerProfile  SellerProfile?
+
   refreshTokens       RefreshToken[]
   authSessions        AuthSession[]
   passwordResetTokens PasswordResetToken[]
@@ -156,4 +161,126 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+// ============ RBAC Models ============
+
+enum RoleEnum {
+  BUYER
+  SELLER
+  ADMIN_MODERATOR
+  ADMIN_OPERATIONS
+  ADMIN_ANALYTICS
+  SUPER_ADMIN
+}
+
+enum SellerStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  SUSPENDED
+  BANNED
+}
+
+enum SellerTier {
+  INDIVIDUAL
+  MERCHANT
+  BRAND_PARTNER
+  PREMIUM
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String
+  description String?
+  isPublic    Boolean  @default(true)
+  
+  permissions RolePermission[]
+  users       UserRole[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("roles")
+}
+
+model UserRole {
+  id        String   @id @default(uuid())
+  userId    String
+  roleId    String
+  assignedAt DateTime @default(now())
+  expiresAt DateTime?
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@map("user_roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  category    String   // "product", "seller", "admin"
+  
+  roles       RolePermission[]
+  users       UserPermission[]
+  
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id           String   @id @default(uuid())
+  userId       String
+  permissionId String
+  assignedAt   DateTime @default(now())
+  expiresAt    DateTime?
+  
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, permissionId])
+  @@index([userId])
+  @@map("user_permissions")
+}
+
+model SellerProfile {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  shopName      String   @unique
+  shopDesc      String?
+  
+  status        SellerStatus @default(PENDING_VERIFICATION)
+  
+  tier          SellerTier @default(INDIVIDUAL)
+  isKycVerified Boolean   @default(false)
+  
+  totalProducts Int       @default(0)
+  totalOrders   Int       @default(0)
+  avgRating     Float?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([status])
+  @@index([userId])
+  @@map("seller_profiles")
 }

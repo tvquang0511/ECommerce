@@ -155,7 +155,21 @@ Mapping code (để dễ maintain):
 
 ---
 
-## 5) Environment variables
+## 5) RBAC cho marketplace
+
+Auth chỉ lo xác thực danh tính và phát token. Còn quyền nghiệp vụ cho marketplace nên được mô tả tách riêng trong tài liệu RBAC:
+
+- [RBAC for Marketplace Access Control](rbac-marketplace-access-control.md)
+
+Tóm tắt nhanh:
+- `BUYER` là role mặc định khi đăng ký.
+- `SELLER` cần đi qua luồng apply + verification.
+- `ADMIN_*` nên được chia thành role theo chức năng, không nên gom thành một admin duy nhất nếu muốn mở rộng sau này.
+- Quyền thật nên kiểm tra bằng permission + scope, không chỉ dựa vào enum role.
+
+---
+
+## 6) Environment variables
 
 ### JWT (RS256)
 - `JWT_ACCESS_PRIVATE_KEY_PEM_B64` / `JWT_ACCESS_PUBLIC_KEY_PEM_B64` (recommended)
@@ -178,12 +192,12 @@ Mapping code (để dễ maintain):
 
 ---
 
-## 6) Dev notes
+## 7) Dev notes
 
 - Nếu không set RSA keys và `NODE_ENV!=production`, `user-service` sẽ tự generate keypair ephemeral để dev chạy nhanh.
 - Nếu SMTP chưa cấu hình, flow 2FA có thể trả dev helper (ví dụ `devOtp`) để test bằng Postman.
 
-### 6.3 Hardening (giai đoạn 1)
+### 7.1 Hardening (giai đoạn 1)
 Phạm vi: làm những thứ “đủ dùng” để giảm brute force + có trace sự kiện bảo mật, chưa làm metrics/worker health nâng cao.
 
 #### 6.3.1 Rate limit theo route (Redis)
