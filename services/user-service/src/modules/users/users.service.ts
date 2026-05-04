@@ -10,7 +10,24 @@ function publicUser(user: {
   dateOfBirth?: Date | null;
   phoneNumber?: string | null;
   gender?: "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED" | null;
+  roles?: Array<{ role: { name: string } }>;
+  permissions?: Array<{ permission: { name: string } }>;
+  sellerProfile?:
+    | {
+        id: string;
+        userId: string;
+        shopName: string;
+        shopDesc: string | null;
+        status: string;
+        tier: string;
+        isKycVerified: boolean;
+        totalProducts: number;
+        totalOrders: number;
+        avgRating: number | null;
+      }
+    | null;
 }) {
+  const roleNames = (user.roles ?? []).map((entry) => entry.role.name);
   return {
     id: user.id,
     email: user.email,
@@ -22,6 +39,24 @@ function publicUser(user: {
       : null,
     phoneNumber: user.phoneNumber ?? null,
     gender: user.gender ?? null,
+    roles: roleNames,
+    permissions: Array.from(
+      new Set((user.permissions ?? []).map((entry) => entry.permission.name)),
+    ),
+    sellerProfile: user.sellerProfile
+      ? {
+          id: user.sellerProfile.id,
+          userId: user.sellerProfile.userId,
+          shopName: user.sellerProfile.shopName,
+          shopDesc: user.sellerProfile.shopDesc,
+          status: user.sellerProfile.status,
+          tier: user.sellerProfile.tier,
+          isKycVerified: user.sellerProfile.isKycVerified,
+          totalProducts: user.sellerProfile.totalProducts,
+          totalOrders: user.sellerProfile.totalOrders,
+          avgRating: user.sellerProfile.avgRating ?? null,
+        }
+      : null,
   };
 }
 

@@ -7,6 +7,10 @@ Tài liệu này mô tả thiết kế auth hiện tại của `user-service` sa
 - Tách việc gửi email sang **BullMQ worker** (mức B: 1 process khác, vẫn thuộc user-service).
 - Nâng cấp **refresh token** từ single-device sang **multi-device sessions**.
 
+Chuẩn kiến trúc tổng thể và cách RBAC gắn vào marketplace nằm ở:
+- [architecture-standard.md](architecture-standard.md)
+- [rbac-marketplace-access-control.md](rbac-marketplace-access-control.md)
+
 ---
 
 ## 1) Token model
@@ -166,6 +170,7 @@ Tóm tắt nhanh:
 - `SELLER` cần đi qua luồng apply + verification.
 - `ADMIN_*` nên được chia thành role theo chức năng, không nên gom thành một admin duy nhất nếu muốn mở rộng sau này.
 - Quyền thật nên kiểm tra bằng permission + scope, không chỉ dựa vào enum role.
+- `GET /api/users/auth/me` và `GET /api/users/me` hiện trả thêm RBAC context: `roles`, `permissions`, `sellerProfile`.
 
 ---
 

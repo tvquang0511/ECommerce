@@ -1,8 +1,33 @@
 import { prisma } from "../../db/prisma.js";
 
+const userRbacInclude = {
+  roles: {
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  permissions: {
+    include: {
+      permission: true,
+    },
+  },
+  sellerProfile: true,
+} as const;
+
 export const usersRepo = {
   findUserById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
+    return prisma.user.findUnique({
+      where: { id },
+      include: userRbacInclude,
+    });
   },
 
   updateMe(

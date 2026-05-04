@@ -1,12 +1,40 @@
 import { prisma } from "../../db/prisma.js";
 
+const userRbacInclude = {
+  roles: {
+    include: {
+      role: {
+        include: {
+          permissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  },
+  permissions: {
+    include: {
+      permission: true,
+    },
+  },
+  sellerProfile: true,
+} as const;
+
 export const authRepo = {
   findUserByEmail(email: string) {
-    return prisma.user.findUnique({ where: { email } });
+    return prisma.user.findUnique({
+      where: { email },
+      include: userRbacInclude,
+    });
   },
 
   findUserById(id: string) {
-    return prisma.user.findUnique({ where: { id } });
+    return prisma.user.findUnique({
+      where: { id },
+      include: userRbacInclude,
+    });
   },
 
   createUser(data: {
@@ -14,7 +42,23 @@ export const authRepo = {
     passwordHash: string;
     displayName: string;
   }) {
-    return prisma.user.create({ data });
+    return prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({ data });
+      const buyerRole = await tx.role.findUnique({ where: { name: "BUYER" } });
+
+      if (!buyerRole) {
+        throw new Error("BUYER role is missing. Run RBAC seed first.");
+      }
+
+      await tx.userRole.create({
+        data: {
+          userId: user.id,
+          roleId: buyerRole.id,
+        },
+      });
+
+      return user;
+    });
   },
 
   createRefreshToken(data: {

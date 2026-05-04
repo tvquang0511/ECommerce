@@ -1,6 +1,10 @@
 # Architecture Overview — E-commerce Microservices (Nginx + Apollo Federation)
 
-Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức **system design + chức năng**, ưu tiên giúp bạn:
+Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức **system design + chức năng**. Đây là tài liệu tổng quan, còn nguồn sự thật chuẩn nằm ở:
+
+- [architecture-standard.md](architecture-standard.md)
+
+Ưu tiên của tài liệu này là giúp bạn:
 - Nắm rõ “mỗi service làm gì / không làm gì” (service boundaries)
 - Biết luồng sync/async (HTTP vs RabbitMQ)
 - Biết vai trò của các “hạ tầng ngầm” như Redis, RabbitMQ, MinIO

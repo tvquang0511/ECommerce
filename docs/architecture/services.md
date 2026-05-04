@@ -2,6 +2,8 @@
 
 Tài liệu này đi sâu vào **chức năng** của từng service/subgraph/worker để bạn “mường tượng” trước khi code.
 
+Chuẩn kiến trúc và quy ước viết docs nằm ở [architecture-standard.md](architecture-standard.md).
+
 > Quy ước từ ngữ:
 > - **Service**: REST internal service (vd inventory/payment).
 > - **Subgraph**: GraphQL Federation subgraph (product/cart/order).

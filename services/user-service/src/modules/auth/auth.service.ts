@@ -15,6 +15,25 @@ type JwtAccessPayload = {
   email: string;
 };
 
+type PublicRole = {
+  name: string;
+  displayName: string;
+  permissions: string[];
+};
+
+type PublicSellerProfile = {
+  id: string;
+  userId: string;
+  shopName: string;
+  shopDesc: string | null;
+  status: string;
+  tier: string;
+  isKycVerified: boolean;
+  totalProducts: number;
+  totalOrders: number;
+  avgRating: number | null;
+};
+
 type OpaqueRefreshTokenRecord = {
   tokenId: string;
   tokenHash: string;
@@ -25,6 +44,47 @@ type RequestMeta = {
   ip?: string | null;
   userAgent?: string | null;
   existingRefreshToken?: string | null;
+};
+
+type UserWithRbac = {
+  id: string;
+  email: string;
+  displayName: string;
+  avatarUrl?: string | null;
+  bio?: string | null;
+  dateOfBirth?: Date | null;
+  phoneNumber?: string | null;
+  gender?: "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED" | null;
+  passwordHash: string;
+  twoFactorEnabled?: boolean;
+  roles?: Array<{
+    role: {
+      name: string;
+      displayName: string;
+      permissions?: Array<{
+        permission: {
+          name: string;
+        };
+      }>;
+    };
+  }>;
+  permissions?: Array<{
+    permission: {
+      name: string;
+    };
+  }>;
+  sellerProfile?: {
+    id: string;
+    userId: string;
+    shopName: string;
+    shopDesc: string | null;
+    status: string;
+    tier: string;
+    isKycVerified: boolean;
+    totalProducts: number;
+    totalOrders: number;
+    avgRating: number | null;
+  } | null;
 };
 
 function signAccessToken(user: { id: string; email: string }) {
@@ -91,16 +151,15 @@ function hashOtpCode(code: string): string {
     .digest("hex");
 }
 
-function publicUser(user: {
-  id: string;
-  email: string;
-  displayName: string;
-  avatarUrl?: string | null;
-  bio?: string | null;
-  dateOfBirth?: Date | null;
-  phoneNumber?: string | null;
-  gender?: "MALE" | "FEMALE" | "OTHER" | "UNSPECIFIED" | null;
-}) {
+function publicUser(user: UserWithRbac) {
+  const roleNames = (user.roles ?? []).map((entry) => entry.role.name);
+  const rolePermissions = (user.roles ?? []).flatMap((entry) =>
+    (entry.role.permissions ?? []).map((permission) => permission.permission.name),
+  );
+  const directPermissions = (user.permissions ?? []).map(
+    (entry) => entry.permission.name,
+  );
+
   return {
     id: user.id,
     email: user.email,
@@ -112,6 +171,22 @@ function publicUser(user: {
       : null,
     phoneNumber: user.phoneNumber ?? null,
     gender: user.gender ?? null,
+    roles: roleNames,
+    permissions: Array.from(new Set([...rolePermissions, ...directPermissions])),
+    sellerProfile: user.sellerProfile
+      ? {
+          id: user.sellerProfile.id,
+          userId: user.sellerProfile.userId,
+          shopName: user.sellerProfile.shopName,
+          shopDesc: user.sellerProfile.shopDesc,
+          status: user.sellerProfile.status,
+          tier: user.sellerProfile.tier,
+          isKycVerified: user.sellerProfile.isKycVerified,
+          totalProducts: user.sellerProfile.totalProducts,
+          totalOrders: user.sellerProfile.totalOrders,
+          avgRating: user.sellerProfile.avgRating ?? null,
+        }
+      : null,
   };
 }
 
