@@ -6,6 +6,25 @@ const createQuery = <T>(result: T) => ({
 
 describe('ProductsService', () => {
   let service: ProductsService;
+  const sellerActor = {
+    userId: 'seller-1',
+    roles: ['SELLER'],
+    permissions: [],
+    sellerProfile: { status: 'VERIFIED', isKycVerified: true },
+  };
+  const buyerActor = {
+    userId: 'buyer-1',
+    roles: ['BUYER'],
+    permissions: [],
+    sellerProfile: null,
+  };
+  const adminActor = {
+    userId: 'admin-1',
+    roles: ['ADMIN_MODERATOR'],
+    permissions: [],
+    sellerProfile: null,
+  };
+
   let productModel: {
     find: jest.Mock;
     findOne: jest.Mock;
@@ -65,7 +84,7 @@ describe('ProductsService', () => {
       ]),
     );
 
-    await expect(service.findAll()).resolves.toHaveLength(3);
+    await expect(service.findAll(adminActor)).resolves.toHaveLength(3);
   });
 
   it('finds product by id', async () => {
@@ -83,7 +102,7 @@ describe('ProductsService', () => {
       }),
     );
 
-    await expect(service.findById('p2')).resolves.toEqual({
+    await expect(service.findById('p2', buyerActor)).resolves.toEqual({
       id: 'p2',
       sellerId: 'seller-2',
       name: 'Mouse',
@@ -99,7 +118,7 @@ describe('ProductsService', () => {
   it('returns undefined when product id does not exist', async () => {
     productModel.findOne.mockReturnValue(createQuery(null));
 
-    await expect(service.findById('missing')).resolves.toBeUndefined();
+    await expect(service.findById('missing', buyerActor)).resolves.toBeUndefined();
   });
 
   it('creates a new product with next id', async () => {
@@ -123,8 +142,7 @@ describe('ProductsService', () => {
     });
 
     await expect(
-      service.create({
-        sellerId: 'seller-1',
+      service.create(sellerActor, {
         name: 'Desk',
         price: 120,
         categoryId: 'cat-desks',
@@ -145,6 +163,13 @@ describe('ProductsService', () => {
   });
 
   it('updates existing product fields', async () => {
+    productModel.findOne.mockReturnValue(
+      createQuery({
+        id: 'p1',
+        sellerId: 'seller-1',
+        status: 'APPROVED',
+      }),
+    );
     productModel.findOneAndUpdate.mockReturnValue(
       createQuery({
         id: 'p1',
@@ -160,7 +185,7 @@ describe('ProductsService', () => {
     );
 
     await expect(
-      service.update('p1', {
+      service.update('p1', sellerActor, {
         name: 'Mechanical Keyboard',
         price: 59.9,
       }),
@@ -191,8 +216,15 @@ describe('ProductsService', () => {
         attributes: { wireless: true },
       }),
     );
+    productModel.findOne.mockReturnValue(
+      createQuery({
+        id: 'p2',
+        sellerId: 'seller-2',
+        status: 'APPROVED',
+      }),
+    );
 
-    await expect(service.update('p2', { price: 25.5 })).resolves.toEqual({
+    await expect(service.update('p2', adminActor, { price: 25.5 })).resolves.toEqual({
       id: 'p2',
       sellerId: 'seller-2',
       name: 'Mouse',
@@ -206,22 +238,66 @@ describe('ProductsService', () => {
   });
 
   it('returns undefined when updating missing product', async () => {
-    productModel.findOneAndUpdate.mockReturnValue(createQuery(null));
+    productModel.findOne.mockReturnValue(createQuery(null));
 
     await expect(
-      service.update('missing', { name: 'Nope' }),
+      service.update('missing', sellerActor, { name: 'Nope' }),
     ).resolves.toBeUndefined();
   });
 
   it('removes product by id', async () => {
+    productModel.findOne.mockReturnValue(
+      createQuery({ id: 'p3', sellerId: 'seller-1', status: 'APPROVED' }),
+    );
     productModel.deleteOne.mockReturnValue(createQuery({ deletedCount: 1 }));
 
-    await expect(service.remove('p3')).resolves.toBe(true);
+    await expect(service.remove('p3', sellerActor)).resolves.toBe(true);
   });
 
   it('returns false when removing missing product', async () => {
-    productModel.deleteOne.mockReturnValue(createQuery({ deletedCount: 0 }));
+    productModel.findOne.mockReturnValue(createQuery(null));
 
-    await expect(service.remove('missing')).resolves.toBe(false);
+    await expect(service.remove('missing', sellerActor)).resolves.toBe(false);
+  });
+
+  it('submits product for review', async () => {
+    const save = jest.fn().mockResolvedValue(undefined);
+    productModel.findOne.mockReturnValue(
+      createQuery({
+        id: 'p1',
+        sellerId: 'seller-1',
+        name: 'Keyboard',
+        price: 49.9,
+        slug: 'keyboard-p1',
+        status: 'DRAFT',
+        save,
+      }),
+    );
+
+    await expect(service.submitForReview('p1', sellerActor)).resolves.toMatchObject({
+      id: 'p1',
+      status: 'PENDING_REVIEW',
+    });
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  it('approves product from pending review', async () => {
+    const save = jest.fn().mockResolvedValue(undefined);
+    productModel.findOne.mockReturnValue(
+      createQuery({
+        id: 'p1',
+        sellerId: 'seller-1',
+        name: 'Keyboard',
+        price: 49.9,
+        slug: 'keyboard-p1',
+        status: 'PENDING_REVIEW',
+        save,
+      }),
+    );
+
+    await expect(service.approve('p1')).resolves.toMatchObject({
+      id: 'p1',
+      status: 'APPROVED',
+    });
   });
 });

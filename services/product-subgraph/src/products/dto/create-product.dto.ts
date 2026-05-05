@@ -1,7 +1,6 @@
 import { Type } from 'class-transformer';
 import {
   IsArray,
-  IsNotEmpty,
   IsNumber,
   IsObject,
   IsOptional,
@@ -11,10 +10,6 @@ import {
 } from 'class-validator';
 
 export class CreateProductDto {
-  @IsString()
-  @IsNotEmpty()
-  sellerId!: string;
-
   @IsString()
   @MaxLength(120)
   name!: string;

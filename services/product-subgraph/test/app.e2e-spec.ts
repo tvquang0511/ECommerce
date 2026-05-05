@@ -47,6 +47,18 @@ const initialProducts = [
   },
 ];
 
+const sellerHeaders = {
+  'x-dev-user-id': 'seller-1',
+  'x-dev-roles': 'SELLER',
+  'x-dev-seller-status': 'VERIFIED',
+  'x-dev-kyc-verified': 'true',
+};
+
+const adminHeaders = {
+  'x-dev-user-id': 'admin-1',
+  'x-dev-roles': 'ADMIN_MODERATOR',
+};
+
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
   let mongoServer: MongoMemoryServer;
@@ -147,8 +159,8 @@ describe('AppController (e2e)', () => {
   it('/products (POST)', () => {
     return request(app.getHttpServer())
       .post('/products')
+      .set(sellerHeaders)
       .send({
-        sellerId: 'seller-4',
         name: 'Desk',
         price: 120,
         categoryId: 'cat-desks',
@@ -158,7 +170,7 @@ describe('AppController (e2e)', () => {
       .expect(201)
       .expect({
         id: 'p4',
-        sellerId: 'seller-4',
+        sellerId: 'seller-1',
         name: 'Desk',
         price: 120,
         slug: 'desk-p4',
@@ -172,6 +184,7 @@ describe('AppController (e2e)', () => {
   it('/products/:id (PUT)', () => {
     return request(app.getHttpServer())
       .put('/products/p1')
+      .set(sellerHeaders)
       .send({ name: 'Mechanical Keyboard', price: 59.9 })
       .expect(200)
       .expect({
@@ -190,6 +203,7 @@ describe('AppController (e2e)', () => {
   it('/products/:id (PUT) invalid payload', () => {
     return request(app.getHttpServer())
       .put('/products/p1')
+      .set(sellerHeaders)
       .send({ name: 123, price: -2, extra: true })
       .expect(400);
   });
@@ -197,6 +211,7 @@ describe('AppController (e2e)', () => {
   it('/products/:id (PUT) not found', () => {
     return request(app.getHttpServer())
       .put('/products/missing')
+      .set(sellerHeaders)
       .send({ name: 'Nope' })
       .expect(404)
       .expect((res) => {
@@ -210,11 +225,17 @@ describe('AppController (e2e)', () => {
   });
 
   it('/products/:id (DELETE)', () => {
-    return request(app.getHttpServer()).delete('/products/p3').expect(204);
+    return request(app.getHttpServer())
+      .delete('/products/p3')
+      .set(adminHeaders)
+      .expect(204);
   });
 
   it('/products/:id (DELETE) then GET should be 404', async () => {
-    await request(app.getHttpServer()).delete('/products/p2').expect(204);
+    await request(app.getHttpServer())
+      .delete('/products/p2')
+      .set(adminHeaders)
+      .expect(204);
 
     await request(app.getHttpServer()).get('/products/p2').expect(404);
   });
@@ -222,6 +243,7 @@ describe('AppController (e2e)', () => {
   it('/products/:id (DELETE) not found', () => {
     return request(app.getHttpServer())
       .delete('/products/missing')
+      .set(adminHeaders)
       .expect(404)
       .expect((res) => {
         const body = res.body as { message?: string | string[] };
@@ -250,8 +272,53 @@ describe('AppController (e2e)', () => {
   it('/products (POST) invalid payload', () => {
     return request(app.getHttpServer())
       .post('/products')
+      .set(sellerHeaders)
       .send({ name: 123, price: -1, extra: true })
       .expect(400);
+  });
+
+  it('/products/:id/submit (POST)', () => {
+    return request(app.getHttpServer())
+      .post('/products')
+      .set(sellerHeaders)
+      .send({
+        name: 'Draft Chair',
+        price: 90,
+      })
+      .expect(201)
+      .then(() => {
+        return request(app.getHttpServer())
+          .post('/products/p4/submit')
+          .set(sellerHeaders)
+          .expect(201)
+          .expect((res) => {
+            expect(res.body.status).toBe('PENDING_REVIEW');
+          });
+      });
+  });
+
+  it('/products/:id/approve (POST)', async () => {
+    await request(app.getHttpServer())
+      .post('/products')
+      .set(sellerHeaders)
+      .send({
+        name: 'Draft Lamp',
+        price: 45,
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/products/p4/submit')
+      .set(sellerHeaders)
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/products/p4/approve')
+      .set(adminHeaders)
+      .expect(201)
+      .expect((res) => {
+        expect(res.body.status).toBe('APPROVED');
+      });
   });
 
   afterEach(async () => {

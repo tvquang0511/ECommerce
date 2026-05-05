@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AuthContextService } from '../auth/auth-context.service';
 import { ProductsController } from './products.controller';
 import { ProductModel, ProductSchema } from './product.schema';
 import { ProductsService } from './products.service';
@@ -11,6 +12,6 @@ import { ProductsService } from './products.service';
     ]),
   ],
   controllers: [ProductsController],
-  providers: [ProductsService],
+  providers: [ProductsService, AuthContextService],
 })
 export class ProductsModule {}
