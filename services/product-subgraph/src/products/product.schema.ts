@@ -44,3 +44,11 @@ export class ProductModel {
 export type ProductDocument = HydratedDocument<ProductModel>;
 
 export const ProductSchema = SchemaFactory.createForClass(ProductModel);
+
+ProductSchema.index({ sellerId: 1, status: 1 });
+ProductSchema.index({ categoryId: 1, status: 1 });
+ProductSchema.index({ tags: 1 });
+ProductSchema.index(
+  { name: 'text', tags: 'text' },
+  { weights: { name: 10, tags: 3 } },
+);

@@ -1,16 +1,22 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { productConfig } from './config';
 import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [productConfig],
+    }),
     MongooseModule.forRootAsync({
-      useFactory: () => ({
-        uri:
-          process.env.MONGO_URI ?? 'mongodb://127.0.0.1:27017/product-subgraph',
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri: configService.get<string>('product.mongoUri')!,
       }),
     }),
     ProductsModule,

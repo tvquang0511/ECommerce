@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 import { AuthActor } from './auth-actor.type';
 
@@ -23,8 +24,7 @@ type MeResponse = {
 
 @Injectable()
 export class AuthContextService {
-  private readonly userServiceBaseUrl =
-    process.env.USER_SERVICE_BASE_URL ?? 'http://localhost:4001';
+  constructor(private readonly configService: ConfigService) {}
 
   async getOptionalActor(req: RequestLike): Promise<AuthActor | null> {
     const devActor = this.getDevActor(req);
@@ -86,7 +86,7 @@ export class AuthContextService {
   }
 
   private getDevActor(req: RequestLike): AuthActor | null {
-    if (process.env.NODE_ENV !== 'test') {
+    if (this.configService.get<string>('product.nodeEnv') !== 'test') {
       return null;
     }
 
@@ -123,7 +123,11 @@ export class AuthContextService {
   }
 
   private async fetchActorFromUserService(token: string): Promise<AuthActor> {
-    const response = await fetch(`${this.userServiceBaseUrl}/api/users/auth/me`, {
+    const userServiceBaseUrl =
+      this.configService.get<string>('product.userServiceBaseUrl') ??
+      'http://localhost:4001';
+
+    const response = await fetch(`${userServiceBaseUrl}/api/users/auth/me`, {
       method: 'GET',
       headers: {
         authorization: `Bearer ${token}`,
