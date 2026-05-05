@@ -29,9 +29,39 @@ describe('ProductsService', () => {
   it('returns products from database', async () => {
     productModel.find.mockReturnValue(
       createQuery([
-        { id: 'p1', name: 'Keyboard', price: 49.9 },
-        { id: 'p2', name: 'Mouse', price: 19.9 },
-        { id: 'p3', name: 'Monitor', price: 199.0 },
+        {
+          id: 'p1',
+          sellerId: 'seller-1',
+          name: 'Keyboard',
+          price: 49.9,
+          slug: 'keyboard-p1',
+          status: 'APPROVED',
+          categoryId: 'cat-keyboards',
+          tags: ['peripherals'],
+          attributes: { layout: 'US' },
+        },
+        {
+          id: 'p2',
+          sellerId: 'seller-2',
+          name: 'Mouse',
+          price: 19.9,
+          slug: 'mouse-p2',
+          status: 'APPROVED',
+          categoryId: 'cat-mice',
+          tags: ['peripherals'],
+          attributes: { wireless: true },
+        },
+        {
+          id: 'p3',
+          sellerId: 'seller-3',
+          name: 'Monitor',
+          price: 199.0,
+          slug: 'monitor-p3',
+          status: 'APPROVED',
+          categoryId: 'cat-monitors',
+          tags: ['displays'],
+          attributes: { size: 27 },
+        },
       ]),
     );
 
@@ -40,13 +70,29 @@ describe('ProductsService', () => {
 
   it('finds product by id', async () => {
     productModel.findOne.mockReturnValue(
-      createQuery({ id: 'p2', name: 'Mouse', price: 19.9 }),
+      createQuery({
+        id: 'p2',
+        sellerId: 'seller-2',
+        name: 'Mouse',
+        price: 19.9,
+        slug: 'mouse-p2',
+        status: 'APPROVED',
+        categoryId: 'cat-mice',
+        tags: ['peripherals'],
+        attributes: { wireless: true },
+      }),
     );
 
     await expect(service.findById('p2')).resolves.toEqual({
       id: 'p2',
+      sellerId: 'seller-2',
       name: 'Mouse',
       price: 19.9,
+      slug: 'mouse-p2',
+      status: 'APPROVED',
+      categoryId: 'cat-mice',
+      tags: ['peripherals'],
+      attributes: { wireless: true },
     });
   });
 
@@ -59,25 +105,58 @@ describe('ProductsService', () => {
   it('creates a new product with next id', async () => {
     productModel.find.mockReturnValue(
       createQuery([
-        { id: 'p1', name: 'Keyboard', price: 49.9 },
-        { id: 'p2', name: 'Mouse', price: 19.9 },
-        { id: 'p3', name: 'Monitor', price: 199.0 },
+        { id: 'p1' },
+        { id: 'p2' },
+        { id: 'p3' },
       ]),
     );
     productModel.create.mockResolvedValue({
       id: 'p4',
+      sellerId: 'seller-1',
       name: 'Desk',
       price: 120,
+      slug: 'desk-p4',
+      status: 'DRAFT',
+      categoryId: 'cat-desks',
+      tags: ['furniture'],
+      attributes: { color: 'oak' },
     });
 
-    await expect(service.create({ name: 'Desk', price: 120 })).resolves.toEqual(
-      { id: 'p4', name: 'Desk', price: 120 },
-    );
+    await expect(
+      service.create({
+        sellerId: 'seller-1',
+        name: 'Desk',
+        price: 120,
+        categoryId: 'cat-desks',
+        tags: ['furniture'],
+        attributes: { color: 'oak' },
+      }),
+    ).resolves.toEqual({
+      id: 'p4',
+      sellerId: 'seller-1',
+      name: 'Desk',
+      price: 120,
+      slug: 'desk-p4',
+      status: 'DRAFT',
+      categoryId: 'cat-desks',
+      tags: ['furniture'],
+      attributes: { color: 'oak' },
+    });
   });
 
   it('updates existing product fields', async () => {
     productModel.findOneAndUpdate.mockReturnValue(
-      createQuery({ id: 'p1', name: 'Mechanical Keyboard', price: 59.9 }),
+      createQuery({
+        id: 'p1',
+        sellerId: 'seller-1',
+        name: 'Mechanical Keyboard',
+        price: 59.9,
+        slug: 'mechanical-keyboard-p1',
+        status: 'APPROVED',
+        categoryId: 'cat-keyboards',
+        tags: ['peripherals'],
+        attributes: { layout: 'US' },
+      }),
     );
 
     await expect(
@@ -87,20 +166,42 @@ describe('ProductsService', () => {
       }),
     ).resolves.toEqual({
       id: 'p1',
+      sellerId: 'seller-1',
       name: 'Mechanical Keyboard',
       price: 59.9,
+      slug: 'mechanical-keyboard-p1',
+      status: 'APPROVED',
+      categoryId: 'cat-keyboards',
+      tags: ['peripherals'],
+      attributes: { layout: 'US' },
     });
   });
 
   it('supports partial update', async () => {
     productModel.findOneAndUpdate.mockReturnValue(
-      createQuery({ id: 'p2', name: 'Mouse', price: 25.5 }),
+      createQuery({
+        id: 'p2',
+        sellerId: 'seller-2',
+        name: 'Mouse',
+        price: 25.5,
+        slug: 'mouse-p2',
+        status: 'APPROVED',
+        categoryId: 'cat-mice',
+        tags: ['peripherals'],
+        attributes: { wireless: true },
+      }),
     );
 
     await expect(service.update('p2', { price: 25.5 })).resolves.toEqual({
       id: 'p2',
+      sellerId: 'seller-2',
       name: 'Mouse',
       price: 25.5,
+      slug: 'mouse-p2',
+      status: 'APPROVED',
+      categoryId: 'cat-mice',
+      tags: ['peripherals'],
+      attributes: { wireless: true },
     });
   });
 

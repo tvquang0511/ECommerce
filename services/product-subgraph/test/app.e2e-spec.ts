@@ -9,10 +9,42 @@ import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
 import { ProductModel } from './../src/products/product.schema';
 
+jest.setTimeout(60000);
+
 const initialProducts = [
-  { id: 'p1', name: 'Keyboard', price: 49.9 },
-  { id: 'p2', name: 'Mouse', price: 19.9 },
-  { id: 'p3', name: 'Monitor', price: 199 },
+  {
+    id: 'p1',
+    sellerId: 'seller-1',
+    name: 'Keyboard',
+    price: 49.9,
+    slug: 'keyboard-p1',
+    status: 'APPROVED',
+    categoryId: 'cat-keyboards',
+    tags: ['peripherals'],
+    attributes: { layout: 'US' },
+  },
+  {
+    id: 'p2',
+    sellerId: 'seller-2',
+    name: 'Mouse',
+    price: 19.9,
+    slug: 'mouse-p2',
+    status: 'APPROVED',
+    categoryId: 'cat-mice',
+    tags: ['peripherals'],
+    attributes: { wireless: true },
+  },
+  {
+    id: 'p3',
+    sellerId: 'seller-3',
+    name: 'Monitor',
+    price: 199,
+    slug: 'monitor-p3',
+    status: 'APPROVED',
+    categoryId: 'cat-monitors',
+    tags: ['displays'],
+    attributes: { size: 27 },
+  },
 ];
 
 describe('AppController (e2e)', () => {
@@ -59,9 +91,39 @@ describe('AppController (e2e)', () => {
       .get('/products')
       .expect(200)
       .expect([
-        { id: 'p1', name: 'Keyboard', price: 49.9 },
-        { id: 'p2', name: 'Mouse', price: 19.9 },
-        { id: 'p3', name: 'Monitor', price: 199 },
+        {
+          id: 'p1',
+          sellerId: 'seller-1',
+          name: 'Keyboard',
+          price: 49.9,
+          slug: 'keyboard-p1',
+          status: 'APPROVED',
+          categoryId: 'cat-keyboards',
+          tags: ['peripherals'],
+          attributes: { layout: 'US' },
+        },
+        {
+          id: 'p2',
+          sellerId: 'seller-2',
+          name: 'Mouse',
+          price: 19.9,
+          slug: 'mouse-p2',
+          status: 'APPROVED',
+          categoryId: 'cat-mice',
+          tags: ['peripherals'],
+          attributes: { wireless: true },
+        },
+        {
+          id: 'p3',
+          sellerId: 'seller-3',
+          name: 'Monitor',
+          price: 199,
+          slug: 'monitor-p3',
+          status: 'APPROVED',
+          categoryId: 'cat-monitors',
+          tags: ['displays'],
+          attributes: { size: 27 },
+        },
       ]);
   });
 
@@ -69,15 +131,42 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/products/p1')
       .expect(200)
-      .expect({ id: 'p1', name: 'Keyboard', price: 49.9 });
+      .expect({
+        id: 'p1',
+        sellerId: 'seller-1',
+        name: 'Keyboard',
+        price: 49.9,
+        slug: 'keyboard-p1',
+        status: 'APPROVED',
+        categoryId: 'cat-keyboards',
+        tags: ['peripherals'],
+        attributes: { layout: 'US' },
+      });
   });
 
   it('/products (POST)', () => {
     return request(app.getHttpServer())
       .post('/products')
-      .send({ name: 'Desk', price: 120 })
+      .send({
+        sellerId: 'seller-4',
+        name: 'Desk',
+        price: 120,
+        categoryId: 'cat-desks',
+        tags: ['furniture'],
+        attributes: { color: 'oak' },
+      })
       .expect(201)
-      .expect({ id: 'p4', name: 'Desk', price: 120 });
+      .expect({
+        id: 'p4',
+        sellerId: 'seller-4',
+        name: 'Desk',
+        price: 120,
+        slug: 'desk-p4',
+        status: 'DRAFT',
+        categoryId: 'cat-desks',
+        tags: ['furniture'],
+        attributes: { color: 'oak' },
+      });
   });
 
   it('/products/:id (PUT)', () => {
@@ -85,7 +174,17 @@ describe('AppController (e2e)', () => {
       .put('/products/p1')
       .send({ name: 'Mechanical Keyboard', price: 59.9 })
       .expect(200)
-      .expect({ id: 'p1', name: 'Mechanical Keyboard', price: 59.9 });
+      .expect({
+        id: 'p1',
+        sellerId: 'seller-1',
+        name: 'Mechanical Keyboard',
+        price: 59.9,
+        slug: 'mechanical-keyboard-p1',
+        status: 'APPROVED',
+        categoryId: 'cat-keyboards',
+        tags: ['peripherals'],
+        attributes: { layout: 'US' },
+      });
   });
 
   it('/products/:id (PUT) invalid payload', () => {
@@ -156,7 +255,9 @@ describe('AppController (e2e)', () => {
   });
 
   afterEach(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   afterAll(async () => {

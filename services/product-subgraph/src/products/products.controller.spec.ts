@@ -54,7 +54,7 @@ describe('ProductsController', () => {
   });
 
   it('creates product', async () => {
-    const input = { name: 'Desk', price: 120 };
+    const input = { sellerId: 'seller-1', name: 'Desk', price: 120 };
     const created = { id: 'p4', ...input };
     productsServiceMock.create.mockResolvedValue(created);
 

@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { PRODUCT_STATUSES } from './product.schema';
 import { Product } from './product.type';
 import { ProductDocument, ProductModel } from './product.schema';
 
@@ -26,9 +27,17 @@ export class ProductsService {
 
   async create(input: CreateProductDto): Promise<Product> {
     const nextId = await this.generateNextId();
+    const slug = this.buildSlug(input.name, nextId);
     const product = await this.productModel.create({
       id: nextId,
-      ...input,
+      sellerId: input.sellerId,
+      name: input.name,
+      price: input.price,
+      slug,
+      status: 'DRAFT',
+      categoryId: input.categoryId ?? null,
+      tags: input.tags ?? [],
+      attributes: input.attributes ?? {},
     });
     return this.toProduct(product);
   }
@@ -37,8 +46,13 @@ export class ProductsService {
     id: string,
     input: UpdateProductDto,
   ): Promise<Product | undefined> {
+    const updatePayload = {
+      ...input,
+      ...(input.name ? { slug: this.buildSlug(input.name, id) } : {}),
+    };
+
     const product = await this.productModel
-      .findOneAndUpdate({ id }, input, {
+      .findOneAndUpdate({ id }, updatePayload, {
         returnDocument: 'after',
         runValidators: true,
       })
@@ -54,14 +68,36 @@ export class ProductsService {
 
   private toProduct(product: {
     id: string;
+    sellerId: string;
     name: string;
     price: number;
+    slug: string;
+    status: (typeof PRODUCT_STATUSES)[number];
+    categoryId?: string | null;
+    tags?: string[];
+    attributes?: Record<string, string | number | boolean | null>;
   }): Product {
     return {
       id: product.id,
+      sellerId: product.sellerId,
       name: product.name,
       price: product.price,
+      slug: product.slug,
+      status: product.status,
+      categoryId: product.categoryId ?? null,
+      tags: product.tags ?? [],
+      attributes: product.attributes ?? {},
     };
+  }
+
+  private buildSlug(name: string, suffix: string): string {
+    const normalized = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return `${normalized}-${suffix}`;
   }
 
   private async generateNextId(): Promise<string> {
