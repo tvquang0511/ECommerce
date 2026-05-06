@@ -871,4 +871,41 @@ export const authService = {
 
     return { ok: true };
   },
+
+  async introspect(input: { userId: string; accessToken: string }) {
+    const user = await authRepo.findUserById(input.userId);
+    if (!user) {
+      throw new ApiError(401, "AUTH_TOKEN_INVALID", "User no longer exists");
+    }
+
+    // Decode token to extract exp (already verified by authJwt middleware)
+    const decoded = jwt.decode(input.accessToken) as JwtAccessPayload & {
+      exp?: number;
+    };
+    const exp = decoded?.exp ?? null;
+
+    // Build minimal actor response for service-to-service introspection
+    const roleNames = (user.roles ?? []).map((entry) => entry.role.name);
+    const rolePermissions = (user.roles ?? []).flatMap((entry) =>
+      (entry.role.permissions ?? []).map((permission) => permission.permission.name),
+    );
+    const directPermissions = (user.permissions ?? []).map(
+      (entry) => entry.permission.name,
+    );
+
+    return {
+      userId: user.id,
+      email: user.email,
+      roles: roleNames,
+      permissions: Array.from(new Set([...rolePermissions, ...directPermissions])),
+      sellerProfile: user.sellerProfile
+        ? {
+            status: user.sellerProfile.status,
+            isKycVerified: user.sellerProfile.isKycVerified,
+            shopName: user.sellerProfile.shopName,
+          }
+        : null,
+      exp,
+    };
+  },
 };

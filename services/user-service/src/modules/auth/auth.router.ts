@@ -8,6 +8,7 @@ import {
   disableTwoFactor,
   enableTwoFactor,
   forgotPassword,
+  introspect,
   listSessions,
   login,
   logout,
@@ -87,6 +88,7 @@ router.post(
 router.post("/logout-all", authJwt, asyncHandler(logoutAll));
 
 router.get("/me", authJwt, asyncHandler(me));
+router.post("/introspect", authJwt, asyncHandler(introspect));
 router.post("/change-password", authJwt, asyncHandler(changePassword));
 router.post(
   "/refresh",

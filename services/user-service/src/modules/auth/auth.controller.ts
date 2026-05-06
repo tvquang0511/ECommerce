@@ -198,6 +198,18 @@ export const me = async (req: Request, res: Response) => {
   return res.json(result.user);
 };
 
+export const introspect = async (req: Request, res: Response) => {
+  const bearerToken = req.headers.authorization?.split(" ")[1];
+  if (!bearerToken) {
+    throw new ApiError(401, "AUTH_UNAUTHORIZED", "Missing Bearer token");
+  }
+  const result = await authService.introspect({
+    userId: req.user!.id,
+    accessToken: bearerToken,
+  });
+  return res.json(result);
+};
+
 export const twoFactorStatus = async (req: Request, res: Response) => {
   const result = await authService.twoFactorStatus(req.user!.id);
   return res.json(result);
