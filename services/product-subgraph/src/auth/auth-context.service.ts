@@ -1,7 +1,9 @@
-import {
+﻿import {
   Injectable,
   UnauthorizedException,
   ForbiddenException,
+  BadGatewayException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
@@ -68,7 +70,9 @@ export class AuthContextService {
   }
 
   isAdmin(actor: AuthActor): boolean {
-    return actor.roles.some((role) => role.startsWith('ADMIN_') || role === 'SUPER_ADMIN');
+    return actor.roles.some(
+      (role) => role.startsWith('ADMIN_') || role === 'SUPER_ADMIN',
+    );
   }
 
   private extractBearerToken(req: RequestLike): string | undefined {
@@ -77,16 +81,19 @@ export class AuthContextService {
       return undefined;
     }
 
-    const [scheme, token] = authorization.split(' ');
-    if (scheme !== 'Bearer' || !token) {
+    const match = /^Bearer\s+(.+)$/.exec(authorization.trim());
+    if (!match) {
       return undefined;
     }
 
-    return token;
+    const token = match[1].trim();
+    return token ? token : undefined;
   }
 
   private getDevActor(req: RequestLike): AuthActor | null {
-    if (this.configService.get<string>('product.nodeEnv') !== 'test') {
+    const allowTestHeaders =
+      this.configService.get<boolean>('auth.allowTestHeaders') ?? false;
+    if (!allowTestHeaders) {
       return null;
     }
 
@@ -124,36 +131,87 @@ export class AuthContextService {
 
   private async fetchActorFromUserService(token: string): Promise<AuthActor> {
     const userServiceBaseUrl =
-      this.configService.get<string>('product.userServiceBaseUrl') ??
+      this.configService.get<string>('auth.userServiceBaseUrl') ??
       'http://localhost:4001';
+    const requestTimeoutMs =
+      this.configService.get<number>('auth.requestTimeoutMs') ?? 5000;
 
-    const response = await fetch(`${userServiceBaseUrl}/api/users/auth/me`, {
-      method: 'GET',
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-    });
+    const baseUrl = userServiceBaseUrl.replace(/\/+$/g, '');
+    const url = `${baseUrl}/api/users/auth/me`;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if ((error as { name?: string }).name === 'AbortError') {
+        throw new ServiceUnavailableException('User-service request timed out');
+      }
+
+      throw new BadGatewayException('Cannot reach user-service');
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
-      throw new UnauthorizedException('Access token invalid or expired');
+      if (response.status === 401 || response.status === 403) {
+        throw new UnauthorizedException('Access token invalid or expired');
+      }
+
+      throw new BadGatewayException('User-service error while resolving identity');
     }
 
-    const data = (await response.json()) as MeResponse;
-    if (!data.id) {
+    let data: MeResponse;
+    try {
+      data = (await response.json()) as MeResponse;
+    } catch {
+      throw new BadGatewayException('Invalid response from user-service');
+    }
+
+    if (!data || typeof data !== 'object' || typeof data.id !== 'string' || !data.id) {
       throw new UnauthorizedException('Cannot resolve user identity');
     }
+
+    const roles = Array.isArray(data.roles)
+      ? data.roles.filter((value): value is string => typeof value === 'string')
+      : [];
+    const permissions = Array.isArray(data.permissions)
+      ? data.permissions.filter((value): value is string => typeof value === 'string')
+      : [];
+
+    const sellerProfile = (() => {
+      if (!data.sellerProfile) {
+        return null;
+      }
+
+      const status = data.sellerProfile.status;
+      const isKycVerified = data.sellerProfile.isKycVerified;
+      if (typeof status !== 'string' || typeof isKycVerified !== 'boolean') {
+        return null;
+      }
+
+      return { status, isKycVerified };
+    })();
 
     return {
       userId: data.id,
       email: data.email,
-      roles: data.roles ?? [],
-      permissions: data.permissions ?? [],
-      sellerProfile: data.sellerProfile
-        ? {
-            status: data.sellerProfile.status,
-            isKycVerified: data.sellerProfile.isKycVerified,
-          }
-        : null,
+      roles,
+      permissions,
+      sellerProfile,
     };
+  }
+
+  // Public helper for Passport strategy: resolve actor from an access token
+  async resolveActorFromToken(token: string): Promise<AuthActor> {
+    return this.fetchActorFromUserService(token);
   }
 }

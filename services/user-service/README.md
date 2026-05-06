@@ -45,10 +45,17 @@ Bạn có thể import `openapi.json` vào Postman để test nhanh.
 3) Migrate + generate Prisma client
 - `pnpm --filter user-service prisma:migrate -- --name init`
 
-4) Run service
+4) Seed RBAC + demo users (recommended for local testing)
+- Seed roles/permissions:
+	- `pnpm -C services/user-service prisma:seed`
+- Seed demo users (buyer/seller verified/admin):
+	- `pnpm -C services/user-service prisma:seed:dev-users`
+	- Default password: `DevPassword123!` (override via `DEV_SEED_PASSWORD`)
+
+5) Run service
 - `pnpm --filter user-service dev`
 
-5) Run mail worker (SMTP + BullMQ)
+6) Run mail worker (SMTP + BullMQ)
 - `pnpm --filter user-service worker:mail`
 
 Default port: `4001`.

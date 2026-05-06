@@ -2,11 +2,11 @@ import { NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 
 import { AuthContextService } from '../auth/auth-context.service';
-import { ProductsController } from './products.controller';
+import { ProductsResolver } from './products.resolver';
 import { ProductsService } from './products.service';
 
-describe('ProductsController', () => {
-  let controller: ProductsController;
+describe('ProductsResolver', () => {
+  let controller: ProductsResolver;
 
   const productsServiceMock = {
     findAll: jest.fn(),
@@ -35,7 +35,7 @@ describe('ProductsController', () => {
     jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProductsController],
+      providers: [ProductsResolver],
       providers: [
         {
           provide: ProductsService,
@@ -48,7 +48,7 @@ describe('ProductsController', () => {
       ],
     }).compile();
 
-    controller = module.get<ProductsController>(ProductsController);
+    controller = module.get<ProductsResolver>(ProductsResolver);
   });
 
   it('returns all products', async () => {
@@ -108,14 +108,14 @@ describe('ProductsController', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it('deletes product and returns void', async () => {
+  it('deletes product and returns true', async () => {
     authContextServiceMock.getRequiredActor.mockResolvedValue({
       userId: 'seller-1',
       roles: ['SELLER'],
     });
     productsServiceMock.remove.mockResolvedValue(true);
 
-    await expect(controller.remove('p1', mockReq)).resolves.toBeUndefined();
+    await expect(controller.remove('p1', mockReq)).resolves.toBe(true);
   });
 
   it('throws NotFoundException when deleting missing product', async () => {

@@ -10,7 +10,28 @@
       "name": "Get All Products",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "x-dev-user-id",
+            "value": "{{devUserId}}"
+          },
+          {
+            "key": "x-dev-roles",
+            "value": "{{devRoles}}"
+          },
+          {
+            "key": "x-dev-seller-status",
+            "value": "{{devSellerStatus}}"
+          },
+          {
+            "key": "x-dev-kyc-verified",
+            "value": "{{devKycVerified}}"
+          }
+        ],
         "url": {
           "raw": "{{baseUrl}}/products",
           "host": ["{{baseUrl}}"],
@@ -26,11 +47,31 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "x-dev-user-id",
+            "value": "{{devUserId}}"
+          },
+          {
+            "key": "x-dev-roles",
+            "value": "{{devRoles}}"
+          },
+          {
+            "key": "x-dev-seller-status",
+            "value": "{{devSellerStatus}}"
+          },
+          {
+            "key": "x-dev-kyc-verified",
+            "value": "{{devKycVerified}}"
           }
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"sellerId\": \"seller-1\",\n  \"name\": \"Desk\",\n  \"price\": 120,\n  \"categoryId\": \"cat-desks\",\n  \"tags\": [\"furniture\"],\n  \"attributes\": { \"color\": \"oak\" }\n}"
+          "raw": "{\n  \"name\": \"Desk\",\n  \"price\": 120,\n  \"categoryId\": \"cat-desks\",\n  \"tags\": [\"furniture\"],\n  \"attributes\": { \"color\": \"oak\" }\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/products",
@@ -43,7 +84,28 @@
       "name": "Get Product by ID",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "x-dev-user-id",
+            "value": "{{devUserId}}"
+          },
+          {
+            "key": "x-dev-roles",
+            "value": "{{devRoles}}"
+          },
+          {
+            "key": "x-dev-seller-status",
+            "value": "{{devSellerStatus}}"
+          },
+          {
+            "key": "x-dev-kyc-verified",
+            "value": "{{devKycVerified}}"
+          }
+        ],
         "url": {
           "raw": "{{baseUrl}}/products/{{productId}}",
           "host": ["{{baseUrl}}"],
@@ -59,6 +121,26 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "x-dev-user-id",
+            "value": "{{devUserId}}"
+          },
+          {
+            "key": "x-dev-roles",
+            "value": "{{devRoles}}"
+          },
+          {
+            "key": "x-dev-seller-status",
+            "value": "{{devSellerStatus}}"
+          },
+          {
+            "key": "x-dev-kyc-verified",
+            "value": "{{devKycVerified}}"
           }
         ],
         "body": {
@@ -76,7 +158,28 @@
       "name": "Delete Product",
       "request": {
         "method": "DELETE",
-        "header": [],
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{accessToken}}"
+          },
+          {
+            "key": "x-dev-user-id",
+            "value": "{{devUserId}}"
+          },
+          {
+            "key": "x-dev-roles",
+            "value": "{{devRoles}}"
+          },
+          {
+            "key": "x-dev-seller-status",
+            "value": "{{devSellerStatus}}"
+          },
+          {
+            "key": "x-dev-kyc-verified",
+            "value": "{{devKycVerified}}"
+          }
+        ],
         "url": {
           "raw": "{{baseUrl}}/products/{{productId}}",
           "host": ["{{baseUrl}}"],
@@ -88,7 +191,32 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000",
+      "value": "http://localhost:4002",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "devUserId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "devRoles",
+      "value": "SELLER",
+      "type": "string"
+    },
+    {
+      "key": "devSellerStatus",
+      "value": "VERIFIED",
+      "type": "string"
+    },
+    {
+      "key": "devKycVerified",
+      "value": "true",
       "type": "string"
     },
     {

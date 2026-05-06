@@ -1,4 +1,4 @@
-import 'reflect-metadata';
+﻿import 'reflect-metadata';
 
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -9,7 +9,8 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  const port = configService.get<number>('product.port') ?? 4002;
+  const port = configService.get<number>('app.port') ?? 4002;
+  const nodeEnv = configService.get<string>('app.nodeEnv') ?? 'development';
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -19,8 +20,14 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(port);
-  console.log(`product-subgraph running at http://localhost:${port}`);
+  await app.listen(port, () => {
+    console.log('[Nest] ' + '*'.repeat(20));
+    console.log(
+      '[Nest] Product Subgraph is running on: http://localhost:' + port,
+    );
+    console.log('[Nest] Environment: ' + nodeEnv);
+    console.log('[Nest] ' + '*'.repeat(20));
+  });
 }
 
-void bootstrap();
+bootstrap();
