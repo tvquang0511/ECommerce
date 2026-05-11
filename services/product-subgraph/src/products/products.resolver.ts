@@ -14,7 +14,11 @@ import {
   ProductMediaUploadInput,
   UpdateProductInput,
 } from './graphql/product.input';
-import { Product as ProductGql, ProductUploadUrlPayload } from './graphql/product.type';
+import {
+  Product as ProductGql,
+  ProductDownloadUrlPayload,
+  ProductUploadUrlPayload,
+} from './graphql/product.type';
 import { ProductsService } from './products.service';
 
 @Resolver(() => ProductGql)
@@ -44,6 +48,26 @@ export class ProductsResolver {
       throw new NotFoundException(`Product ${id} not found`);
     }
     return product as any;
+  }
+
+  /**
+   * Create presigned download URL for product media
+   * Public if product is APPROVED, otherwise only seller/admin can access
+   */
+  @Query(() => ProductDownloadUrlPayload, { name: 'productMediaDownloadUrl' })
+  async getMediaDownloadUrl(
+    @Args('id') id: string,
+    @Args('objectKey') objectKey: string,
+    @CurrentActor() actor: AuthActor | null,
+  ): Promise<ProductDownloadUrlPayload> {
+    const payload = await this.productsService.createMediaDownloadUrl(
+      id,
+      actor,
+      objectKey,
+    );
+
+    if (!payload) throw new NotFoundException(`Product ${id} not found`);
+    return payload as any;
   }
 
   /**

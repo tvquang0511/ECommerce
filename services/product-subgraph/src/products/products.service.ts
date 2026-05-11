@@ -117,6 +117,11 @@ export class ProductsService {
 
     this.ensureCanManageProduct(actor, existing.sellerId);
 
+    const objectKeys = this.collectMediaObjectKeys(existing);
+    await Promise.all(
+      objectKeys.map((objectKey) => this.minioService.removeObject(objectKey)),
+    );
+
     const result = await this.productModel.deleteOne({ id }).exec();
     return result.deletedCount > 0;
   }
@@ -285,6 +290,38 @@ export class ProductsService {
     return this.toProduct(product);
   }
 
+  async createMediaDownloadUrl(
+    id: string,
+    actor: AuthActor | null,
+    objectKey: string,
+  ): Promise<{ downloadUrl: string; objectKey: string; bucket: string; expiresAt: Date } | undefined> {
+    const product = await this.productModel.findOne({ id }).exec();
+    if (!product) {
+      return undefined;
+    }
+
+    const canSee = this.isActorAllowedMediaAccess(actor, product);
+    if (!canSee) {
+      throw new ForbiddenException('You do not have access to this product media');
+    }
+
+    this.ensureObjectKeyMatchesProduct(id, objectKey);
+
+    const hasMedia = this.collectMediaObjectKeys(product).includes(objectKey);
+    if (!hasMedia) {
+      throw new BadRequestException('Media not found on product');
+    }
+
+    const presign = await this.minioService.presignGetObject(objectKey);
+
+    return {
+      downloadUrl: presign.url,
+      objectKey,
+      bucket: this.minioService.getBucket(),
+      expiresAt: presign.expiresAt,
+    };
+  }
+
   private toProduct(product: {
     id: string;
     sellerId: string;
@@ -369,6 +406,44 @@ export class ProductsService {
     if (!objectKey.startsWith(prefix)) {
       throw new BadRequestException('Invalid object key for product');
     }
+  }
+
+  private collectMediaObjectKeys(product: {
+    coverImage?: ProductImage | null;
+    galleryImages?: ProductImage[];
+  }): string[] {
+    const keys = new Set<string>();
+
+    if (product.coverImage?.objectKey) {
+      keys.add(product.coverImage.objectKey);
+    }
+
+    for (const image of product.galleryImages ?? []) {
+      if (image.objectKey) {
+        keys.add(image.objectKey);
+      }
+    }
+
+    return Array.from(keys);
+  }
+
+  private isActorAllowedMediaAccess(
+    actor: AuthActor | null,
+    product: { sellerId: string; status: ProductStatus },
+  ): boolean {
+    if (product.status === 'APPROVED') {
+      return true;
+    }
+
+    if (!actor) {
+      return false;
+    }
+
+    if (this.isAdmin(actor)) {
+      return true;
+    }
+
+    return actor.userId === product.sellerId;
   }
 
   private buildVisibilityQuery(actor: AuthActor | null) {

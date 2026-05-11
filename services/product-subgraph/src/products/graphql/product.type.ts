@@ -90,3 +90,18 @@ export class ProductUploadUrlPayload {
   @Field(() => GraphQLISODateTime)
   expiresAt!: Date;
 }
+
+@ObjectType()
+export class ProductDownloadUrlPayload {
+  @Field()
+  downloadUrl!: string;
+
+  @Field()
+  objectKey!: string;
+
+  @Field()
+  bucket!: string;
+
+  @Field(() => GraphQLISODateTime)
+  expiresAt!: Date;
+}

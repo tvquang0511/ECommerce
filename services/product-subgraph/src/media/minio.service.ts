@@ -52,6 +52,18 @@ export class MinioService {
     return { url, expiresAt };
   }
 
+  async presignGetObject(objectKey: string) {
+    const url = await this.client.presignedGetObject(
+      this.bucket,
+      objectKey,
+      this.presignExpirySeconds,
+    );
+
+    const expiresAt = new Date(Date.now() + this.presignExpirySeconds * 1000);
+
+    return { url, expiresAt };
+  }
+
   async removeObject(objectKey: string) {
     await this.client.removeObject(this.bucket, objectKey);
   }
