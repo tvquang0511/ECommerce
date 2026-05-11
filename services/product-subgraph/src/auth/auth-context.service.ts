@@ -1,7 +1,6 @@
 ﻿import {
   Injectable,
   UnauthorizedException,
-  ForbiddenException,
   BadGatewayException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -13,7 +12,7 @@ export type RequestLike = {
   header: (name: string) => string | undefined;
 };
 
-type MeResponse = {
+type IntrospectResponse = {
   id: string;
   email?: string;
   roles?: string[];
@@ -28,108 +27,16 @@ type MeResponse = {
 export class AuthContextService {
   constructor(private readonly configService: ConfigService) {}
 
-  async getOptionalActor(req: RequestLike): Promise<AuthActor | null> {
-    const devActor = this.getDevActor(req);
-    if (devActor) {
-      return devActor;
-    }
-
-    const token = this.extractBearerToken(req);
-    if (!token) {
-      return null;
-    }
-
-    return this.fetchActorFromUserService(token);
-  }
-
-  async getRequiredActor(req: RequestLike): Promise<AuthActor> {
-    const actor = await this.getOptionalActor(req);
-    if (!actor) {
-      throw new UnauthorizedException('Missing or invalid access token');
-    }
-
-    return actor;
-  }
-
-  ensureAdmin(actor: AuthActor): void {
-    if (!this.isAdmin(actor)) {
-      throw new ForbiddenException('Admin role required');
-    }
-  }
-
-  ensureVerifiedSeller(actor: AuthActor): void {
-    const hasSellerRole = actor.roles.includes('SELLER');
-    const isVerified = actor.sellerProfile?.status === 'VERIFIED';
-    const isKycVerified = actor.sellerProfile?.isKycVerified === true;
-
-    if (!hasSellerRole || !isVerified || !isKycVerified) {
-      throw new ForbiddenException(
-        'Verified seller role is required to perform this action',
-      );
-    }
-  }
-
-  isAdmin(actor: AuthActor): boolean {
-    return actor.roles.some(
-      (role) => role.startsWith('ADMIN_') || role === 'SUPER_ADMIN',
-    );
-  }
-
-  private extractBearerToken(req: RequestLike): string | undefined {
-    const authorization = req.header('authorization');
-    if (!authorization) {
-      return undefined;
-    }
-
-    const match = /^Bearer\s+(.+)$/.exec(authorization.trim());
-    if (!match) {
-      return undefined;
-    }
-
-    const token = match[1].trim();
-    return token ? token : undefined;
-  }
-
-  private getDevActor(req: RequestLike): AuthActor | null {
-    const allowTestHeaders =
-      this.configService.get<boolean>('auth.allowTestHeaders') ?? false;
-    if (!allowTestHeaders) {
-      return null;
-    }
-
-    const userId = req.header('x-dev-user-id');
-    if (!userId) {
-      return null;
-    }
-
-    const roles = (req.header('x-dev-roles') ?? '')
-      .split(',')
-      .map((value: string) => value.trim())
-      .filter(Boolean);
-    const permissions = (req.header('x-dev-permissions') ?? '')
-      .split(',')
-      .map((value: string) => value.trim())
-      .filter(Boolean);
-
-    const sellerStatus = req.header('x-dev-seller-status');
-    const kycHeader = req.header('x-dev-kyc-verified');
-    const isKycVerified = kycHeader ? kycHeader.toLowerCase() === 'true' : false;
-
-    return {
-      userId,
-      email: req.header('x-dev-email') ?? undefined,
-      roles,
-      permissions,
-      sellerProfile: sellerStatus
-        ? {
-            status: sellerStatus,
-            isKycVerified: isKycVerified,
-          }
-        : null,
-    };
-  }
-
-  private async fetchActorFromUserService(token: string): Promise<AuthActor> {
+  /**
+   * Resolve actor from bearer token via /auth/introspect endpoint
+   * Called by AuthGuard to get full actor data (roles, permissions, seller status)
+   *
+   * @param token Bearer token from JWT
+   * @throws UnauthorizedException if token invalid/expired
+   * @throws BadGatewayException if user-service unreachable/error
+   * @throws ServiceUnavailableException if user-service timeout
+   */
+  async resolveActorFromIntrospect(token: string): Promise<AuthActor> {
     const userServiceBaseUrl =
       this.configService.get<string>('auth.userServiceBaseUrl') ??
       'http://localhost:4001';
@@ -137,7 +44,7 @@ export class AuthContextService {
       this.configService.get<number>('auth.requestTimeoutMs') ?? 5000;
 
     const baseUrl = userServiceBaseUrl.replace(/\/+$/g, '');
-    const url = `${baseUrl}/api/users/auth/me`;
+    const url = `${baseUrl}/api/users/auth/introspect`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);
@@ -145,7 +52,7 @@ export class AuthContextService {
     let response: Response;
     try {
       response = await fetch(url, {
-        method: 'GET',
+        method: 'POST',
         headers: {
           authorization: `Bearer ${token}`,
         },
@@ -169,9 +76,9 @@ export class AuthContextService {
       throw new BadGatewayException('User-service error while resolving identity');
     }
 
-    let data: MeResponse;
+    let data: IntrospectResponse;
     try {
-      data = (await response.json()) as MeResponse;
+      data = (await response.json()) as IntrospectResponse;
     } catch {
       throw new BadGatewayException('Invalid response from user-service');
     }
@@ -210,8 +117,71 @@ export class AuthContextService {
     };
   }
 
-  // Public helper for Passport strategy: resolve actor from an access token
+  /**
+   * Resolve actor from bearer token via /auth/introspect
+   * Called by strategy or when JWT lacks full role data
+   */
   async resolveActorFromToken(token: string): Promise<AuthActor> {
-    return this.fetchActorFromUserService(token);
+    return this.resolveActorFromIntrospect(token);
+  }
+
+  /**
+   * Get dev/test actor from headers (if dev mode enabled)
+   */
+  getDevActor(req: RequestLike): AuthActor | null {
+    const allowTestHeaders =
+      this.configService.get<boolean>('auth.allowTestHeaders') ?? false;
+    if (!allowTestHeaders) {
+      return null;
+    }
+
+    const userId = req.header('x-dev-user-id');
+    if (!userId) {
+      return null;
+    }
+
+    const roles = (req.header('x-dev-roles') ?? '')
+      .split(',')
+      .map((value: string) => value.trim())
+      .filter(Boolean);
+    const permissions = (req.header('x-dev-permissions') ?? '')
+      .split(',')
+      .map((value: string) => value.trim())
+      .filter(Boolean);
+
+    const sellerStatus = req.header('x-dev-seller-status');
+    const kycHeader = req.header('x-dev-kyc-verified');
+    const isKycVerified = kycHeader ? kycHeader.toLowerCase() === 'true' : false;
+
+    return {
+      userId,
+      email: req.header('x-dev-email') ?? undefined,
+      roles,
+      permissions,
+      sellerProfile: sellerStatus
+        ? {
+            status: sellerStatus,
+            isKycVerified: isKycVerified,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * Extract Bearer token from authorization header
+   */
+  extractBearerToken(req: RequestLike): string | undefined {
+    const authorization = req.header('authorization');
+    if (!authorization) {
+      return undefined;
+    }
+
+    const match = /^Bearer\s+(.+)$/.exec(authorization.trim());
+    if (!match) {
+      return undefined;
+    }
+
+    const token = match[1].trim();
+    return token ? token : undefined;
   }
 }

@@ -8,6 +8,8 @@ Mục lục chuẩn cho toàn bộ tài liệu của `product-subgraph`.
 3. [E-commerce Marketplace Design](ECOMMERCE_MARKETPLACE_DESIGN.md)
 4. [Advanced RBAC and Workflows](ADVANCED_RBAC_AND_WORKFLOWS.md)
 5. [Implementation Sprint Plan](IMPLEMENTATION_SPRINT_PLAN.md)
+6. [Next Steps Plan](NEXT_STEPS_PLAN.md)
+7. [Sequential Weekly Roadmap](WEEKLY_ROADMAP.md)
 
 ## What each file is for
 
@@ -16,6 +18,8 @@ Mục lục chuẩn cho toàn bộ tài liệu của `product-subgraph`.
 - `ECOMMERCE_MARKETPLACE_DESIGN.md`: nghiệp vụ marketplace, role, product, search, workflow.
 - `ADVANCED_RBAC_AND_WORKFLOWS.md`: RBAC nhiều lớp, policy, workflow nâng cao.
 - `IMPLEMENTATION_SPRINT_PLAN.md`: kế hoạch thực thi theo sprint.
+- `NEXT_STEPS_PLAN.md`: kế hoạch tiếp theo cho user-service, product, gateway, và web app.
+- `WEEKLY_ROADMAP.md`: roadmap theo tuần nhưng làm tuần tự từng service một, không chạy song song 4 mảng.
 
 ## Standardization rules
 

@@ -1,14 +1,13 @@
-import prismaClientModule from "@prisma/client";
 import type { PrismaClient as PrismaClientType } from "@prisma/client";
+import prismaClientModule from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 import { env } from "../env.js";
 
-const PrismaClientCtor = (
-  prismaClientModule as unknown as {
-    PrismaClient: new (options?: any) => PrismaClientType;
-  }
-).PrismaClient;
+// Properly type the PrismaClient constructor
+const PrismaClient = prismaClientModule.PrismaClient as unknown as {
+  new (options?: any): PrismaClientType;
+};
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClientType };
 
@@ -18,7 +17,7 @@ function createPrismaClient() {
   }
 
   const adapter = new PrismaPg({ connectionString: env.DATABASE_URL });
-  return new PrismaClientCtor({ adapter });
+  return new PrismaClient({ adapter });
 }
 
 export const prisma = globalForPrisma.prisma ?? createPrismaClient();

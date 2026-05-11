@@ -7,6 +7,7 @@ import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { configuration } from './configuration';
+import { AuthModule } from './auth/auth.module';
 import { ProductsModule } from './products/products.module';
 
 @Module({
@@ -22,6 +23,7 @@ import { ProductsModule } from './products/products.module';
 
     // ====== MongoDB Connection ======
     MongooseModule.forRootAsync({
+      imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
         return {
@@ -35,8 +37,8 @@ import { ProductsModule } from './products/products.module';
       driver: ApolloDriver,
       autoSchemaFile: 'src/schema.gql',
       sortSchema: true,
-      // expose request on context so GqlAuthGuard can access headers
-      context: ({ req }) => ({ req }),
+      // expose request on context so guards can access headers
+      context: ({ req }: { req: any }) => ({ req }),
     }),
 
     AuthModule,

@@ -1,125 +1,142 @@
 import { Args, Context, Mutation, Query, Resolver } from '@nestjs/graphql';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, UseGuards } from '@nestjs/common';
 
-import { AuthContextService, RequestLike } from '../auth/auth-context.service';
+import { AuthActor } from '../auth/auth-actor.type';
+import { AuthGuard } from '../auth/auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { VerifiedSellerGuard } from '../auth/verified-seller.guard';
+import { CurrentActor } from '../auth/decorators/current-actor.decorator';
+import { RequiresRoles } from '../auth/decorators/requires-roles.decorator';
+import { RequiresVerifiedSeller } from '../auth/decorators/requires-verified-seller.decorator';
 import { CreateProductInput, UpdateProductInput } from './graphql/product.input';
 import { Product as ProductGql } from './graphql/product.type';
 import { ProductsService } from './products.service';
 
 @Resolver(() => ProductGql)
 export class ProductsResolver {
-  constructor(
-    private readonly productsService: ProductsService,
-    private readonly authContextService: AuthContextService,
-  ) {}
+  constructor(private readonly productsService: ProductsService) {}
 
-  @Query(() => [Product], { name: 'products' })
-  async findAll(@Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<ProductGql[]> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getOptionalActor(req);
+  /**
+   * Query products (public, optional auth)
+   * Returns products visible to the actor (filters based on status/permissions)
+   */
+  @Query(() => [ProductGql], { name: 'products' })
+  async findAll(@CurrentActor() actor: AuthActor | null): Promise<ProductGql[]> {
     return this.productsService.findAll(actor) as any;
   }
 
-  @Query(() => Product, { name: 'product' })
-  async findById(@Args('id') id: string, @Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    return this.getOrThrow(id, req);
+  /**
+   * Query product by ID (public, optional auth)
+   * Returns product if visible to actor
+   */
+  @Query(() => ProductGql, { name: 'product' })
+  async findById(
+    @Args('id') id: string,
+    @CurrentActor() actor: AuthActor | null,
+  ): Promise<ProductGql> {
+    const product = await this.productsService.findById(id, actor);
+    if (!product) {
+      throw new NotFoundException(`Product ${id} not found`);
+    }
+    return product as any;
   }
 
-  @Mutation(() => Product, { name: 'createProduct' })
+  /**
+   * Create product (authenticated + verified seller required)
+   * Only verified sellers can create products
+   */
+  @Mutation(() => ProductGql, { name: 'createProduct' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
   async create(
     @Args('input') input: CreateProductInput,
-    @Context() ctxOrReq: { req: RequestLike } | RequestLike,
+    @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
-    this.authContextService.ensureVerifiedSeller(actor);
     return this.productsService.create(actor, input as any) as any;
   }
 
-  @Mutation(() => Product, { name: 'updateProduct' })
+  /**
+   * Update product (authenticated + verified seller required)
+   * Seller can update their own products
+   */
+  @Mutation(() => ProductGql, { name: 'updateProduct' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
   async update(
     @Args('id') id: string,
     @Args('input') input: UpdateProductInput,
-    @Context() ctxOrReq: { req: RequestLike } | RequestLike,
+    @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
     const product = await this.productsService.update(id, actor, input as any);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
   }
 
+  /**
+   * Delete product (authenticated + verified seller required)
+   * Seller can delete their own products
+   */
   @Mutation(() => Boolean, { name: 'deleteProduct' })
-  async remove(@Args('id') id: string, @Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<boolean> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
+  async remove(@Args('id') id: string, @CurrentActor() actor: AuthActor): Promise<boolean> {
     const removed = await this.productsService.remove(id, actor);
     if (!removed) throw new NotFoundException(`Product ${id} not found`);
     return true;
   }
 
-  @Mutation(() => Product, { name: 'submitProductForReview' })
-  async submitForReview(@Args('id') id: string, @Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
-    this.authContextService.ensureVerifiedSeller(actor);
+  /**
+   * Submit product for review (authenticated + verified seller required)
+   * Seller moves product from DRAFT to PENDING_REVIEW status
+   */
+  @Mutation(() => ProductGql, { name: 'submitProductForReview' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
+  async submitForReview(
+    @Args('id') id: string,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<ProductGql> {
     const product = await this.productsService.submitForReview(id, actor);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
   }
 
-  @Mutation(() => Product, { name: 'approveProduct' })
-  async approve(@Args('id') id: string, @Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
-    this.authContextService.ensureAdmin(actor);
+  /**
+   * Approve product (authenticated + admin required)
+   * Admin moves product from PENDING_REVIEW to APPROVED status
+   */
+  @Mutation(() => ProductGql, { name: 'approveProduct' })
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequiresRoles('ADMIN_*')
+  async approve(@Args('id') id: string): Promise<ProductGql> {
     const product = await this.productsService.approve(id);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
   }
 
-  @Mutation(() => Product, { name: 'rejectProduct' })
-  async reject(@Args('id') id: string, @Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
-    this.authContextService.ensureAdmin(actor);
+  /**
+   * Reject product (authenticated + admin required)
+   * Admin moves product from PENDING_REVIEW to REJECTED status
+   */
+  @Mutation(() => ProductGql, { name: 'rejectProduct' })
+  @UseGuards(AuthGuard, RolesGuard)
+  @RequiresRoles('ADMIN_*')
+  async reject(@Args('id') id: string): Promise<ProductGql> {
     const product = await this.productsService.reject(id);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
   }
 
-  @Mutation(() => Product, { name: 'archiveProduct' })
-  async archive(@Args('id') id: string, @Context() ctxOrReq: { req: RequestLike } | RequestLike): Promise<ProductGql> {
-    const req = this.normalizeReq(ctxOrReq);
-    const actor = await this.authContextService.getRequiredActor(req);
+  /**
+   * Archive product (authenticated + verified seller required)
+   * Seller archives their own products (soft delete)
+   */
+  @Mutation(() => ProductGql, { name: 'archiveProduct' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
+  async archive(@Args('id') id: string, @CurrentActor() actor: AuthActor): Promise<ProductGql> {
     const product = await this.productsService.archive(id, actor);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
-  }
-
-  private async getOrThrow(id: string, req: RequestLike): Promise<Product> {
-    const actor = await this.authContextService.getOptionalActor(req);
-    const product = await this.productsService.findById(id, actor);
-    if (!product) {
-      throw new NotFoundException(`Product ${id} not found`);
-    }
-
-    return product;
-  }
-
-  private normalizeReq(ctxOrReq: { req: RequestLike } | RequestLike): RequestLike {
-    // If tests or callers pass RequestLike directly, use it. Otherwise extract from GraphQL context
-    if (ctxOrReq && typeof (ctxOrReq as RequestLike).header === 'function') {
-      return ctxOrReq as RequestLike;
-    }
-
-    // otherwise assume shape { req }
-    const maybe = ctxOrReq as { req?: RequestLike };
-    if (!maybe || !maybe.req) {
-      throw new Error('Request not found in GraphQL context');
-    }
-
-    return maybe.req;
   }
 }

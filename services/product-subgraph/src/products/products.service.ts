@@ -11,6 +11,14 @@ import { ProductDocument, ProductModel } from './product.schema';
 
 type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
+const STATUS_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {
+  DRAFT: ['PENDING_REVIEW', 'ARCHIVED'],
+  PENDING_REVIEW: ['APPROVED', 'REJECTED', 'ARCHIVED'],
+  APPROVED: ['ARCHIVED'],
+  REJECTED: ['PENDING_REVIEW', 'ARCHIVED'],
+  ARCHIVED: [],
+};
+
 @Injectable()
 export class ProductsService {
   constructor(
@@ -40,9 +48,17 @@ export class ProductsService {
       id: nextId,
       sellerId: actor.userId,
       name: input.name,
+      sku: input.sku,
+      brand: input.brand ?? null,
+      shortDescription: input.shortDescription ?? null,
+      description: input.description ?? null,
       price: input.price,
+      salePrice: input.salePrice ?? null,
+      currency: input.currency ?? 'VND',
       slug,
       status: 'DRAFT',
+      publishedAt: null,
+      archivedAt: null,
       categoryId: input.categoryId ?? null,
       tags: input.tags ?? [],
       attributes: input.attributes ?? {},
@@ -100,7 +116,7 @@ export class ProductsService {
     }
 
     this.ensureCanManageProduct(actor, product.sellerId);
-    this.ensureStatusTransition(product.status, ['DRAFT', 'REJECTED']);
+    this.ensureStatusTransition(product.status, 'PENDING_REVIEW');
 
     product.status = 'PENDING_REVIEW';
     await product.save();
@@ -113,8 +129,9 @@ export class ProductsService {
       return undefined;
     }
 
-    this.ensureStatusTransition(product.status, ['PENDING_REVIEW']);
+    this.ensureStatusTransition(product.status, 'APPROVED');
     product.status = 'APPROVED';
+    product.publishedAt = product.publishedAt ?? new Date();
     await product.save();
     return this.toProduct(product);
   }
@@ -125,8 +142,9 @@ export class ProductsService {
       return undefined;
     }
 
-    this.ensureStatusTransition(product.status, ['PENDING_REVIEW']);
+    this.ensureStatusTransition(product.status, 'REJECTED');
     product.status = 'REJECTED';
+    product.publishedAt = null;
     await product.save();
     return this.toProduct(product);
   }
@@ -138,14 +156,10 @@ export class ProductsService {
     }
 
     this.ensureCanManageProduct(actor, product.sellerId);
-    this.ensureStatusTransition(product.status, [
-      'DRAFT',
-      'PENDING_REVIEW',
-      'APPROVED',
-      'REJECTED',
-    ]);
+    this.ensureStatusTransition(product.status, 'ARCHIVED');
 
     product.status = 'ARCHIVED';
+    product.archivedAt = new Date();
     await product.save();
     return this.toProduct(product);
   }
@@ -154,9 +168,17 @@ export class ProductsService {
     id: string;
     sellerId: string;
     name: string;
+    sku: string;
+    brand?: string | null;
+    shortDescription?: string | null;
+    description?: string | null;
     price: number;
+    salePrice?: number | null;
+    currency: string;
     slug: string;
     status: (typeof PRODUCT_STATUSES)[number];
+    publishedAt?: Date | null;
+    archivedAt?: Date | null;
     categoryId?: string | null;
     tags?: string[];
     attributes?: Record<string, string | number | boolean | null>;
@@ -165,9 +187,17 @@ export class ProductsService {
       id: product.id,
       sellerId: product.sellerId,
       name: product.name,
+      sku: product.sku,
+      brand: product.brand ?? null,
+      shortDescription: product.shortDescription ?? null,
+      description: product.description ?? null,
       price: product.price,
+      salePrice: product.salePrice ?? null,
+      currency: product.currency,
       slug: product.slug,
       status: product.status,
+      publishedAt: product.publishedAt ?? null,
+      archivedAt: product.archivedAt ?? null,
       categoryId: product.categoryId ?? null,
       tags: product.tags ?? [],
       attributes: product.attributes ?? {},
@@ -228,11 +258,12 @@ export class ProductsService {
 
   private ensureStatusTransition(
     currentStatus: ProductStatus,
-    allowedCurrentStatuses: ProductStatus[],
+    nextStatus: ProductStatus,
   ): void {
-    if (!allowedCurrentStatuses.includes(currentStatus)) {
+    const allowedNextStatuses = STATUS_TRANSITIONS[currentStatus] ?? [];
+    if (!allowedNextStatuses.includes(nextStatus)) {
       throw new BadRequestException(
-        `Invalid status transition from ${currentStatus}`,
+        `Invalid status transition from ${currentStatus} to ${nextStatus}`,
       );
     }
   }

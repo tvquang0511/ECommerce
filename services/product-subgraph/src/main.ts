@@ -8,6 +8,7 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') ?? 4002;
   const nodeEnv = configService.get<string>('app.nodeEnv') ?? 'development';
@@ -20,14 +21,12 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(port, () => {
-    console.log('[Nest] ' + '*'.repeat(20));
-    console.log(
-      '[Nest] Product Subgraph is running on: http://localhost:' + port,
-    );
-    console.log('[Nest] Environment: ' + nodeEnv);
-    console.log('[Nest] ' + '*'.repeat(20));
-  });
+  await app.listen(port);
+
+  console.log(
+    `[Nest] Product Subgraph is running on: http://localhost:${port}/graphql`,
+  );
+  console.log(`[Nest] Environment: ${nodeEnv}`);
 }
 
 bootstrap();

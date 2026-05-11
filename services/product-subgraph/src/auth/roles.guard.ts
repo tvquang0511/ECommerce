@@ -20,7 +20,7 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException('Actor missing in context');
     }
 
-    const hasRole = requiredRoles.some((role) => {
+    const hasRole = requiredRoles.some((role: string) => {
       if (role.endsWith('*')) {
         const prefix = role.slice(0, -1);
         return actor.roles.some((r: string) => r.startsWith(prefix));

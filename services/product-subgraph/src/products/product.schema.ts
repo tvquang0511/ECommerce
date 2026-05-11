@@ -9,6 +9,8 @@ export const PRODUCT_STATUSES = [
   'ARCHIVED',
 ] as const;
 
+export const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
+
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
 @Schema({ versionKey: false })
@@ -22,14 +24,38 @@ export class ProductModel {
   @Prop({ required: true, trim: true, maxlength: 120 })
   name!: string;
 
+  @Prop({ required: true, unique: true, trim: true, maxlength: 50 })
+  sku!: string;
+
+  @Prop({ type: String, trim: true, maxlength: 100, default: null })
+  brand!: string | null;
+
+  @Prop({ type: String, trim: true, maxlength: 300, default: null })
+  shortDescription!: string | null;
+
+  @Prop({ type: String, trim: true, maxlength: 5000, default: null })
+  description!: string | null;
+
   @Prop({ required: true, min: 0 })
   price!: number;
+
+  @Prop({ type: Number, min: 0, default: null })
+  salePrice!: number | null;
+
+  @Prop({ required: true, enum: PRODUCT_CURRENCIES, default: 'VND' })
+  currency!: (typeof PRODUCT_CURRENCIES)[number];
 
   @Prop({ required: true, unique: true, trim: true })
   slug!: string;
 
   @Prop({ required: true, enum: PRODUCT_STATUSES, default: 'DRAFT' })
   status!: ProductStatus;
+
+  @Prop({ type: Date, default: null })
+  publishedAt!: Date | null;
+
+  @Prop({ type: Date, default: null })
+  archivedAt!: Date | null;
 
   @Prop({ type: String, trim: true, default: null })
   categoryId!: string | null;
@@ -47,6 +73,7 @@ export const ProductSchema = SchemaFactory.createForClass(ProductModel);
 
 ProductSchema.index({ sellerId: 1, status: 1 });
 ProductSchema.index({ categoryId: 1, status: 1 });
+ProductSchema.index({ sku: 1 }, { unique: true });
 ProductSchema.index({ tags: 1 });
 ProductSchema.index(
   { name: 'text', tags: 'text' },

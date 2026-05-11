@@ -1,0 +1,54 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateProductInput {
+  categoryId: String
+  description: String
+  name: String!
+  price: Float!
+  tags: [String!]
+}
+
+type Mutation {
+  approveProduct(id: String!): Product!
+  archiveProduct(id: String!): Product!
+  createProduct(input: CreateProductInput!): Product!
+  deleteProduct(id: String!): Boolean!
+  rejectProduct(id: String!): Product!
+  submitProductForReview(id: String!): Product!
+  updateProduct(id: String!, input: UpdateProductInput!): Product!
+}
+
+type Product {
+  categoryId: String
+  description: String
+  id: ID!
+  name: String!
+  price: Float!
+  sellerId: String!
+  slug: String!
+  status: ProductStatusEnum!
+  tags: [String!]
+}
+
+enum ProductStatusEnum {
+  APPROVED
+  ARCHIVED
+  DRAFT
+  PENDING_REVIEW
+  REJECTED
+}
+
+type Query {
+  product(id: String!): Product!
+  products: [Product!]!
+}
+
+input UpdateProductInput {
+  categoryId: String
+  description: String
+  name: String
+  price: Float
+  tags: [String!]
+}
