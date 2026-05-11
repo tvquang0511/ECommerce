@@ -1,15 +1,24 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { AuthActor } from '../auth/auth-actor.type';
+import { MinioService } from '../media/minio.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PRODUCT_STATUSES } from './product.schema';
-import { Product } from './product.type';
+import { Product, ProductImage } from './product.type';
 import { ProductDocument, ProductModel } from './product.schema';
 
 type ProductStatus = (typeof PRODUCT_STATUSES)[number];
+
+type ProductUploadUrlPayload = {
+  uploadUrl: string;
+  objectKey: string;
+  bucket: string;
+  expiresAt: Date;
+};
 
 const STATUS_TRANSITIONS: Record<ProductStatus, ProductStatus[]> = {
   DRAFT: ['PENDING_REVIEW', 'ARCHIVED'],
@@ -24,6 +33,7 @@ export class ProductsService {
   constructor(
     @InjectModel(ProductModel.name)
     private readonly productModel: Model<ProductDocument>,
+    private readonly minioService: MinioService,
   ) {}
 
   async findAll(actor: AuthActor | null): Promise<Product[]> {
@@ -59,6 +69,8 @@ export class ProductsService {
       status: 'DRAFT',
       publishedAt: null,
       archivedAt: null,
+      coverImage: null,
+      galleryImages: [],
       categoryId: input.categoryId ?? null,
       tags: input.tags ?? [],
       attributes: input.attributes ?? {},
@@ -164,6 +176,115 @@ export class ProductsService {
     return this.toProduct(product);
   }
 
+  async createMediaUploadUrl(
+    id: string,
+    actor: AuthActor,
+    input: { fileName: string; contentType: string },
+  ): Promise<ProductUploadUrlPayload | undefined> {
+    const product = await this.productModel.findOne({ id }).exec();
+    if (!product) {
+      return undefined;
+    }
+
+    this.ensureCanManageProduct(actor, product.sellerId);
+
+    if (product.status === 'ARCHIVED') {
+      throw new BadRequestException('Archived product cannot be updated');
+    }
+
+    const objectKey = this.buildObjectKey(id, input.fileName);
+    const presign = await this.minioService.presignPutObject(objectKey);
+
+    return {
+      uploadUrl: presign.url,
+      objectKey,
+      bucket: this.minioService.getBucket(),
+      expiresAt: presign.expiresAt,
+    };
+  }
+
+  async confirmMediaUpload(
+    id: string,
+    actor: AuthActor,
+    input: {
+      objectKey: string;
+      contentType: string;
+      size: number;
+      kind: 'COVER' | 'GALLERY';
+    },
+  ): Promise<Product | undefined> {
+    const product = await this.productModel.findOne({ id }).exec();
+    if (!product) {
+      return undefined;
+    }
+
+    this.ensureCanManageProduct(actor, product.sellerId);
+    this.ensureObjectKeyMatchesProduct(id, input.objectKey);
+
+    if (product.status === 'ARCHIVED') {
+      throw new BadRequestException('Archived product cannot be updated');
+    }
+
+    const image: ProductImage = {
+      bucket: this.minioService.getBucket(),
+      objectKey: input.objectKey,
+      contentType: input.contentType,
+      size: input.size,
+      uploadedAt: new Date(),
+    };
+
+    if (input.kind === 'COVER') {
+      product.coverImage = image;
+    } else {
+      const gallery = product.galleryImages ?? [];
+      if (!gallery.some((item) => item.objectKey === input.objectKey)) {
+        gallery.push(image);
+      }
+      product.galleryImages = gallery;
+    }
+
+    await product.save();
+    return this.toProduct(product);
+  }
+
+  async removeMedia(
+    id: string,
+    actor: AuthActor,
+    objectKey: string,
+  ): Promise<Product | undefined> {
+    const product = await this.productModel.findOne({ id }).exec();
+    if (!product) {
+      return undefined;
+    }
+
+    this.ensureCanManageProduct(actor, product.sellerId);
+    this.ensureObjectKeyMatchesProduct(id, objectKey);
+
+    if (product.status === 'ARCHIVED') {
+      throw new BadRequestException('Archived product cannot be updated');
+    }
+
+    const gallery = product.galleryImages ?? [];
+    const nextGallery = gallery.filter((item) => item.objectKey !== objectKey);
+    const removedFromGallery = nextGallery.length !== gallery.length;
+    const removedCover = product.coverImage?.objectKey === objectKey;
+
+    if (!removedFromGallery && !removedCover) {
+      throw new BadRequestException('Media not found on product');
+    }
+
+    if (removedCover) {
+      product.coverImage = null;
+    }
+
+    product.galleryImages = nextGallery;
+
+    await this.minioService.removeObject(objectKey);
+    await product.save();
+
+    return this.toProduct(product);
+  }
+
   private toProduct(product: {
     id: string;
     sellerId: string;
@@ -182,6 +303,8 @@ export class ProductsService {
     categoryId?: string | null;
     tags?: string[];
     attributes?: Record<string, string | number | boolean | null>;
+    coverImage?: ProductImage | null;
+    galleryImages?: ProductImage[];
   }): Product {
     return {
       id: product.id,
@@ -201,6 +324,8 @@ export class ProductsService {
       categoryId: product.categoryId ?? null,
       tags: product.tags ?? [],
       attributes: product.attributes ?? {},
+      coverImage: product.coverImage ?? null,
+      galleryImages: product.galleryImages ?? [],
     };
   }
 
@@ -226,6 +351,24 @@ export class ProductsService {
     }, 0);
 
     return `p${nextNumber + 1}`;
+  }
+
+  private buildObjectKey(productId: string, fileName: string): string {
+    const normalizedName = fileName
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    const safeName = normalizedName.length > 0 ? normalizedName : 'upload';
+    return `products/${productId}/${Date.now()}-${randomUUID()}-${safeName}`;
+  }
+
+  private ensureObjectKeyMatchesProduct(productId: string, objectKey: string): void {
+    const prefix = `products/${productId}/`;
+    if (!objectKey.startsWith(prefix)) {
+      throw new BadRequestException('Invalid object key for product');
+    }
   }
 
   private buildVisibilityQuery(actor: AuthActor | null) {

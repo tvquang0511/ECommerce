@@ -65,6 +65,8 @@ services:
       mc mb -p local/user-public || true;
       mc anonymous set download local/user-public || true;
 
+      mc mb -p local/product-private || true;
+
       echo 'minio init done';
       "
 

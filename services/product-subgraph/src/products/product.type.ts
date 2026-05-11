@@ -16,4 +16,14 @@ export type Product = {
   categoryId?: string | null;
   tags: string[];
   attributes: Record<string, string | number | boolean | null>;
+  coverImage?: ProductImage | null;
+  galleryImages: ProductImage[];
+};
+
+export type ProductImage = {
+  bucket: string;
+  objectKey: string;
+  contentType: string;
+  size: number;
+  uploadedAt: Date;
 };

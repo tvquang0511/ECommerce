@@ -1,5 +1,23 @@
-import { ObjectType, Field, ID, Float, GraphQLISODateTime } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Float, GraphQLISODateTime, Int } from '@nestjs/graphql';
 import { ProductStatusEnum } from './product-status.enum';
+
+@ObjectType()
+export class ProductImage {
+  @Field()
+  bucket!: string;
+
+  @Field()
+  objectKey!: string;
+
+  @Field()
+  contentType!: string;
+
+  @Field(() => Int)
+  size!: number;
+
+  @Field(() => GraphQLISODateTime)
+  uploadedAt!: Date;
+}
 
 @ObjectType()
 export class Product {
@@ -50,4 +68,25 @@ export class Product {
 
   @Field(() => [String], { nullable: true })
   tags?: string[];
+
+  @Field(() => ProductImage, { nullable: true })
+  coverImage?: ProductImage;
+
+  @Field(() => [ProductImage], { nullable: true })
+  galleryImages?: ProductImage[];
+}
+
+@ObjectType()
+export class ProductUploadUrlPayload {
+  @Field()
+  uploadUrl!: string;
+
+  @Field()
+  objectKey!: string;
+
+  @Field()
+  bucket!: string;
+
+  @Field(() => GraphQLISODateTime)
+  expiresAt!: Date;
 }

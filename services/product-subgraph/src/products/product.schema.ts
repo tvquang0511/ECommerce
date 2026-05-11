@@ -13,6 +13,14 @@ export const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
 
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
+export type ProductImage = {
+  bucket: string;
+  objectKey: string;
+  contentType: string;
+  size: number;
+  uploadedAt: Date;
+};
+
 @Schema({ versionKey: false })
 export class ProductModel {
   @Prop({ required: true, unique: true, trim: true })
@@ -56,6 +64,12 @@ export class ProductModel {
 
   @Prop({ type: Date, default: null })
   archivedAt!: Date | null;
+
+  @Prop({ type: Object, default: null })
+  coverImage!: ProductImage | null;
+
+  @Prop({ type: [Object], default: [] })
+  galleryImages!: ProductImage[];
 
   @Prop({ type: String, trim: true, default: null })
   categoryId!: string | null;

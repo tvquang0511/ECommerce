@@ -1,4 +1,4 @@
-import { InputType, Field, Float } from '@nestjs/graphql';
+import { InputType, Field, Float, Int } from '@nestjs/graphql';
 import { Type } from 'class-transformer';
 import {
   IsIn,
@@ -9,7 +9,9 @@ import {
   Min,
   MinLength,
   IsArray,
+  IsEnum,
 } from 'class-validator';
+import { ProductMediaKind } from './product-media.enum';
 
 const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
 
@@ -140,4 +142,44 @@ export class UpdateProductInput {
   @IsString()
   @IsIn(PRODUCT_CURRENCIES)
   currency?: string;
+}
+
+@InputType()
+export class ProductMediaUploadInput {
+  @Field()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(200)
+  fileName!: string;
+
+  @Field()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  contentType!: string;
+}
+
+@InputType()
+export class ProductMediaConfirmInput {
+  @Field()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  objectKey!: string;
+
+  @Field()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  contentType!: string;
+
+  @Field(() => Int)
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 0 })
+  @Min(0)
+  size!: number;
+
+  @Field(() => ProductMediaKind)
+  @IsEnum(ProductMediaKind)
+  kind!: ProductMediaKind;
 }

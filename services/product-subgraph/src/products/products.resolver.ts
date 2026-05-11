@@ -1,4 +1,4 @@
-import { Args, Context, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
 import { AuthActor } from '../auth/auth-actor.type';
@@ -8,8 +8,13 @@ import { VerifiedSellerGuard } from '../auth/verified-seller.guard';
 import { CurrentActor } from '../auth/decorators/current-actor.decorator';
 import { RequiresRoles } from '../auth/decorators/requires-roles.decorator';
 import { RequiresVerifiedSeller } from '../auth/decorators/requires-verified-seller.decorator';
-import { CreateProductInput, UpdateProductInput } from './graphql/product.input';
-import { Product as ProductGql } from './graphql/product.type';
+import {
+  CreateProductInput,
+  ProductMediaConfirmInput,
+  ProductMediaUploadInput,
+  UpdateProductInput,
+} from './graphql/product.input';
+import { Product as ProductGql, ProductUploadUrlPayload } from './graphql/product.type';
 import { ProductsService } from './products.service';
 
 @Resolver(() => ProductGql)
@@ -68,6 +73,64 @@ export class ProductsResolver {
     @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
     const product = await this.productsService.update(id, actor, input as any);
+    if (!product) throw new NotFoundException(`Product ${id} not found`);
+    return product as any;
+  }
+
+  /**
+   * Create presigned upload URL for product media (authenticated + verified seller required)
+   */
+  @Mutation(() => ProductUploadUrlPayload, { name: 'createProductMediaUploadUrl' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
+  async createMediaUploadUrl(
+    @Args('id') id: string,
+    @Args('input') input: ProductMediaUploadInput,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<ProductUploadUrlPayload> {
+    const payload = await this.productsService.createMediaUploadUrl(
+      id,
+      actor,
+      input as any,
+    );
+
+    if (!payload) throw new NotFoundException(`Product ${id} not found`);
+    return payload as any;
+  }
+
+  /**
+   * Confirm uploaded media and attach to product (authenticated + verified seller required)
+   */
+  @Mutation(() => ProductGql, { name: 'confirmProductMediaUpload' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
+  async confirmMediaUpload(
+    @Args('id') id: string,
+    @Args('input') input: ProductMediaConfirmInput,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<ProductGql> {
+    const product = await this.productsService.confirmMediaUpload(
+      id,
+      actor,
+      input as any,
+    );
+
+    if (!product) throw new NotFoundException(`Product ${id} not found`);
+    return product as any;
+  }
+
+  /**
+   * Remove media from product and MinIO (authenticated + verified seller required)
+   */
+  @Mutation(() => ProductGql, { name: 'removeProductMedia' })
+  @UseGuards(AuthGuard, VerifiedSellerGuard)
+  @RequiresVerifiedSeller()
+  async removeMedia(
+    @Args('id') id: string,
+    @Args('objectKey') objectKey: string,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<ProductGql> {
+    const product = await this.productsService.removeMedia(id, actor, objectKey);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
   }
