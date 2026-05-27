@@ -20,6 +20,10 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException('Actor missing in context');
     }
 
+    if (actor.roles?.includes('SUPER_ADMIN')) {
+      return true;
+    }
+
     const hasRole = requiredRoles.some((role: string) => {
       if (role.endsWith('*')) {
         const prefix = role.slice(0, -1);

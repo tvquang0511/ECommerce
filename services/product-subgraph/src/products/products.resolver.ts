@@ -3,6 +3,7 @@ import { NotFoundException, UseGuards } from '@nestjs/common';
 
 import { AuthActor } from '../auth/auth-actor.type';
 import { AuthGuard } from '../auth/auth.guard';
+import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { VerifiedSellerGuard } from '../auth/verified-seller.guard';
 import { CurrentActor } from '../auth/decorators/current-actor.decorator';
@@ -30,6 +31,7 @@ export class ProductsResolver {
    * Returns products visible to the actor (filters based on status/permissions)
    */
   @Query(() => [ProductGql], { name: 'products' })
+  @UseGuards(OptionalAuthGuard)
   async findAll(@CurrentActor() actor: AuthActor | null): Promise<ProductGql[]> {
     return this.productsService.findAll(actor) as any;
   }
@@ -39,6 +41,7 @@ export class ProductsResolver {
    * Returns product if visible to actor
    */
   @Query(() => ProductGql, { name: 'product' })
+  @UseGuards(OptionalAuthGuard)
   async findById(
     @Args('id') id: string,
     @CurrentActor() actor: AuthActor | null,
@@ -55,6 +58,7 @@ export class ProductsResolver {
    * Public if product is APPROVED, otherwise only seller/admin can access
    */
   @Query(() => ProductDownloadUrlPayload, { name: 'productMediaDownloadUrl' })
+  @UseGuards(OptionalAuthGuard)
   async getMediaDownloadUrl(
     @Args('id') id: string,
     @Args('objectKey') objectKey: string,

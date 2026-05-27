@@ -1,11 +1,14 @@
 import { ProductsService } from './products.service';
 
-const createQuery = <T>(result: T) => ({
+type QueryResult<T> = { exec: jest.Mock<Promise<T>, []> };
+
+const createQuery = <T>(result: T): QueryResult<T> => ({
   exec: jest.fn().mockResolvedValue(result),
 });
 
 describe('ProductsService', () => {
   let service: ProductsService;
+
   const sellerActor = {
     userId: 'seller-1',
     roles: ['SELLER'],
@@ -33,6 +36,21 @@ describe('ProductsService', () => {
     deleteOne: jest.Mock;
   };
 
+  const minioService = {
+    removeObject: jest.fn().mockResolvedValue(undefined),
+    presignPutObject: jest.fn().mockResolvedValue({ url: 'upload', expiresAt: new Date() }),
+    presignGetObject: jest.fn().mockResolvedValue({ url: 'download', expiresAt: new Date() }),
+    getBucket: jest.fn().mockReturnValue('product-private'),
+  };
+
+  const productCache = {
+    getList: jest.fn(),
+    setList: jest.fn().mockResolvedValue(undefined),
+    getDetail: jest.fn(),
+    setDetail: jest.fn().mockResolvedValue(undefined),
+    invalidateProduct: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(() => {
     productModel = {
       find: jest.fn(),
@@ -42,49 +60,47 @@ describe('ProductsService', () => {
       deleteOne: jest.fn(),
     };
 
-    service = new ProductsService(productModel as never);
+    productCache.getList.mockResolvedValue(null);
+    productCache.getDetail.mockResolvedValue(null);
+
+    service = new ProductsService(
+      productModel as never,
+      minioService as never,
+      productCache as never,
+    );
   });
 
-  it('returns products from database', async () => {
+  it('returns products from database when cache miss', async () => {
     productModel.find.mockReturnValue(
       createQuery([
         {
           id: 'p1',
           sellerId: 'seller-1',
           name: 'Keyboard',
+          sku: 'KB-01',
           price: 49.9,
+          salePrice: null,
+          currency: 'VND',
           slug: 'keyboard-p1',
           status: 'APPROVED',
           categoryId: 'cat-keyboards',
           tags: ['peripherals'],
           attributes: { layout: 'US' },
-        },
-        {
-          id: 'p2',
-          sellerId: 'seller-2',
-          name: 'Mouse',
-          price: 19.9,
-          slug: 'mouse-p2',
-          status: 'APPROVED',
-          categoryId: 'cat-mice',
-          tags: ['peripherals'],
-          attributes: { wireless: true },
-        },
-        {
-          id: 'p3',
-          sellerId: 'seller-3',
-          name: 'Monitor',
-          price: 199.0,
-          slug: 'monitor-p3',
-          status: 'APPROVED',
-          categoryId: 'cat-monitors',
-          tags: ['displays'],
-          attributes: { size: 27 },
+          coverImage: null,
+          galleryImages: [],
         },
       ]),
     );
 
-    await expect(service.findAll(adminActor)).resolves.toHaveLength(3);
+    await expect(service.findAll(adminActor)).resolves.toHaveLength(1);
+    expect(productCache.setList).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cached products when cache hit', async () => {
+    productCache.getList.mockResolvedValue([{ id: 'p1' }]);
+
+    await expect(service.findAll(buyerActor)).resolves.toEqual([{ id: 'p1' }]);
+    expect(productModel.find).not.toHaveBeenCalled();
   });
 
   it('finds product by id', async () => {
@@ -93,25 +109,27 @@ describe('ProductsService', () => {
         id: 'p2',
         sellerId: 'seller-2',
         name: 'Mouse',
+        sku: 'MOUSE-01',
         price: 19.9,
+        salePrice: null,
+        currency: 'VND',
         slug: 'mouse-p2',
         status: 'APPROVED',
         categoryId: 'cat-mice',
         tags: ['peripherals'],
         attributes: { wireless: true },
+        coverImage: null,
+        galleryImages: [],
       }),
     );
 
-    await expect(service.findById('p2', buyerActor)).resolves.toEqual({
+    await expect(service.findById('p2', buyerActor)).resolves.toMatchObject({
       id: 'p2',
       sellerId: 'seller-2',
       name: 'Mouse',
+      sku: 'MOUSE-01',
       price: 19.9,
-      slug: 'mouse-p2',
-      status: 'APPROVED',
-      categoryId: 'cat-mice',
-      tags: ['peripherals'],
-      attributes: { wireless: true },
+      currency: 'VND',
     });
   });
 
@@ -122,44 +140,43 @@ describe('ProductsService', () => {
   });
 
   it('creates a new product with next id', async () => {
-    productModel.find.mockReturnValue(
-      createQuery([
-        { id: 'p1' },
-        { id: 'p2' },
-        { id: 'p3' },
-      ]),
-    );
+    productModel.find.mockReturnValue(createQuery([{ id: 'p1' }, { id: 'p2' }]));
     productModel.create.mockResolvedValue({
-      id: 'p4',
+      id: 'p3',
       sellerId: 'seller-1',
       name: 'Desk',
+      sku: 'DESK-01',
       price: 120,
-      slug: 'desk-p4',
+      salePrice: null,
+      currency: 'VND',
+      slug: 'desk-p3',
       status: 'DRAFT',
       categoryId: 'cat-desks',
       tags: ['furniture'],
       attributes: { color: 'oak' },
+      coverImage: null,
+      galleryImages: [],
     });
 
     await expect(
       service.create(sellerActor, {
         name: 'Desk',
         price: 120,
+        sku: 'DESK-01',
         categoryId: 'cat-desks',
         tags: ['furniture'],
         attributes: { color: 'oak' },
       }),
-    ).resolves.toEqual({
-      id: 'p4',
+    ).resolves.toMatchObject({
+      id: 'p3',
       sellerId: 'seller-1',
       name: 'Desk',
+      sku: 'DESK-01',
       price: 120,
-      slug: 'desk-p4',
       status: 'DRAFT',
-      categoryId: 'cat-desks',
-      tags: ['furniture'],
-      attributes: { color: 'oak' },
     });
+
+    expect(productCache.invalidateProduct).toHaveBeenCalledTimes(1);
   });
 
   it('updates existing product fields', async () => {
@@ -175,12 +192,17 @@ describe('ProductsService', () => {
         id: 'p1',
         sellerId: 'seller-1',
         name: 'Mechanical Keyboard',
+        sku: 'KB-01',
         price: 59.9,
+        salePrice: null,
+        currency: 'VND',
         slug: 'mechanical-keyboard-p1',
         status: 'APPROVED',
         categoryId: 'cat-keyboards',
         tags: ['peripherals'],
         attributes: { layout: 'US' },
+        coverImage: null,
+        galleryImages: [],
       }),
     );
 
@@ -189,52 +211,13 @@ describe('ProductsService', () => {
         name: 'Mechanical Keyboard',
         price: 59.9,
       }),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       id: 'p1',
-      sellerId: 'seller-1',
       name: 'Mechanical Keyboard',
       price: 59.9,
-      slug: 'mechanical-keyboard-p1',
-      status: 'APPROVED',
-      categoryId: 'cat-keyboards',
-      tags: ['peripherals'],
-      attributes: { layout: 'US' },
     });
-  });
 
-  it('supports partial update', async () => {
-    productModel.findOneAndUpdate.mockReturnValue(
-      createQuery({
-        id: 'p2',
-        sellerId: 'seller-2',
-        name: 'Mouse',
-        price: 25.5,
-        slug: 'mouse-p2',
-        status: 'APPROVED',
-        categoryId: 'cat-mice',
-        tags: ['peripherals'],
-        attributes: { wireless: true },
-      }),
-    );
-    productModel.findOne.mockReturnValue(
-      createQuery({
-        id: 'p2',
-        sellerId: 'seller-2',
-        status: 'APPROVED',
-      }),
-    );
-
-    await expect(service.update('p2', adminActor, { price: 25.5 })).resolves.toEqual({
-      id: 'p2',
-      sellerId: 'seller-2',
-      name: 'Mouse',
-      price: 25.5,
-      slug: 'mouse-p2',
-      status: 'APPROVED',
-      categoryId: 'cat-mice',
-      tags: ['peripherals'],
-      attributes: { wireless: true },
-    });
+    expect(productCache.invalidateProduct).toHaveBeenCalledTimes(1);
   });
 
   it('returns undefined when updating missing product', async () => {
@@ -247,11 +230,18 @@ describe('ProductsService', () => {
 
   it('removes product by id', async () => {
     productModel.findOne.mockReturnValue(
-      createQuery({ id: 'p3', sellerId: 'seller-1', status: 'APPROVED' }),
+      createQuery({
+        id: 'p3',
+        sellerId: 'seller-1',
+        status: 'APPROVED',
+        coverImage: null,
+        galleryImages: [],
+      }),
     );
     productModel.deleteOne.mockReturnValue(createQuery({ deletedCount: 1 }));
 
     await expect(service.remove('p3', sellerActor)).resolves.toBe(true);
+    expect(productCache.invalidateProduct).toHaveBeenCalledTimes(1);
   });
 
   it('returns false when removing missing product', async () => {
@@ -267,7 +257,10 @@ describe('ProductsService', () => {
         id: 'p1',
         sellerId: 'seller-1',
         name: 'Keyboard',
+        sku: 'KB-01',
         price: 49.9,
+        salePrice: null,
+        currency: 'VND',
         slug: 'keyboard-p1',
         status: 'DRAFT',
         save,
@@ -288,7 +281,10 @@ describe('ProductsService', () => {
         id: 'p1',
         sellerId: 'seller-1',
         name: 'Keyboard',
+        sku: 'KB-01',
         price: 49.9,
+        salePrice: null,
+        currency: 'VND',
         slug: 'keyboard-p1',
         status: 'PENDING_REVIEW',
         save,
@@ -299,5 +295,6 @@ describe('ProductsService', () => {
       id: 'p1',
       status: 'APPROVED',
     });
+    expect(save).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,8 +1,8 @@
 # product-subgraph
 
-`product-subgraph` là service catalog của hệ thống marketplace. Service này dùng **NestJS + MongoDB (Mongoose)** theo hướng tối giản:
+`product-subgraph` là service catalog của hệ thống marketplace. Service này dùng **NestJS + GraphQL + MongoDB (Mongoose)** theo hướng tối giản:
 
-`controller -> service -> model`
+`resolver -> service -> model`
 
 ## Purpose
 
@@ -31,21 +31,30 @@
 	- `AUTH_REQUEST_TIMEOUT_MS` (default `5000`)
 	- `AUTH_ALLOW_TEST_HEADERS` (default `false`, bật để dùng `x-dev-*` headers)
 
-## Endpoints
+## GraphQL API
 
-- `GET /`
-- `GET /health`
-- `GET /products`
-- `GET /products/:id`
-- `POST /products`
-- `PUT /products/:id`
-- `DELETE /products/:id`
+- Endpoint: `POST /graphql`
+- Queries
+	- `products`
+	- `product(id)`
+	- `productMediaDownloadUrl(id, objectKey)`
+- Mutations
+	- `createProduct(input)`
+	- `updateProduct(id, input)`
+	- `deleteProduct(id)`
+	- `submitProductForReview(id)`
+	- `approveProduct(id)`
+	- `rejectProduct(id)`
+	- `archiveProduct(id)`
+	- `createProductMediaUploadUrl(id, input)`
+	- `confirmProductMediaUpload(id, input)`
+	- `removeProductMedia(id, objectKey)`
 
 ## Core files
 
 - `src/app.module.ts`
 - `src/products/products.module.ts`
-- `src/products/products.controller.ts`
+- `src/products/products.resolver.ts`
 - `src/products/products.service.ts`
 - `src/products/product.schema.ts`
 - `src/products/dto/create-product.dto.ts`

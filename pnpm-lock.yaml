@@ -207,6 +207,12 @@ importers:
       graphql:
         specifier: ^16.13.2
         version: 16.13.2
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.10.1
+      minio:
+        specifier: ^8.0.5
+        version: 8.0.7
       mongoose:
         specifier: ^9.5.0
         version: 9.5.0(socks@2.8.7)

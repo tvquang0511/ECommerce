@@ -5,7 +5,7 @@ import { AuthContextService } from './auth-context.service';
 
 @Injectable()
 export class AuthGuard extends PassportAuthGuard('jwt') {
-  constructor(private readonly authContextService: AuthContextService) {
+  constructor(protected readonly authContextService: AuthContextService) {
     super();
   }
 
@@ -13,12 +13,21 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
    * Validate JWT and resolve full actor data (roles, permissions, seller status)
    */
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = this.getRequest(context);
+
+    // Allow dev headers to short-circuit JWT validation (test only)
+    const devActor = this.authContextService.getDevActor(req);
+    if (devActor) {
+      req.user = devActor;
+      this.attachActorToContext(context, devActor);
+      return true;
+    }
+
     // JWT strategy validates signature + expiry
     const result = await super.canActivate(context);
     if (!result) return false;
 
     // Extract request and actor (minimal, from JWT claims)
-    const req = this.getRequest(context);
     let actor = req.user;
 
     // Call introspect to get full actor data (roles, permissions, seller status)
@@ -37,11 +46,7 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
     }
 
     // Attach actor to GraphQL context for guards/resolvers
-    const gqlCtx = GqlExecutionContext.create(context);
-    const ctx = gqlCtx.getContext();
-    if (ctx) {
-      ctx.actor = actor;
-    }
+    this.attachActorToContext(context, actor ?? null);
 
     return true;
   }
@@ -59,10 +64,21 @@ export class AuthGuard extends PassportAuthGuard('jwt') {
   /**
    * Extract Bearer token from Authorization header
    */
-  private extractToken(req: any): string | undefined {
+  protected extractToken(req: any): string | undefined {
     const header = req.headers?.authorization || req.header?.('authorization');
     if (!header) return undefined;
     const [kind, token] = header.split(' ');
     return kind === 'Bearer' ? token : undefined;
+  }
+
+  protected attachActorToContext(
+    context: ExecutionContext,
+    actor: unknown | null,
+  ): void {
+    const gqlCtx = GqlExecutionContext.create(context);
+    const ctx = gqlCtx.getContext();
+    if (ctx) {
+      ctx.actor = actor ?? null;
+    }
   }
 }

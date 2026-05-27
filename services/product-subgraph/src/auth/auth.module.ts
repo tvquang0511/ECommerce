@@ -8,13 +8,30 @@ import { AuthGuard } from './auth.guard';
 import { RolesGuard } from './roles.guard';
 import { PermissionGuard } from './permission.guard';
 import { VerifiedSellerGuard } from './verified-seller.guard';
+import { OptionalAuthGuard } from './optional-auth.guard';
 
 @Module({
   imports: [
     ConfigModule,
     PassportModule.register({ defaultStrategy: 'jwt', session: false }),
   ],
-  providers: [JwtConfigService, JwtStrategy, AuthContextService, AuthGuard, RolesGuard, PermissionGuard, VerifiedSellerGuard],
-  exports: [AuthContextService, AuthGuard, RolesGuard, PermissionGuard, VerifiedSellerGuard],
+  providers: [
+    JwtConfigService,
+    JwtStrategy,
+    AuthContextService,
+    AuthGuard,
+    OptionalAuthGuard,
+    RolesGuard,
+    PermissionGuard,
+    VerifiedSellerGuard,
+  ],
+  exports: [
+    AuthContextService,
+    AuthGuard,
+    OptionalAuthGuard,
+    RolesGuard,
+    PermissionGuard,
+    VerifiedSellerGuard,
+  ],
 })
 export class AuthModule {}

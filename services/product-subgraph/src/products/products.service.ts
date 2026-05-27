@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { AuthActor } from '../auth/auth-actor.type';
+import { ProductCacheService } from '../cache/product-cache.service';
 import { MinioService } from '../media/minio.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -34,21 +35,41 @@ export class ProductsService {
     @InjectModel(ProductModel.name)
     private readonly productModel: Model<ProductDocument>,
     private readonly minioService: MinioService,
+    private readonly productCache: ProductCacheService,
   ) {}
 
   async findAll(actor: AuthActor | null): Promise<Product[]> {
+    const cached = await this.productCache.getList(actor);
+    if (cached) {
+      return cached;
+    }
+
     const query = this.buildVisibilityQuery(actor);
     const products = await this.productModel.find(query).exec();
-    return products.map((product) => this.toProduct(product));
+    const result = products.map((product) => this.toProduct(product));
+
+    await this.productCache.setList(actor, result);
+    return result;
   }
 
   async findById(id: string, actor: AuthActor | null): Promise<Product | undefined> {
+    const cached = await this.productCache.getDetail(actor, id);
+    if (cached) {
+      return cached;
+    }
+
     const query = {
       id,
       ...this.buildVisibilityQuery(actor),
     };
     const product = await this.productModel.findOne(query).exec();
-    return product ? this.toProduct(product) : undefined;
+    if (!product) {
+      return undefined;
+    }
+
+    const result = this.toProduct(product);
+    await this.productCache.setDetail(actor, id, result);
+    return result;
   }
 
   async create(actor: AuthActor, input: CreateProductDto): Promise<Product> {
@@ -75,6 +96,7 @@ export class ProductsService {
       tags: input.tags ?? [],
       attributes: input.attributes ?? {},
     });
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
@@ -106,7 +128,12 @@ export class ProductsService {
       })
       .exec();
 
-    return product ? this.toProduct(product) : undefined;
+    if (product) {
+      await this.productCache.invalidateProduct(product.id, product.sellerId);
+      return this.toProduct(product);
+    }
+
+    return undefined;
   }
 
   async remove(id: string, actor: AuthActor): Promise<boolean> {
@@ -121,6 +148,8 @@ export class ProductsService {
     await Promise.all(
       objectKeys.map((objectKey) => this.minioService.removeObject(objectKey)),
     );
+
+    await this.productCache.invalidateProduct(existing.id, existing.sellerId);
 
     const result = await this.productModel.deleteOne({ id }).exec();
     return result.deletedCount > 0;
@@ -137,6 +166,7 @@ export class ProductsService {
 
     product.status = 'PENDING_REVIEW';
     await product.save();
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
@@ -150,6 +180,7 @@ export class ProductsService {
     product.status = 'APPROVED';
     product.publishedAt = product.publishedAt ?? new Date();
     await product.save();
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
@@ -163,6 +194,7 @@ export class ProductsService {
     product.status = 'REJECTED';
     product.publishedAt = null;
     await product.save();
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
@@ -178,6 +210,7 @@ export class ProductsService {
     product.status = 'ARCHIVED';
     product.archivedAt = new Date();
     await product.save();
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
@@ -249,6 +282,7 @@ export class ProductsService {
     }
 
     await product.save();
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
@@ -286,7 +320,7 @@ export class ProductsService {
 
     await this.minioService.removeObject(objectKey);
     await product.save();
-
+    await this.productCache.invalidateProduct(product.id, product.sellerId);
     return this.toProduct(product);
   }
 
