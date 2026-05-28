@@ -1,0 +1,28 @@
+# Cart Subgraph - Playground smoke tests
+
+query Cart($sessionId: String) {
+  cart(sessionId: $sessionId) {
+    id
+    userId
+    sessionId
+    currency
+    totals {
+      subtotal { amount currency }
+      discount { amount currency }
+      tax { amount currency }
+      total { amount currency }
+    }
+    items {
+      id
+      productId
+      quantity
+      unitPrice { amount currency }
+      titleSnapshot
+      imageSnapshot
+      createdAt
+      updatedAt
+      product { id }
+    }
+    updatedAt
+  }
+}

@@ -1,0 +1,81 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input AddToCartInput {
+  productId: ID!
+  quantity: Int!
+  sessionId: String
+}
+
+type Cart {
+  currency: String!
+  id: ID!
+  items: [CartItem!]!
+  sessionId: String
+  totals: CartTotals!
+  updatedAt: DateTime!
+  userId: ID
+}
+
+type CartItem {
+  createdAt: DateTime!
+  id: ID!
+  imageSnapshot: String
+  product: Product!
+  productId: ID!
+  quantity: Int!
+  titleSnapshot: String!
+  unitPrice: Money!
+  updatedAt: DateTime!
+}
+
+type CartTotals {
+  discount: Money!
+  subtotal: Money!
+  tax: Money!
+  total: Money!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+input MergeCartInput {
+  fromSessionId: String!
+}
+
+type Money {
+  amount: Float!
+  currency: String!
+}
+
+type Mutation {
+  addToCart(input: AddToCartInput!): Cart!
+  clearCart(sessionId: String): Cart!
+  mergeCart(input: MergeCartInput!): Cart!
+  removeCartItem(input: RemoveCartItemInput!): Cart!
+  updateCartItem(input: UpdateCartItemInput!): Cart!
+}
+
+type Product {
+  id: ID!
+}
+
+type Query {
+  cart(sessionId: String): Cart
+}
+
+input RemoveCartItemInput {
+  itemId: ID
+  productId: ID
+  sessionId: String
+}
+
+input UpdateCartItemInput {
+  itemId: ID
+  productId: ID
+  quantity: Int!
+  sessionId: String
+}

@@ -1,8 +1,8 @@
 # cart-subgraph plan
 
-Muc tieu: cart-subgraph la GraphQL subgraph quan ly gio hang. Service nay phoi hop voi user-service (auth) va product-subgraph (catalog) de tra ve cart items co thong tin product thong qua Federation.
+Mục tiêu: cart-subgraph là GraphQL subgraph quản lý giỏ hàng. Service này phối hợp với user-service (auth) và product-subgraph (catalog) để trả về cart items có thông tin sản phẩm thông qua Federation.
 
-## Stack va cong cu
+## Stack và công cụ
 
 - Framework: NestJS
 - GraphQL: @nestjs/graphql + Apollo Federation Subgraph
@@ -12,21 +12,21 @@ Muc tieu: cart-subgraph la GraphQL subgraph quan ly gio hang. Service nay phoi h
 - Testing: Jest + supertest (E2E optional)
 - Tooling: pnpm workspace
 
-## Pham vi va nguyen tac
+## Phạm vi và nguyên tắc
 
-- GraphQL subgraph cho gateway, khong expose REST.
-- Database-per-service: cart doc trong Redis (primary store).
-- Idempotent cho cac mutation quan trong (add/update/remove).
-- Khong tinh toan payment hay inventory o day; chi quan ly gio hang.
-- Cache khong bat buoc vi Redis da la primary store.
-- Cart luu snapshot thong tin product de giu tinh nhat quan khi price thay doi.
+- GraphQL subgraph cho gateway, không expose REST.
+- Database-per-service: cart đọc trong Redis (primary store).
+- Idempotent cho các mutation quan trọng (add/update/remove).
+- Không tính toán payment hay inventory ở đây; chỉ quản lý giỏ hàng.
+- Cache không bắt buộc vì Redis đã là primary store.
+- Cart lưu snapshot thông tin sản phẩm để giữ tính nhất quán khi price thay đổi.
 
-## Doi tuong chinh
+## Đối tượng chính
 
 - Cart
   - id (string)
-  - userId (string, optional neu anonymous)
-  - sessionId (string, optional neu anonymous)
+  - userId (string, optional nếu anonymous)
+  - sessionId (string, optional nếu anonymous)
   - items: CartItem[]
   - currency (string, default VND)
   - totals: subtotal, discount, tax, total
@@ -36,14 +36,14 @@ Muc tieu: cart-subgraph la GraphQL subgraph quan ly gio hang. Service nay phoi h
   - id (string)
   - productId (string)
   - quantity (number)
-  - unitPrice (number, snapshot tu product subgraph)
+  - unitPrice (number, snapshot từ product subgraph)
   - titleSnapshot (string, snapshot)
   - imageSnapshot (string | null)
   - createdAt, updatedAt
 
-## Schema GraphQL (de xuat chi tiet)
+## Schema GraphQL (đề xuất chi tiết)
 
-Loai du lieu:
+Loại dữ liệu:
 
 ```
 scalar DateTime
@@ -120,69 +120,69 @@ type Mutation {
 }
 ```
 
-Rang buoc schema:
-- `UpdateCartItemInput` va `RemoveCartItemInput` bat buoc co `itemId` hoac `productId`.
-- `quantity` > 0, neu quantity = 0 thi coi nhu remove.
-- `currency` luu theo currency cua product (phase dau chi VND).
+Ràng buộc schema:
+- `UpdateCartItemInput` và `RemoveCartItemInput` bắt buộc có `itemId` hoặc `productId`.
+- `quantity` > 0, nếu quantity = 0 thì coi như remove.
+- `currency` lưu theo currency của sản phẩm (phase đầu chỉ VND).
 
-## Chuc nang can co
+## Chức năng cần có
 
 1) Read cart
-- Query cart cho user da dang nhap (doc tu userId).
+- Query cart cho user đã đăng nhập (đọc từ userId).
 - Query cart cho anonymous theo sessionId.
-- Tra ve cart items + product reference (Federation).
+- Trả về cart items + product reference (Federation).
 
 2) Add to cart
 - Add item theo productId + quantity.
-- Neu item da co thi tang so luong.
+- Nếu item đã có thì tăng số lượng.
 - Validate quantity > 0.
-- Lay thong tin product tu product-subgraph (id, name, price, currency, coverImage) de snapshot.
+- Lấy thông tin sản phẩm từ product-subgraph (id, name, price, currency, coverImage) để snapshot.
 
 3) Update cart item
-- Update quantity cua item.
-- Neu quantity = 0 thi remove item.
+- Update quantity của item.
+- Nếu quantity = 0 thì remove item.
 - Recalculate totals.
 
 4) Remove cart item
-- Remove 1 item theo itemId hoac productId.
+- Remove 1 item theo itemId hoặc productId.
 
 5) Clear cart
-- Xoa toan bo items.
+- Xóa toàn bộ items.
 
 6) Merge cart
-- Khi user login, merge cart anonymous (sessionId) vao cart userId.
-- Chinh sach merge: cong so luong, giu item co updatedAt moi nhat.
+- Khi user login, merge cart anonymous (sessionId) vào cart userId.
+- Chính sách merge: cộng số lượng, giữ item có updatedAt mới nhất.
 
 7) Totals
-- Tinh totals tu items snapshot.
-- Chua ap dung coupon/promotion o phase dau.
+- Tính totals từ items snapshot.
+- Chưa áp dụng coupon/promotion ở phase đầu.
 
-## Tuong tac voi user-service
+## Tương tác với user-service
 
-- Auth: su dung Authorization Bearer token tu user-service.
-- Token claims toi thieu: sub (userId), roles.
-- Optional auth: cho phep guest cart theo sessionId.
-- Guard: verify JWT; neu khong co token thi van cho doc/ghi cart guest.
-- SessionId guest duoc tao ben frontend, truyen vao cart query/mutation.
+- Auth: sử dụng Authorization Bearer token từ user-service.
+- Token claims tối thiểu: sub (userId), roles.
+- Optional auth: cho phép guest cart theo sessionId.
+- Guard: verify JWT; nếu không có token thì vẫn cho đọc/ghi cart guest.
+- SessionId guest được tạo bên frontend, truyền vào cart query/mutation.
 
-## Tuong tac voi product-subgraph
+## Tương tác với product-subgraph
 
-- Khi add/update item, call product-subgraph (internal) de lay price + name + status.
-- Chi cho phep add san pham status = APPROVED.
-- Khi query cart, tra ve field product as Federation reference:
+- Khi add/update item, gọi product-subgraph (internal) để lấy price + name + status.
+- Chỉ cho phép add sản phẩm status = APPROVED.
+- Khi query cart, trả về field product as Federation reference:
   - { __typename: "Product", id: productId }
-- Khong goi product-subgraph tren read path (de nhanh); rely vao gateway resolve.
+- Không gọi product-subgraph trên read path (để nhanh); rely vào gateway resolve.
 
 ## Federation design
 
-- CartItem.product: Product! is a reference to product-subgraph.
-- Cart subgraph does not own Product data.
-- Product entity in product-subgraph should expose @key(fields: "id").
-- Cart subgraph returns reference object:
+- CartItem.product: Product! là tham chiếu đến product-subgraph.
+- Cart subgraph không sở hữu dữ liệu Product.
+- Thực thể Product trong product-subgraph nên expose @key(fields: "id").
+- Cart subgraph trả về reference object:
   - { __typename: "Product", id: productId }
-- Gateway composes schema and resolves Product fields by delegating to product-subgraph.
+- Gateway soạn schema và giải quyết các trường Product bằng cách ủy quyền cho product-subgraph.
 
-Goi y federation cho Product (product-subgraph):
+Gợi ý federation cho Product (product-subgraph):
 
 ```
 type Product @key(fields: "id") {
@@ -195,7 +195,7 @@ type Product @key(fields: "id") {
 }
 ```
 
-## Data model in Redis
+## Data model trong Redis
 
 Keys:
 - cart:user:{userId}
@@ -205,84 +205,84 @@ Value (JSON):
 - { id, userId?, sessionId?, items[], currency, totals, updatedAt }
 
 TTL:
-- user cart: no TTL (or long TTL)
-- guest cart: TTL 7-30 days
+- user cart: không TTL (hoặc TTL dài)
+- guest cart: TTL 7-30 ngày
 
-Redis command usage:
+Cách sử dụng lệnh Redis:
 - GET/SET JSON (stringify)
 - EX ttl cho guest
 - DEL khi clear cart
 
-## Use cases chi tiet
+## Use cases chi tiết
 
-1) Guest them san pham vao cart
-- Client gui addToCart kem sessionId
+1) Guest thêm sản phẩm vào cart
+- Client gửi addToCart kèm sessionId
 - Service load cart: cart:session:{sessionId}
-- Validate product via product-subgraph
-- Add item, recalc totals, save
+- Xác nhận sản phẩm qua product-subgraph
+- Thêm item, tính lại totals, lưu
 
-2) User dang nhap, merge cart
-- Client goi mergeCart(fromSessionId)
+2) User đăng nhập, merge cart
+- Client gọi mergeCart(fromSessionId)
 - Service load cart session + cart user
-- Merge items, delete cart session
+- Gộp items, xóa cart session
 
-3) User cap nhat so luong
+3) User cập nhật số lượng
 - updateCartItem quantity
-- Neu quantity = 0 -> remove
-- Save + totals
+- Nếu quantity = 0 -> xóa
+- Lưu + tính toán lại tổng
 
-4) Read cart
+4) Đọc cart
 - cart(sessionId?)
-- Neu co token: doc user cart
-- Neu khong co token: doc session cart
+- Nếu có token: đọc user cart
+- Nếu không có token: đọc session cart
 
-5) Add item khi product bi ARCHIVED/REJECTED
-- Service reject (BadRequest)
-- Khong ghi cart
+5) Thêm item khi sản phẩm bị ARCHIVED/REJECTED
+- Service từ chối (BadRequest)
+- Không ghi cart
 
-## Infrastructure can co
+## Infrastructure cần có
 
 - Redis (primary store)
 - graphql-gateway (compose federation)
 - product-subgraph (catalog)
 - user-service (auth + JWT)
 
-Ports goi y:
+Ports gợi ý:
 - cart-subgraph: 4003
 - product-subgraph: 4002
 - user-service: 4001
 - gateway: 4000
 
-## Ke hoach trien khai (chi tiet)
+## Kế hoạch triển khai (chi tiết)
 
-Phase 1 (Skeleton, 1-2 ngay)
-- Tao NestJS module cho cart
+Phase 1 (Khung sơ lược, 1-2 ngày)
+- Tạo NestJS module cho cart
 - Redis adapter + service
-- Query cart + addToCart + update/remove
-- DTO validation
+- Query cart + addToCart + cập nhật/xóa
+- Xác thực DTO
 
-Phase 2 (Federation, 1 ngay)
-- CartItem.product reference
-- Add product status check via product-subgraph
-- Gateway compose check
+Phase 2 (Federation, 1 ngày)
+- Tham chiếu CartItem.product
+- Thêm kiểm tra trạng thái sản phẩm qua product-subgraph
+- Kiểm tra soạn gateway
 
-Phase 3 (Auth + Merge, 1-2 ngay)
-- Optional auth guard
-- Merge cart on login
-- Guest TTL strategy
+Phase 3 (Auth + Gộp, 1-2 ngày)
+- Guard auth tùy chọn
+- Gộp cart khi đăng nhập
+- Chiến lược TTL cho guest
 
-Phase 4 (Totals + Snapshot, 1 ngay)
-- Tinh totals tu snapshot
-- Luu snapshot name/price/image
+Phase 4 (Tổng + Snapshot, 1 ngày)
+- Tính totals từ snapshot
+- Lưu snapshot name/price/image
 
-Phase 5 (Observability + tests, 1-2 ngay)
+Phase 5 (Quan sát + tests, 1-2 ngày)
 - Unit tests cho service
-- E2E tests (Redis memory or test container)
+- E2E tests (Redis memory hoặc thùng chứa test)
 - Logging + requestId
 
-## Done criteria
+## Tiêu chí hoàn thành
 
-- Add/update/remove works for user and guest.
-- Cart query resolves Product fields via gateway.
-- Merge cart khong mat data.
-- Tests passing.
+- Thêm/cập nhật/xóa hoạt động cho user và guest.
+- Cart query giải quyết các trường Product qua gateway.
+- Gộp cart không mất dữ liệu.
+- Tests vượt qua.
