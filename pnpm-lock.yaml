@@ -152,6 +152,9 @@ importers:
       graphql:
         specifier: ^16.13.2
         version: 16.13.2
+      ioredis:
+        specifier: ^5.4.1
+        version: 5.10.1
       passport-jwt:
         specifier: ^4.0.1
         version: 4.0.1

@@ -7,6 +7,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 
 import { AuthActor } from '../auth/auth-actor.type';
+import { RedisService } from '../redis/redis.service';
 import { ProductCatalogService } from './product-catalog.service';
 
 export type CartItemEntity = {
@@ -35,12 +36,21 @@ export type CartEntity = {
   updatedAt: Date;
 };
 
+type CartItemSerialized = Omit<CartItemEntity, 'createdAt' | 'updatedAt'> & {
+  createdAt: string;
+  updatedAt: string;
+};
+
+type CartSerialized = Omit<CartEntity, 'updatedAt' | 'items'> & {
+  updatedAt: string;
+  items: CartItemSerialized[];
+};
+
 @Injectable()
 export class CartService {
-  private readonly store = new Map<string, CartEntity>();
-
   constructor(
     private readonly configService: ConfigService,
+    private readonly redisService: RedisService,
     private readonly productCatalogService: ProductCatalogService,
   ) {}
 
@@ -51,7 +61,9 @@ export class CartService {
     const key = this.getKeyForRead(actor, sessionId ?? undefined);
     if (!key) return null;
 
-    return this.store.get(key) ?? null;
+    const raw = await this.redisService.getJson<CartSerialized>(key);
+    if (!raw) return null;
+    return this.deserializeCart(raw);
   }
 
   async addToCart(
@@ -60,7 +72,7 @@ export class CartService {
   ): Promise<CartEntity> {
     const key = this.getKeyForWrite(actor, input.sessionId);
 
-    const cart = this.ensureCart(key, actor, input.sessionId);
+    const cart = await this.getOrCreateCart(key, actor, input.sessionId);
 
     const snapshot = await this.productCatalogService.getApprovedProductSnapshot(
       input.productId,
@@ -77,6 +89,13 @@ export class CartService {
       existing.titleSnapshot = snapshot.titleSnapshot;
       existing.imageSnapshot = snapshot.imageSnapshot ?? undefined;
     } else {
+      const maxDistinctItems = this.redisService.maxDistinctItems;
+      if (cart.items.length >= maxDistinctItems) {
+        throw new BadRequestException(
+          `Cart reached the maximum number of items (${maxDistinctItems})`,
+        );
+      }
+
       cart.items.push({
         id: `ci_${randomUUID()}`,
         productId: input.productId,
@@ -93,7 +112,7 @@ export class CartService {
     cart.updatedAt = now;
     cart.totals = this.recalculateTotals(cart);
 
-    this.store.set(key, cart);
+    await this.saveCart(key, cart, actor);
     return cart;
   }
 
@@ -107,7 +126,7 @@ export class CartService {
     },
   ): Promise<CartEntity> {
     const key = this.getKeyForWrite(actor, input.sessionId);
-    const cart = this.ensureCart(key, actor, input.sessionId);
+    const cart = await this.getOrCreateCart(key, actor, input.sessionId);
 
     if (!input.itemId && !input.productId) {
       throw new BadRequestException('itemId or productId is required');
@@ -134,7 +153,7 @@ export class CartService {
 
     cart.updatedAt = now;
     cart.totals = this.recalculateTotals(cart);
-    this.store.set(key, cart);
+    await this.saveCart(key, cart, actor);
 
     return cart;
   }
@@ -144,7 +163,7 @@ export class CartService {
     input: { itemId?: string; productId?: string; sessionId?: string },
   ): Promise<CartEntity> {
     const key = this.getKeyForWrite(actor, input.sessionId);
-    const cart = this.ensureCart(key, actor, input.sessionId);
+    const cart = await this.getOrCreateCart(key, actor, input.sessionId);
 
     if (!input.itemId && !input.productId) {
       throw new BadRequestException('itemId or productId is required');
@@ -162,30 +181,32 @@ export class CartService {
     const now = new Date();
     cart.updatedAt = now;
     cart.totals = this.recalculateTotals(cart);
-    this.store.set(key, cart);
+    await this.saveCart(key, cart, actor);
 
     return cart;
   }
 
   async clearCart(actor: AuthActor | null, sessionId?: string): Promise<CartEntity> {
     const key = this.getKeyForWrite(actor, sessionId);
-    const cart = this.ensureCart(key, actor, sessionId);
+    const cart = await this.getOrCreateCart(key, actor, sessionId);
 
     const now = new Date();
     cart.items = [];
     cart.updatedAt = now;
     cart.totals = this.recalculateTotals(cart);
-    this.store.set(key, cart);
+    await this.saveCart(key, cart, actor);
 
     return cart;
   }
 
   async mergeCart(actor: AuthActor, fromSessionId: string): Promise<CartEntity> {
     const userKey = this.getKeyForWrite(actor, undefined);
-    const sessionKey = `session:${fromSessionId}`;
 
-    const userCart = this.ensureCart(userKey, actor, undefined);
-    const sessionCart = this.store.get(sessionKey);
+    const sessionKey = this.getSessionKey(fromSessionId);
+
+    const userCart = await this.getOrCreateCart(userKey, actor, undefined);
+    const sessionCartRaw = await this.redisService.getJson<CartSerialized>(sessionKey);
+    const sessionCart = sessionCartRaw ? this.deserializeCart(sessionCartRaw) : null;
 
     if (!sessionCart) {
       return userCart;
@@ -196,6 +217,12 @@ export class CartService {
     for (const sessionItem of sessionCart.items) {
       const userItem = userCart.items.find((it) => it.productId === sessionItem.productId);
       if (!userItem) {
+        const maxDistinctItems = this.redisService.maxDistinctItems;
+        if (userCart.items.length >= maxDistinctItems) {
+          // policy: keep user cart, skip extra session items
+          continue;
+        }
+
         userCart.items.push({ ...sessionItem });
         continue;
       }
@@ -212,22 +239,55 @@ export class CartService {
     userCart.updatedAt = now;
     userCart.totals = this.recalculateTotals(userCart);
 
-    this.store.set(userKey, userCart);
-    this.store.delete(sessionKey);
+    await this.saveCart(userKey, userCart, actor);
+    await this.redisService.del([sessionKey]);
 
     return userCart;
   }
 
-  private ensureCart(
+  private getKeyForRead(actor: AuthActor | null, sessionId?: string): string | null {
+    if (actor?.userId) {
+      return this.getUserKey(actor.userId);
+    }
+
+    if (sessionId) {
+      return this.getSessionKey(sessionId);
+    }
+
+    return null;
+  }
+
+  private getKeyForWrite(actor: AuthActor | null, sessionId?: string): string {
+    if (actor?.userId) {
+      return this.getUserKey(actor.userId);
+    }
+
+    if (!sessionId) {
+      throw new BadRequestException('sessionId is required for guest cart');
+    }
+
+    return this.getSessionKey(sessionId);
+  }
+
+  private getUserKey(userId: string): string {
+    return `cart:user:${userId}`;
+  }
+
+  private getSessionKey(sessionId: string): string {
+    return `cart:session:${sessionId}`;
+  }
+
+  private async getOrCreateCart(
     key: string,
     actor: AuthActor | null,
     sessionId?: string,
-  ): CartEntity {
-    const existing = this.store.get(key);
-    if (existing) return existing;
+  ): Promise<CartEntity> {
+    const existingRaw = await this.redisService.getJson<CartSerialized>(key);
+    if (existingRaw) {
+      return this.deserializeCart(existingRaw);
+    }
 
-    const currency =
-      this.configService.get<string>('cart.defaultCurrency') ?? 'VND';
+    const currency = this.configService.get<string>('cart.defaultCurrency') ?? 'VND';
     const now = new Date();
 
     const cart: CartEntity = {
@@ -245,32 +305,43 @@ export class CartService {
       updatedAt: now,
     };
 
-    this.store.set(key, cart);
+    await this.saveCart(key, cart, actor);
     return cart;
   }
 
-  private getKeyForRead(actor: AuthActor | null, sessionId?: string): string | null {
-    if (actor?.userId) {
-      return `user:${actor.userId}`;
+  private async saveCart(key: string, cart: CartEntity, actor: AuthActor | null): Promise<void> {
+    const payload = this.serializeCart(cart);
+
+    if (!actor?.userId) {
+      await this.redisService.setJson(key, payload, this.redisService.guestTtlSeconds);
+      return;
     }
 
-    if (sessionId) {
-      return `session:${sessionId}`;
-    }
-
-    return null;
+    await this.redisService.setJson(key, payload);
   }
 
-  private getKeyForWrite(actor: AuthActor | null, sessionId?: string): string {
-    if (actor?.userId) {
-      return `user:${actor.userId}`;
-    }
+  private serializeCart(cart: CartEntity): CartSerialized {
+    return {
+      ...cart,
+      updatedAt: cart.updatedAt.toISOString(),
+      items: cart.items.map((it) => ({
+        ...it,
+        createdAt: it.createdAt.toISOString(),
+        updatedAt: it.updatedAt.toISOString(),
+      })),
+    };
+  }
 
-    if (!sessionId) {
-      throw new BadRequestException('sessionId is required for guest cart');
-    }
-
-    return `session:${sessionId}`;
+  private deserializeCart(raw: CartSerialized): CartEntity {
+    return {
+      ...raw,
+      updatedAt: new Date(raw.updatedAt),
+      items: raw.items.map((it) => ({
+        ...it,
+        createdAt: new Date(it.createdAt),
+        updatedAt: new Date(it.updatedAt),
+      })),
+    };
   }
 
   private recalculateTotals(cart: CartEntity): CartEntity['totals'] {
