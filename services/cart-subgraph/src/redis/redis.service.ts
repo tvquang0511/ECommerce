@@ -7,7 +7,6 @@ import { Redis } from 'ioredis';
 
 export type RedisConfig = {
   url: string;
-  guestTtlSeconds: number;
   maxDistinctItems: number;
 };
 
@@ -30,10 +29,6 @@ export class RedisService {
       enableReadyCheck: true,
       lazyConnect: true,
     });
-  }
-
-  get guestTtlSeconds(): number {
-    return this.config.guestTtlSeconds;
   }
 
   get maxDistinctItems(): number {

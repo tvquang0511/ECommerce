@@ -1,5 +1,14 @@
-import { ObjectType, Field, ID, Float, GraphQLISODateTime, Int } from '@nestjs/graphql';
+import {
+  ObjectType,
+  Field,
+  ID,
+  Float,
+  GraphQLISODateTime,
+  Int,
+  Directive,
+} from '@nestjs/graphql';
 import { ProductStatusEnum } from './product-status.enum';
+import { ProductCurrency } from '../constants/product-currency';
 
 @ObjectType()
 export class ProductImage {
@@ -20,6 +29,7 @@ export class ProductImage {
 }
 
 @ObjectType()
+@Directive('@key(fields: "id")')
 export class Product {
   @Field(() => ID)
   id!: string;
@@ -49,7 +59,7 @@ export class Product {
   salePrice?: number;
 
   @Field()
-  currency!: string;
+  currency!: ProductCurrency;
 
   @Field()
   slug!: string;

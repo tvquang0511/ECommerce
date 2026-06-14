@@ -10,8 +10,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
-
-const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
+import { PRODUCT_CURRENCIES, type ProductCurrency } from '../constants/product-currency';
 
 export class CreateProductDto {
   @IsString()
@@ -53,7 +52,7 @@ export class CreateProductDto {
   @IsOptional()
   @IsString()
   @IsIn(PRODUCT_CURRENCIES)
-  currency?: string;
+  currency?: ProductCurrency;
 
   @IsOptional()
   @IsString()

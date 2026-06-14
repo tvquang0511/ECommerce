@@ -5,6 +5,7 @@ import { prisma } from "../../db/prisma.js";
 export type AuditEventType =
   | "TWO_FACTOR_ENABLED"
   | "TWO_FACTOR_DISABLED"
+  | "EMAIL_VERIFIED"
   | "REFRESH_COMPROMISED"
   | "PASSWORD_RESET_SUCCESS"
   | "PASSWORD_CHANGED";

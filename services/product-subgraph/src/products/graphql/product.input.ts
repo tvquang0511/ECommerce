@@ -12,8 +12,7 @@ import {
   IsEnum,
 } from 'class-validator';
 import { ProductMediaKind } from './product-media.enum';
-
-const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
+import { PRODUCT_CURRENCIES, type ProductCurrency } from '../constants/product-currency';
 
 @InputType()
 export class CreateProductInput {
@@ -75,7 +74,7 @@ export class CreateProductInput {
   @IsOptional()
   @IsString()
   @IsIn(PRODUCT_CURRENCIES)
-  currency?: string;
+  currency?: ProductCurrency;
 }
 
 @InputType()
@@ -141,7 +140,7 @@ export class UpdateProductInput {
   @IsOptional()
   @IsString()
   @IsIn(PRODUCT_CURRENCIES)
-  currency?: string;
+  currency?: ProductCurrency;
 }
 
 @InputType()

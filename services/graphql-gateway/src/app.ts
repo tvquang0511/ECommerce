@@ -10,6 +10,7 @@ import morgan from 'morgan';
 
 import { buildGateway } from './gateway/buildGateway.js';
 import type { GatewayContext } from './gateway/dataSource.js';
+import { pickForwardHeaders } from './gateway/forwardHeaders.js';
 
 export async function createApp() {
   const gateway = buildGateway();
@@ -17,7 +18,7 @@ export async function createApp() {
   const app = express();
   const httpServer = http.createServer(app);
 
-  app.use(helmet());
+  // app.use(helmet());
   app.use(morgan('dev'));
 
   const apolloServer = new ApolloServer<GatewayContext>({
@@ -38,6 +39,7 @@ export async function createApp() {
 
         return {
           authorization: req.headers.authorization,
+          forwardedHeaders: pickForwardHeaders(req.headers),
           requestId,
         };
       },

@@ -27,6 +27,8 @@ export const env = {
   PORT: parsePort(process.env.PORT ?? '', 4000),
   PRODUCT_SUBGRAPH_URL:
     process.env.PRODUCT_SUBGRAPH_URL ?? 'http://127.0.0.1:4002/graphql',
+  CART_SUBGRAPH_URL:
+    process.env.CART_SUBGRAPH_URL ?? 'http://127.0.0.1:4003/graphql',
 
   // Example for later (auth):
   // JWT_ACCESS_SECRET: requireEnv('JWT_ACCESS_SECRET'),

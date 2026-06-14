@@ -17,4 +17,5 @@ export type MailJob =
       displayName?: string | null;
       code: string;
       expiresInSeconds: number;
+      purpose?: "login-2fa" | "email-verification";
     };

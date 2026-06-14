@@ -51,6 +51,7 @@ type UserWithRbac = {
   email: string;
   displayName: string;
   avatarUrl?: string | null;
+  emailVerifiedAt?: Date | null;
   bio?: string | null;
   dateOfBirth?: Date | null;
   phoneNumber?: string | null;
@@ -165,6 +166,8 @@ function publicUser(user: UserWithRbac) {
     email: user.email,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
+    emailVerified: Boolean(user.emailVerifiedAt),
+    emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
     bio: user.bio ?? null,
     dateOfBirth: user.dateOfBirth
       ? user.dateOfBirth.toISOString().slice(0, 10)
@@ -252,30 +255,41 @@ export const authService = {
       passwordHash,
       displayName: input.displayName,
     });
-
-    const accessToken = signAccessToken(user);
-
-    const nowDate = new Date();
-    const session = await authRepo.createAuthSession({
+    const code = makeOtpCode();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const otp = await authRepo.createEmailOtp({
       userId: user.id,
-      createdByIp: meta?.ip,
-      createdByUserAgent: meta?.userAgent,
-      lastUsedAt: nowDate,
-      lastUsedIp: meta?.ip,
-      lastUsedUserAgent: meta?.userAgent,
-    });
-
-    const refresh = makeOpaqueRefreshToken();
-    const expiresAt = computeRefreshExpiresAt();
-    await authRepo.createRefreshToken({
-      userId: user.id,
-      sessionId: session.id,
-      tokenId: refresh.tokenId,
-      tokenHash: refresh.tokenHash,
+      purpose: "EMAIL_VERIFICATION",
+      codeHash: hashOtpCode(code),
       expiresAt,
+      requestedIp: meta?.ip,
+      userAgent: meta?.userAgent,
     });
 
-    return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
+    const enq = await mailQueue.enqueue({
+      type: "otp",
+      to: user.email,
+      displayName: user.displayName,
+      code,
+      expiresInSeconds: 15 * 60,
+      purpose: "email-verification",
+    });
+
+    if (!enq.enqueued && env.NODE_ENV === "production") {
+      throw new ApiError(
+        503,
+        "AUTH_EMAIL_VERIFICATION_UNAVAILABLE",
+        "Email verification delivery is temporarily unavailable",
+      );
+    }
+
+    return {
+      requiresEmailVerification: true as const,
+      challengeId: otp.id,
+      expiresAt: expiresAt.toISOString(),
+      user: publicUser(user),
+      ...(enq.enqueued ? {} : { devOtp: code }),
+    };
   },
 
   async login(input: { email: string; password: string }, meta?: RequestMeta) {
@@ -295,6 +309,14 @@ export const authService = {
         401,
         "AUTH_INVALID_CREDENTIALS",
         "Invalid credentials",
+      );
+    }
+
+    if (!user.emailVerifiedAt) {
+      throw new ApiError(
+        403,
+        "AUTH_EMAIL_NOT_VERIFIED",
+        "Please verify your email before signing in",
       );
     }
 
@@ -469,6 +491,102 @@ export const authService = {
       expiresAt,
     });
     return { accessToken, refreshToken: refresh.token, user: publicUser(user) };
+  },
+
+  async verifyEmail(
+    input: { challengeId: string; code: string },
+    meta?: RequestMeta,
+  ) {
+    const otp = await authRepo.findEmailOtpById(input.challengeId);
+    if (!otp || otp.purpose !== "EMAIL_VERIFICATION") {
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
+    }
+
+    if (otp.consumedAt || otp.expiresAt.getTime() <= Date.now() || otp.attempts >= 5) {
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
+    }
+
+    const got = hashOtpCode(input.code);
+    if (otp.codeHash !== got) {
+      await authRepo.incrementEmailOtpAttempts(otp.id);
+      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
+    }
+
+    await authRepo.consumeEmailOtp(otp.id);
+    const user = await authRepo.verifyUserEmail(otp.userId);
+
+    await writeAuditSafe({
+      eventType: "EMAIL_VERIFIED",
+      actorUserId: user.id,
+      targetUserId: user.id,
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+    });
+
+    return { ok: true as const };
+  },
+
+  async resendEmailVerification(input: {
+    email: string;
+    requestedIp?: string | null;
+    userAgent?: string | null;
+  }) {
+    const email = input.email.toLowerCase();
+    const user = await authRepo.findUserByEmail(email);
+    if (!user || user.emailVerifiedAt) {
+      return { ok: true };
+    }
+
+    const latest = await authRepo.findLatestActiveEmailOtpForUser({
+      userId: user.id,
+      purpose: "EMAIL_VERIFICATION",
+    });
+    if (latest) {
+      const secondsSince = (Date.now() - latest.createdAt.getTime()) / 1000;
+      if (secondsSince < 30) {
+        throw new ApiError(
+          429,
+          "AUTH_OTP_TOO_MANY_REQUESTS",
+          "Please wait before requesting another code",
+          { retryAfterSeconds: Math.ceil(30 - secondsSince) },
+        );
+      }
+    }
+
+    const code = makeOtpCode();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+    const otp = await authRepo.createEmailOtp({
+      userId: user.id,
+      purpose: "EMAIL_VERIFICATION",
+      codeHash: hashOtpCode(code),
+      expiresAt,
+      requestedIp: input.requestedIp ?? null,
+      userAgent: input.userAgent ?? null,
+    });
+
+    const enq = await mailQueue.enqueue({
+      type: "otp",
+      to: user.email,
+      displayName: user.displayName,
+      code,
+      expiresInSeconds: 15 * 60,
+      purpose: "email-verification",
+    });
+
+    if (!enq.enqueued && env.NODE_ENV === "production") {
+      throw new ApiError(
+        503,
+        "AUTH_EMAIL_VERIFICATION_UNAVAILABLE",
+        "Email verification delivery is temporarily unavailable",
+      );
+    }
+
+    return {
+      ok: true as const,
+      challengeId: otp.id,
+      expiresAt: expiresAt.toISOString(),
+      ...(enq.enqueued ? {} : { devOtp: code }),
+    };
   },
 
   async refresh(input: { refreshToken: string }, meta?: RequestMeta) {

@@ -9,6 +9,7 @@ import { MinioService } from '../media/minio.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { PRODUCT_STATUSES } from './product.schema';
+import { type ProductCurrency } from './constants/product-currency';
 import { Product, ProductImage } from './product.type';
 import { ProductDocument, ProductModel } from './product.schema';
 
@@ -366,7 +367,7 @@ export class ProductsService {
     description?: string | null;
     price: number;
     salePrice?: number | null;
-    currency: string;
+    currency: ProductCurrency;
     slug: string;
     status: (typeof PRODUCT_STATUSES)[number];
     publishedAt?: Date | null;

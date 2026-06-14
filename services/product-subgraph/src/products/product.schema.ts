@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
+import { PRODUCT_CURRENCIES, type ProductCurrency } from './constants/product-currency';
 
 export const PRODUCT_STATUSES = [
   'DRAFT',
@@ -8,8 +9,6 @@ export const PRODUCT_STATUSES = [
   'REJECTED',
   'ARCHIVED',
 ] as const;
-
-export const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
 
 export type ProductStatus = (typeof PRODUCT_STATUSES)[number];
 
@@ -51,7 +50,7 @@ export class ProductModel {
   salePrice!: number | null;
 
   @Prop({ required: true, enum: PRODUCT_CURRENCIES, default: 'VND' })
-  currency!: (typeof PRODUCT_CURRENCIES)[number];
+  currency!: ProductCurrency;
 
   @Prop({ required: true, unique: true, trim: true })
   slug!: string;

@@ -10,8 +10,7 @@ import {
   IsObject,
   IsIn,
 } from 'class-validator';
-
-const PRODUCT_CURRENCIES = ['VND', 'USD', 'JPY'] as const;
+import { PRODUCT_CURRENCIES, type ProductCurrency } from '../constants/product-currency';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -56,7 +55,7 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   @IsIn(PRODUCT_CURRENCIES)
-  currency?: string;
+  currency?: ProductCurrency;
 
   @IsOptional()
   @IsString()

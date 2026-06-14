@@ -1,10 +1,9 @@
 # Cart Subgraph - Playground smoke tests
 
-query Cart($sessionId: String) {
-  cart(sessionId: $sessionId) {
+query Cart {
+  cart {
     id
     userId
-    sessionId
     currency
     totals {
       subtotal { amount currency }

@@ -13,8 +13,11 @@ try {
   console.log(`graphql-gateway running at ${url}`);
   console.log(`NODE_ENV=${env.NODE_ENV}`);
   console.log(`composing subgraph: product -> ${env.PRODUCT_SUBGRAPH_URL}`);
+  console.log(`composing subgraph: cart    -> ${env.CART_SUBGRAPH_URL}`);
 } catch (err) {
   console.error('[graphql-gateway] Failed to start.');
-  console.error(`[graphql-gateway] Is product-subgraph running at ${env.PRODUCT_SUBGRAPH_URL}?`);
+  console.error(
+    `[graphql-gateway] Are subgraphs running? product=${env.PRODUCT_SUBGRAPH_URL} cart=${env.CART_SUBGRAPH_URL}`,
+  );
   throw err;
 }

@@ -12,6 +12,7 @@ model User {
   passwordHash String
   displayName  String
   avatarUrl    String?
+  emailVerifiedAt DateTime?
 
   bio         String?
   dateOfBirth DateTime?
@@ -123,6 +124,7 @@ model RefreshToken {
 
 enum EmailOtpPurpose {
   LOGIN_2FA
+  EMAIL_VERIFICATION
 }
 
 model EmailOtp {

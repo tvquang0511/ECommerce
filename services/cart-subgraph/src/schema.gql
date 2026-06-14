@@ -5,17 +5,15 @@
 input AddToCartInput {
   productId: ID!
   quantity: Int!
-  sessionId: String
 }
 
 type Cart {
   currency: String!
   id: ID!
   items: [CartItem!]!
-  sessionId: String
   totals: CartTotals!
   updatedAt: DateTime!
-  userId: ID
+  userId: ID!
 }
 
 type CartItem {
@@ -42,10 +40,6 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
-input MergeCartInput {
-  fromSessionId: String!
-}
-
 type Money {
   amount: Float!
   currency: String!
@@ -53,8 +47,7 @@ type Money {
 
 type Mutation {
   addToCart(input: AddToCartInput!): Cart!
-  clearCart(sessionId: String): Cart!
-  mergeCart(input: MergeCartInput!): Cart!
+  clearCart: Cart!
   removeCartItem(input: RemoveCartItemInput!): Cart!
   updateCartItem(input: UpdateCartItemInput!): Cart!
 }
@@ -64,18 +57,16 @@ type Product {
 }
 
 type Query {
-  cart(sessionId: String): Cart
+  cart: Cart
 }
 
 input RemoveCartItemInput {
   itemId: ID
   productId: ID
-  sessionId: String
 }
 
 input UpdateCartItemInput {
   itemId: ID
   productId: ID
   quantity: Int!
-  sessionId: String
 }

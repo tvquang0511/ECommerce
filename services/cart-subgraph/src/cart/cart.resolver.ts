@@ -10,13 +10,11 @@ import { UseGuards } from '@nestjs/common';
 
 import { AuthActor } from '../auth/auth-actor.type';
 import { AuthGuard } from '../auth/auth.guard';
-import { OptionalAuthGuard } from '../auth/optional-auth.guard';
 import { CurrentActor } from '../auth/decorators/current-actor.decorator';
 
 import { Cart, CartItem } from './graphql/cart.type';
 import {
   AddToCartInput,
-  MergeCartInput,
   RemoveCartItemInput,
   UpdateCartItemInput,
 } from './graphql/cart.input';
@@ -28,59 +26,42 @@ export class CartResolver {
   constructor(private readonly cartService: CartService) {}
 
   @Query(() => Cart, { name: 'cart', nullable: true })
-  @UseGuards(OptionalAuthGuard)
-  async cart(
-    @Args('sessionId', { type: () => String, nullable: true })
-    sessionId: string | undefined,
-    @CurrentActor() actor: AuthActor | null,
-  ): Promise<Cart | null> {
-    return (await this.cartService.getCart(actor, sessionId)) as any;
+  @UseGuards(AuthGuard)
+  async cart(@CurrentActor() actor: AuthActor): Promise<Cart | null> {
+    return (await this.cartService.getCart(actor)) as any;
   }
 
   @Mutation(() => Cart, { name: 'addToCart' })
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard)
   async addToCart(
     @Args('input') input: AddToCartInput,
-    @CurrentActor() actor: AuthActor | null,
+    @CurrentActor() actor: AuthActor,
   ): Promise<Cart> {
     return (await this.cartService.addToCart(actor, input)) as any;
   }
 
   @Mutation(() => Cart, { name: 'updateCartItem' })
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard)
   async updateCartItem(
     @Args('input') input: UpdateCartItemInput,
-    @CurrentActor() actor: AuthActor | null,
+    @CurrentActor() actor: AuthActor,
   ): Promise<Cart> {
     return (await this.cartService.updateCartItem(actor, input)) as any;
   }
 
   @Mutation(() => Cart, { name: 'removeCartItem' })
-  @UseGuards(OptionalAuthGuard)
+  @UseGuards(AuthGuard)
   async removeCartItem(
     @Args('input') input: RemoveCartItemInput,
-    @CurrentActor() actor: AuthActor | null,
+    @CurrentActor() actor: AuthActor,
   ): Promise<Cart> {
     return (await this.cartService.removeCartItem(actor, input)) as any;
   }
 
   @Mutation(() => Cart, { name: 'clearCart' })
-  @UseGuards(OptionalAuthGuard)
-  async clearCart(
-    @Args('sessionId', { type: () => String, nullable: true })
-    sessionId: string | undefined,
-    @CurrentActor() actor: AuthActor | null,
-  ): Promise<Cart> {
-    return (await this.cartService.clearCart(actor, sessionId)) as any;
-  }
-
-  @Mutation(() => Cart, { name: 'mergeCart' })
   @UseGuards(AuthGuard)
-  async mergeCart(
-    @Args('input') input: MergeCartInput,
-    @CurrentActor() actor: AuthActor,
-  ): Promise<Cart> {
-    return (await this.cartService.mergeCart(actor, input.fromSessionId)) as any;
+  async clearCart(@CurrentActor() actor: AuthActor): Promise<Cart> {
+    return (await this.cartService.clearCart(actor)) as any;
   }
 }
 
@@ -88,6 +69,6 @@ export class CartResolver {
 export class CartItemResolver {
   @ResolveField(() => ProductRef)
   product(@Parent() item: CartItemEntity): ProductRef {
-    return { id: item.productId };
+    return { __typename: 'Product', id: item.productId } as any;
   }
 }

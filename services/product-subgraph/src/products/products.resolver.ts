@@ -1,4 +1,4 @@
-import { Args, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Mutation, Query, Resolver, ResolveReference } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
 import { AuthActor } from '../auth/auth-actor.type';
@@ -25,6 +25,12 @@ import { ProductsService } from './products.service';
 @Resolver(() => ProductGql)
 export class ProductsResolver {
   constructor(private readonly productsService: ProductsService) {}
+
+  @ResolveReference()
+  async resolveReference(reference: { id: string }): Promise<ProductGql | null> {
+    const product = await this.productsService.findById(reference.id, null);
+    return (product ?? null) as any;
+  }
 
   /**
    * Query products (public, optional auth)

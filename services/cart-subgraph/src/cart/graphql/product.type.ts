@@ -1,8 +1,10 @@
-import { Field, ID, ObjectType } from '@nestjs/graphql';
+import { Directive, Field, ID, ObjectType } from '@nestjs/graphql';
 
-// Federation-ready placeholder: later we can add @key/@external when switching to ApolloFederationDriver.
 @ObjectType('Product')
+@Directive('@extends')
+@Directive('@key(fields: "id")')
 export class ProductRef {
   @Field(() => ID)
+  @Directive('@external')
   id!: string;
 }

@@ -11,11 +11,6 @@ export class AddToCartInput {
   @IsInt()
   @IsPositive()
   quantity!: number;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsString()
-  sessionId?: string;
 }
 
 @InputType()
@@ -34,11 +29,6 @@ export class UpdateCartItemInput {
   @IsInt()
   @Min(0)
   quantity!: number;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsString()
-  sessionId?: string;
 }
 
 @InputType()
@@ -52,16 +42,4 @@ export class RemoveCartItemInput {
   @IsOptional()
   @IsString()
   productId?: string;
-
-  @Field({ nullable: true })
-  @IsOptional()
-  @IsString()
-  sessionId?: string;
-}
-
-@InputType()
-export class MergeCartInput {
-  @Field()
-  @IsString()
-  fromSessionId!: string;
 }

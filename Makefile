@@ -99,14 +99,8 @@ gateway:
 product:
 	pnpm --filter product-subgraph dev
 
-product-lint:
-	pnpm --filter product-subgraph lint
-
-product-test:
-	pnpm --filter product-subgraph test
-
-product-e2e:
-	pnpm --filter product-subgraph test:e2e
+cart:
+	pnpm --filter cart-subgraph dev
 
 product-g:
 	$(MAKE) service-g SVC=product-subgraph KIND="$(KIND)" NAME="$(NAME)" OPTS="$(OPTS)" ARGS="$(ARGS)"

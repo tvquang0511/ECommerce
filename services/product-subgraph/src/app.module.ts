@@ -2,7 +2,7 @@
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { GraphQLModule } from '@nestjs/graphql';
-import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
+import { ApolloFederationDriver, ApolloFederationDriverConfig } from '@nestjs/apollo';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -33,9 +33,12 @@ import { ProductsModule } from './products/products.module';
     }),
 
     // ====== GraphQL (Apollo) ======
-    GraphQLModule.forRoot<ApolloDriverConfig>({
-      driver: ApolloDriver,
-      autoSchemaFile: 'src/schema.gql',
+    GraphQLModule.forRoot<ApolloFederationDriverConfig>({
+      driver: ApolloFederationDriver,
+      autoSchemaFile: {
+        path: 'src/schema.gql',
+        federation: 2,
+      },
       sortSchema: true,
       // expose request on context so guards can access headers
       context: ({ req }: { req: any }) => ({ req }),

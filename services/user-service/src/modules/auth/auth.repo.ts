@@ -176,7 +176,7 @@ export const authRepo = {
 
   createEmailOtp(data: {
     userId: string;
-    purpose: "LOGIN_2FA";
+    purpose: "LOGIN_2FA" | "EMAIL_VERIFICATION";
     codeHash: string;
     expiresAt: Date;
     requestedIp?: string | null;
@@ -200,7 +200,7 @@ export const authRepo = {
 
   findLatestActiveEmailOtpForUser(data: {
     userId: string;
-    purpose: "LOGIN_2FA";
+    purpose: "LOGIN_2FA" | "EMAIL_VERIFICATION";
   }) {
     return prisma.emailOtp.findFirst({
       where: {
@@ -284,6 +284,13 @@ export const authRepo = {
     return prisma.user.update({
       where: { id: userId },
       data: { twoFactorEnabled: enabled },
+    });
+  },
+
+  verifyUserEmail(userId: string) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { emailVerifiedAt: new Date() },
     });
   },
 };

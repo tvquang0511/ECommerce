@@ -39,6 +39,11 @@ const verifyTwoFactorBodySchema = z.object({
   code: z.string().min(6).max(6),
 });
 
+const verifyEmailBodySchema = z.object({
+  challengeId: z.string().min(1),
+  code: z.string().min(6).max(6),
+});
+
 const twoFactorToggleBodySchema = z.object({
   password: z.string().min(1),
 });
@@ -69,10 +74,7 @@ export const register = async (req: Request, res: Response) => {
     ip: req.ip,
     userAgent: req.headers["user-agent"],
   });
-  setRefreshCookie(res, result.refreshToken);
-  return res
-    .status(201)
-    .json({ accessToken: result.accessToken, user: result.user });
+  return res.status(201).json(result);
 };
 
 export const login = async (req: Request, res: Response) => {
@@ -100,6 +102,25 @@ export const verifyTwoFactor = async (req: Request, res: Response) => {
   });
   setRefreshCookie(res, result.refreshToken);
   return res.json({ accessToken: result.accessToken, user: result.user });
+};
+
+export const verifyEmail = async (req: Request, res: Response) => {
+  const input = verifyEmailBodySchema.parse(req.body);
+  const result = await authService.verifyEmail(input, {
+    ip: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
+  return res.json(result);
+};
+
+export const resendEmailVerification = async (req: Request, res: Response) => {
+  const input = forgotPasswordBodySchema.parse(req.body);
+  const result = await authService.resendEmailVerification({
+    email: input.email,
+    requestedIp: req.ip,
+    userAgent: req.headers["user-agent"],
+  });
+  return res.json(result);
 };
 
 export const refresh = async (req: Request, res: Response) => {

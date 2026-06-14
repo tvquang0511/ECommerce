@@ -16,15 +16,41 @@ import {
   me,
   refresh,
   register,
+  resendEmailVerification,
   revokeSession,
   resetPassword,
   twoFactorStatus,
+  verifyEmail,
   verifyTwoFactor,
 } from "./auth.controller.js";
 
 const router = Router();
 
 router.post("/register", asyncHandler(register));
+router.post(
+  "/verify-email",
+  rateLimit({
+    name: "auth_verify_email_ip",
+    limit: 20,
+    windowSeconds: 60,
+    identifiers: (req) => {
+      return [`ip:${req.ip}`];
+    },
+  }),
+  asyncHandler(verifyEmail),
+);
+router.post(
+  "/verify-email/resend",
+  rateLimit({
+    name: "auth_verify_email_resend_ip",
+    limit: 10,
+    windowSeconds: 60 * 60,
+    identifiers: (req) => {
+      return [`ip:${req.ip}`];
+    },
+  }),
+  asyncHandler(resendEmailVerification),
+);
 router.post(
   "/login",
   rateLimit({

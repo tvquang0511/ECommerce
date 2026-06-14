@@ -9,6 +9,8 @@ Auth/Users REST service.
 Mounted under: `/api/users/auth`
 
 - `POST /register`
+- `POST /verify-email`
+- `POST /verify-email/resend`
 - `POST /login`
 - `POST /2fa/verify` (only if login requires 2FA)
 - `GET /me` (requires `Authorization: Bearer <accessToken>`)

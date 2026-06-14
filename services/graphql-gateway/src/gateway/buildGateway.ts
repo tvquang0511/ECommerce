@@ -9,7 +9,10 @@ import { createRemoteDataSource } from './dataSource.js';
 export function buildGateway() {
   return new ApolloGateway({
     supergraphSdl: new IntrospectAndCompose({
-      subgraphs: [{ name: 'product', url: env.PRODUCT_SUBGRAPH_URL }],
+      subgraphs: [
+        { name: 'product', url: env.PRODUCT_SUBGRAPH_URL },
+        { name: 'cart', url: env.CART_SUBGRAPH_URL },
+      ],
     }),
     buildService(definition: ServiceEndpointDefinition) {
       if (!definition.url) {

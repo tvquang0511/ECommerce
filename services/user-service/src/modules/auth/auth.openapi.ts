@@ -9,6 +9,8 @@ export function authOpenApi() {
         email: { type: "string", format: "email" },
         displayName: { type: "string" },
         avatarUrl: { type: ["string", "null"] },
+        emailVerified: { type: "boolean" },
+        emailVerifiedAt: { type: ["string", "null"], format: "date-time" },
         bio: { type: ["string", "null"] },
         dateOfBirth: { type: ["string", "null"], format: "date" },
         phoneNumber: { type: ["string", "null"] },
@@ -58,6 +60,8 @@ export function authOpenApi() {
         "email",
         "displayName",
         "avatarUrl",
+        "emailVerified",
+        "emailVerifiedAt",
         "bio",
         "dateOfBirth",
         "phoneNumber",
@@ -96,6 +100,19 @@ export function authOpenApi() {
       required: ["accessToken", "user"],
     },
 
+    RegisterResponse: {
+      type: "object",
+      properties: {
+        requiresEmailVerification: { type: "boolean", enum: [true] },
+        challengeId: { type: "string", format: "uuid" },
+        expiresAt: { type: "string", format: "date-time" },
+        devOtp: { type: "string" },
+        user: { $ref: "#/components/schemas/PublicUser" },
+      },
+      required: ["requiresEmailVerification", "challengeId", "expiresAt", "user"],
+      additionalProperties: false,
+    },
+
     TwoFactorRequiredResponse: {
       type: "object",
       properties: {
@@ -122,6 +139,16 @@ export function authOpenApi() {
         code: { type: "string", minLength: 6, maxLength: 6 },
       },
       required: ["challengeId", "code"],
+    },
+
+    VerifyEmailRequest: {
+      type: "object",
+      properties: {
+        challengeId: { type: "string", format: "uuid" },
+        code: { type: "string", minLength: 6, maxLength: 6 },
+      },
+      required: ["challengeId", "code"],
+      additionalProperties: false,
     },
 
     TwoFactorStatusResponse: {
@@ -302,7 +329,7 @@ export function authOpenApi() {
             },
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/AuthResponse" },
+                schema: { $ref: "#/components/schemas/RegisterResponse" },
               },
             },
           },
@@ -316,6 +343,72 @@ export function authOpenApi() {
           },
           "409": {
             description: "Email exists",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/users/auth/verify-email": {
+      post: {
+        tags: ["Auth"],
+        summary: "Verify email ownership with OTP",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/VerifyEmailRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ForgotPasswordResponse" },
+              },
+            },
+          },
+          "400": {
+            description: "Invalid/expired OTP",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+
+    "/api/users/auth/verify-email/resend": {
+      post: {
+        tags: ["Auth"],
+        summary: "Resend email verification OTP",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/ForgotPasswordRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "OK",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ForgotPasswordResponse" },
+              },
+            },
+          },
+          "429": {
+            description: "Rate limited",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },

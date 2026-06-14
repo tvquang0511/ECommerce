@@ -60,11 +60,8 @@ export class Cart {
   @Field(() => ID)
   id!: string;
 
-  @Field(() => ID, { nullable: true })
-  userId?: string;
-
-  @Field({ nullable: true })
-  sessionId?: string;
+  @Field(() => ID)
+  userId!: string;
 
   @Field(() => [CartItem])
   items!: CartItem[];
