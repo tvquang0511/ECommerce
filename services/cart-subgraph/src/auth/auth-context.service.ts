@@ -13,7 +13,7 @@ export type RequestLike = {
 };
 
 type IntrospectResponse = {
-  id: string;
+  userId: string;
   email?: string;
   roles?: string[];
   permissions?: string[];
@@ -74,7 +74,12 @@ export class AuthContextService {
       throw new BadGatewayException('Invalid response from user-service');
     }
 
-    if (!data || typeof data !== 'object' || typeof data.id !== 'string' || !data.id) {
+    if (
+      !data ||
+      typeof data !== 'object' ||
+      typeof data.userId !== 'string' ||
+      !data.userId
+    ) {
       throw new UnauthorizedException('Cannot resolve user identity');
     }
 
@@ -100,7 +105,7 @@ export class AuthContextService {
     })();
 
     return {
-      userId: data.id,
+      userId: data.userId,
       email: data.email,
       roles,
       permissions,

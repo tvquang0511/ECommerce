@@ -79,6 +79,7 @@ const actor = await fetch("http://user-service:3000/api/users/auth/introspect", 
   }
 }).then(r => r.json());
 
+// actor.userId is the canonical identifier
 // Check roles
 if (!actor.roles.includes("SELLER")) {
   throw new ForbiddenException("Only sellers can perform this action");
@@ -110,6 +111,30 @@ if (!actor) {
   await redis.set(cacheKey, JSON.stringify(actor), "EX", 60);
 }
 ```
+
+## Canonical Contract
+
+The canonical introspect response shape is:
+
+```json
+{
+  "userId": "user_abc123",
+  "email": "seller@example.com",
+  "roles": ["SELLER"],
+  "permissions": ["product:create"],
+  "sellerProfile": {
+    "status": "VERIFIED",
+    "isKycVerified": true,
+    "shopName": "My Shop"
+  },
+  "exp": 1705000000
+}
+```
+
+Notes:
+- `userId` is the only canonical identity field for service-to-service consumers.
+- Consumers should not expect an `id` field.
+- `roles` and `permissions` may be cached briefly, but must be treated as dynamic.
 
 ## Design Rationale
 
