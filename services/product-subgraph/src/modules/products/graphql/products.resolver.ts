@@ -1,4 +1,4 @@
-import { Args, Mutation, Query, Resolver, ResolveReference } from '@nestjs/graphql';
+import { Args, ID, Mutation, Query, Resolver, ResolveReference } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
 import { AuthActor } from '../../auth/auth.types';
@@ -51,7 +51,7 @@ export class ProductsResolver {
   @Query(() => ProductGql, { name: 'product' })
   @UseGuards(OptionalAuthGuard)
   async findById(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @CurrentActor() actor: AuthActor | null,
   ): Promise<ProductGql> {
     const product = await this.productsService.findById(id, actor);
@@ -68,7 +68,7 @@ export class ProductsResolver {
   @Query(() => ProductDownloadUrlPayload, { name: 'productMediaDownloadUrl' })
   @UseGuards(OptionalAuthGuard)
   async getMediaDownloadUrl(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('objectKey') objectKey: string,
     @CurrentActor() actor: AuthActor | null,
   ): Promise<ProductDownloadUrlPayload> {
@@ -106,7 +106,7 @@ export class ProductsResolver {
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:update:self')
   async update(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('input') input: UpdateProductInput,
     @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
@@ -123,7 +123,7 @@ export class ProductsResolver {
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:update:self')
   async createMediaUploadUrl(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('input') input: ProductMediaUploadInput,
     @CurrentActor() actor: AuthActor,
   ): Promise<ProductUploadUrlPayload> {
@@ -145,7 +145,7 @@ export class ProductsResolver {
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:update:self')
   async confirmMediaUpload(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('input') input: ProductMediaConfirmInput,
     @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
@@ -167,7 +167,7 @@ export class ProductsResolver {
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:update:self')
   async removeMedia(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @Args('objectKey') objectKey: string,
     @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
@@ -184,7 +184,10 @@ export class ProductsResolver {
   @UseGuards(AuthGuard, VerifiedSellerGuard, PermissionGuard)
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:archive:self')
-  async remove(@Args('id') id: string, @CurrentActor() actor: AuthActor): Promise<boolean> {
+  async remove(
+    @Args('id', { type: () => ID }) id: string,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<boolean> {
     const removed = await this.productsService.remove(id, actor);
     if (!removed) throw new NotFoundException(`Product ${id} not found`);
     return true;
@@ -199,7 +202,7 @@ export class ProductsResolver {
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:publish:self')
   async submitForReview(
-    @Args('id') id: string,
+    @Args('id', { type: () => ID }) id: string,
     @CurrentActor() actor: AuthActor,
   ): Promise<ProductGql> {
     const product = await this.productsService.submitForReview(id, actor);
@@ -214,7 +217,7 @@ export class ProductsResolver {
   @Mutation(() => ProductGql, { name: 'approveProduct' })
   @UseGuards(AuthGuard, RolesGuard)
   @RequiresRoles('ADMIN_*')
-  async approve(@Args('id') id: string): Promise<ProductGql> {
+  async approve(@Args('id', { type: () => ID }) id: string): Promise<ProductGql> {
     const product = await this.productsService.approve(id);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
@@ -227,7 +230,7 @@ export class ProductsResolver {
   @Mutation(() => ProductGql, { name: 'rejectProduct' })
   @UseGuards(AuthGuard, RolesGuard)
   @RequiresRoles('ADMIN_*')
-  async reject(@Args('id') id: string): Promise<ProductGql> {
+  async reject(@Args('id', { type: () => ID }) id: string): Promise<ProductGql> {
     const product = await this.productsService.reject(id);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;
@@ -241,7 +244,10 @@ export class ProductsResolver {
   @UseGuards(AuthGuard, VerifiedSellerGuard, PermissionGuard)
   @RequiresVerifiedSeller()
   @RequiresPermissions('product:archive:self')
-  async archive(@Args('id') id: string, @CurrentActor() actor: AuthActor): Promise<ProductGql> {
+  async archive(
+    @Args('id', { type: () => ID }) id: string,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<ProductGql> {
     const product = await this.productsService.archive(id, actor);
     if (!product) throw new NotFoundException(`Product ${id} not found`);
     return product as any;

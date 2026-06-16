@@ -37,7 +37,7 @@ export class ProductCatalogService {
     const url = `${baseUrl.replace(/\/+$/g, '')}/graphql`;
 
     const query =
-      'query Product($id: String!) { product(id: $id) { id name price currency status coverImage { objectKey } } }';
+      'query Product($id: ID!) { product(id: $id) { id name price currency status coverImage { objectKey } } }';
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), requestTimeoutMs);

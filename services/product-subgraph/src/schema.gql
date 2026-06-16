@@ -21,16 +21,16 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Mutation {
-  approveProduct(id: String!): Product!
-  archiveProduct(id: String!): Product!
-  confirmProductMediaUpload(id: String!, input: ProductMediaConfirmInput!): Product!
+  approveProduct(id: ID!): Product!
+  archiveProduct(id: ID!): Product!
+  confirmProductMediaUpload(id: ID!, input: ProductMediaConfirmInput!): Product!
   createProduct(input: CreateProductInput!): Product!
-  createProductMediaUploadUrl(id: String!, input: ProductMediaUploadInput!): ProductUploadUrlPayload!
-  deleteProduct(id: String!): Boolean!
-  rejectProduct(id: String!): Product!
-  removeProductMedia(id: String!, objectKey: String!): Product!
-  submitProductForReview(id: String!): Product!
-  updateProduct(id: String!, input: UpdateProductInput!): Product!
+  createProductMediaUploadUrl(id: ID!, input: ProductMediaUploadInput!): ProductUploadUrlPayload!
+  deleteProduct(id: ID!): Boolean!
+  rejectProduct(id: ID!): Product!
+  removeProductMedia(id: ID!, objectKey: String!): Product!
+  submitProductForReview(id: ID!): Product!
+  updateProduct(id: ID!, input: UpdateProductInput!): Product!
 }
 
 type Product {
@@ -102,8 +102,8 @@ type ProductUploadUrlPayload {
 }
 
 type Query {
-  product(id: String!): Product!
-  productMediaDownloadUrl(id: String!, objectKey: String!): ProductDownloadUrlPayload!
+  product(id: ID!): Product!
+  productMediaDownloadUrl(id: ID!, objectKey: String!): ProductDownloadUrlPayload!
   products: [Product!]!
 }
 
