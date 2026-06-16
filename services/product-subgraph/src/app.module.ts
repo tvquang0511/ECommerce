@@ -7,8 +7,8 @@ import { ApolloFederationDriver, ApolloFederationDriverConfig } from '@nestjs/ap
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { configuration } from './configuration';
-import { AuthModule } from './auth/auth.module';
-import { ProductsModule } from './products/products.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { ProductsModule } from './modules/products/products.module';
 
 @Module({
   imports: [

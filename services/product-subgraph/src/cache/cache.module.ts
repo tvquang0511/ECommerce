@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { RedisService } from './redis.service';
-import { ProductCacheService } from './product-cache.service';
+import { ProductCacheService } from '../modules/products/infrastructure/product-cache.service';
 
 @Module({
   providers: [RedisService, ProductCacheService],
