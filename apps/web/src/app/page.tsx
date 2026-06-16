@@ -1,5 +1,3 @@
-/* eslint-disable react/no-unescaped-entities */
-
 'use client';
 
 import Link from 'next/link';
@@ -26,21 +24,27 @@ export default function Home() {
             </div>
 
             <h1 className="mt-5 text-4xl font-black tracking-tight text-foreground sm:text-5xl lg:text-6xl">
-              Nền trắng chủ đạo,
+              Nền tảng trắng chủ đạo,
               <br />
               trải nghiệm thật bắt mắt.
             </h1>
 
             <p className="mt-6 max-w-xl text-base leading-8 text-muted-foreground sm:text-lg">
-              Luồng đăng ký, đăng nhập, reset mật khẩu, 2FA và quản lý phiên được tối ưu theo hướng desktop-first.
-              Hệ màu đa dạng đỏ, cam, vàng, lục, xanh, hồng, cyan, aquamarine giúp giao diện sống động hơn.
+              Luồng đăng ký, đăng nhập, reset mật khẩu, 2FA và quản lý phiên được tối ưu theo hướng
+              desktop-first. Giờ mình đã nối thêm buyer flow để bạn có thể duyệt sản phẩm và thao tác
+              giỏ hàng ngay trên web.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-3">
               {accessToken ? (
-                <Button asChild size="lg">
-                  <Link href="/account/profile">Đi tới hồ sơ</Link>
-                </Button>
+                <>
+                  <Button asChild size="lg">
+                    <Link href="/products">Mở catalog sản phẩm</Link>
+                  </Button>
+                  <Button asChild variant="warning" size="lg">
+                    <Link href="/cart">Xem giỏ hàng</Link>
+                  </Button>
+                </>
               ) : (
                 <>
                   <Button asChild size="lg">
@@ -70,6 +74,14 @@ export default function Home() {
             <div className="rounded-2xl border border-pink-200 bg-pink-50 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md">
               <div className="text-xs font-semibold text-pink-700">Profile</div>
               <div className="mt-2 text-sm font-semibold text-pink-900">Avatar MinIO + profile fields</div>
+            </div>
+            <div className="rounded-2xl border border-cyan-200 bg-cyan-50 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="text-xs font-semibold text-cyan-700">Catalog</div>
+              <div className="mt-2 text-sm font-semibold text-cyan-900">Xem sản phẩm từ product-subgraph</div>
+            </div>
+            <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="text-xs font-semibold text-violet-700">Cart</div>
+              <div className="mt-2 text-sm font-semibold text-violet-900">Buyer flow add to cart end-to-end</div>
             </div>
           </div>
         </div>

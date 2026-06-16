@@ -1,9 +1,6 @@
-/* eslint-disable react/no-unescaped-entities */
-
 'use client';
 
 import Link from 'next/link';
-
 import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -32,7 +29,6 @@ export function SiteHeader() {
     let cancelled = false;
 
     if (!accessToken) {
-      setMe(null);
       return;
     }
 
@@ -58,46 +54,56 @@ export function SiteHeader() {
         </Link>
 
         <nav className="flex items-center gap-2">
-          {accessToken ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  aria-label="User menu"
-                  className="rounded-full"
-                >
-                  {me?.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      alt="Avatar"
-                      src={me.avatarUrl}
-                      className="size-8 rounded-full border object-cover"
-                    />
-                  ) : (
-                    <span className="inline-flex size-8 items-center justify-center rounded-full border bg-muted text-xs font-medium">
-                      {avatarLabel}
-                    </span>
-                  )}
-                </Button>
-              </DropdownMenuTrigger>
+          <Button asChild variant="ghost" size="sm">
+            <Link href="/products">Sản phẩm</Link>
+          </Button>
 
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/account/profile">Xem hồ sơ</Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={async (e) => {
-                    e.preventDefault();
-                    await logout();
-                  }}
-                >
-                  Đăng xuất
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {accessToken ? (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/cart">Giỏ hàng</Link>
+              </Button>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label="User menu"
+                    className="rounded-full"
+                  >
+                    {me?.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt="Avatar"
+                        src={me.avatarUrl}
+                        className="size-8 rounded-full border object-cover"
+                      />
+                    ) : (
+                      <span className="inline-flex size-8 items-center justify-center rounded-full border bg-muted text-xs font-medium">
+                        {avatarLabel}
+                      </span>
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/account/profile">Xem hồ sơ</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={async (e) => {
+                      e.preventDefault();
+                      await logout();
+                    }}
+                  >
+                    Đăng xuất
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
           ) : (
             <>
               <Button asChild variant="ghost" size="sm">
