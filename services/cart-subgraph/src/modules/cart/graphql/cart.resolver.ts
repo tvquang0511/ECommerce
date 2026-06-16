@@ -8,18 +8,18 @@ import {
 } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 
-import { AuthActor } from '../auth/auth-actor.type';
-import { AuthGuard } from '../auth/auth.guard';
-import { CurrentActor } from '../auth/decorators/current-actor.decorator';
+import { AuthActor } from '../../auth/auth.types';
+import { AuthGuard } from '../../auth/guards/auth.guard';
+import { CurrentActor } from '../../auth/decorators/current-actor.decorator';
 
-import { Cart, CartItem } from './graphql/cart.type';
+import { Cart, CartItem } from '../domain/graphql/cart.gql.type';
 import {
   AddToCartInput,
   RemoveCartItemInput,
   UpdateCartItemInput,
-} from './graphql/cart.input';
-import { ProductRef } from './graphql/product.type';
-import { CartItemEntity, CartService } from './cart.service';
+} from '../domain/graphql/cart.input';
+import { ProductRef } from '../domain/graphql/product-ref.gql.type';
+import { CartItemEntity, CartService } from '../application/cart.service';
 
 @Resolver(() => Cart)
 export class CartResolver {

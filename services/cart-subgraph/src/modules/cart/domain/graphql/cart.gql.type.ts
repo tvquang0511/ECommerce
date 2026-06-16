@@ -6,8 +6,8 @@ import {
   ObjectType,
 } from '@nestjs/graphql';
 
-import { Money } from './money.type';
-import { ProductRef } from './product.type';
+import { Money } from './money.gql.type';
+import { ProductRef } from './product-ref.gql.type';
 
 @ObjectType()
 export class CartTotals {

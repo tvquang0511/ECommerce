@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
-import { AuthActor } from './auth-actor.type';
+import { AuthActor } from './auth.types';
 
 export type RequestLike = {
   header: (name: string) => string | undefined;

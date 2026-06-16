@@ -17,6 +17,9 @@ Mục lục chuẩn cho toàn bộ tài liệu của `product-subgraph`.
 - `ARCHITECTURE_ANALYSIS.md`: phân tích cấu trúc hiện tại của service.
 - `ECOMMERCE_MARKETPLACE_DESIGN.md`: nghiệp vụ marketplace, role, product, search, workflow.
 - `ADVANCED_RBAC_AND_WORKFLOWS.md`: RBAC nhiều lớp, policy, workflow nâng cao.
+- `PRODUCT_OPERATION_POLICY.md`: rule thao tác product, visibility theo role, seller flow, admin moderation.
+- `PRODUCT_TEST_GUIDE.md`: hướng dẫn test tay product bằng token thật.
+- `PRODUCT_INTEGRATION_CHECKLIST.md`: checklist xác nhận product-subgraph đang tích hợp đúng với user-service.
 - `IMPLEMENTATION_SPRINT_PLAN.md`: kế hoạch thực thi theo sprint.
 - `NEXT_STEPS_PLAN.md`: kế hoạch tiếp theo cho user-service, product, gateway, và web app.
 - `WEEKLY_ROADMAP.md`: roadmap theo tuần nhưng làm tuần tự từng service một, không chạy song song 4 mảng.

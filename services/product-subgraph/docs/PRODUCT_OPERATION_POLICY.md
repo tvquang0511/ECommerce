@@ -166,6 +166,108 @@ Ghi chú:
 - Seller: thấy `APPROVED` và sản phẩm của chính mình
 - Admin: thấy tất cả
 
+## Ghi chú RBAC quan trọng
+
+Phạm vi tương tác với product hiện tại được quyết định chủ yếu bởi `role`, sau đó mới siết tiếp bằng `permission` và trạng thái seller.
+
+Thứ tự hiểu đúng nên là:
+
+1. `role` quyết định actor thuộc nhóm nào:
+   - `BUYER`
+   - `SELLER`
+   - `ADMIN_*`
+   - `SUPER_ADMIN`
+2. `permission` quyết định actor được thao tác gì trong nhóm đó
+3. `sellerProfile.status` và `isKycVerified` quyết định seller đã đủ điều kiện bán hàng chưa
+4. ownership check quyết định actor có đang đụng đúng sản phẩm của mình không
+
+Hiểu ngắn gọn:
+
+- Query `products` không phải cứ đăng nhập là thấy hết
+- Seller không phải cứ có role `SELLER` là được thao tác mutation
+- Admin không cần là seller nhưng vẫn thấy toàn bộ sản phẩm để làm moderation
+
+Ví dụ thực tế:
+
+- Guest query `products` -> chỉ thấy `APPROVED`
+- Buyer query `products` -> chỉ thấy `APPROVED`
+- Seller verified query `products` -> thấy `APPROVED` và sản phẩm của mình
+- Admin query `products` -> thấy tất cả trạng thái
+
+Đây là lý do khi bạn query public chỉ thấy `p1003` và `p1006`: vì 2 sản phẩm đó đang ở trạng thái `APPROVED`.
+
+## Luồng test admin bằng Postman
+
+### Bước 1. Login vào user-service
+
+Request:
+
+```http
+POST http://localhost:4001/api/users/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@demo.local",
+  "password": "DevPassword123!"
+}
+```
+
+Lấy `accessToken` từ response.
+
+### Bước 2. Gọi GraphQL sang product-subgraph
+
+Request:
+
+```http
+POST http://localhost:4002/graphql
+Content-Type: application/json
+Authorization: Bearer <accessToken>
+```
+
+Body:
+
+```json
+{
+  "query": "query AdminProducts { products { id name status sellerId price shortDescription } }"
+}
+```
+
+Kỳ vọng:
+
+- Admin thấy toàn bộ product seed
+- Bao gồm `DRAFT`, `PENDING_REVIEW`, `APPROVED`, `REJECTED`, `ARCHIVED`
+
+### Bước 3. Test mutation admin
+
+Ví dụ approve product:
+
+```json
+{
+  "query": "mutation Approve($id: ID!) { approveProduct(id: $id) { id status publishedAt } }",
+  "variables": {
+    "id": "p1002"
+  }
+}
+```
+
+Ví dụ reject product:
+
+```json
+{
+  "query": "mutation Reject($id: ID!) { rejectProduct(id: $id) { id status } }",
+  "variables": {
+    "id": "p1002"
+  }
+}
+```
+
+## Ghi nhớ khi test Postman
+
+- Đúng, bạn sẽ login ở `user-service` trước
+- Lấy `accessToken`
+- Dùng token đó gọi sang `product-subgraph`
+- `product-subgraph` không tự login người dùng, nó chỉ tin token và gọi `introspect` sang `user-service`
+
 ## Hướng mở rộng tiếp theo
 
 - Tách bộ permission riêng cho admin moderation sản phẩm

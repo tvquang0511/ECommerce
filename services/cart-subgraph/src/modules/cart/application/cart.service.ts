@@ -6,9 +6,9 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 
-import { AuthActor } from '../auth/auth-actor.type';
-import { RedisService } from '../redis/redis.service';
-import { ProductCatalogService } from './product-catalog.service';
+import { AuthActor } from '../../auth/auth.types';
+import { RedisService } from '../../../redis/redis.service';
+import { ProductCatalogService } from '../infrastructure/product-catalog.service';
 
 export type CartItemEntity = {
   id: string;

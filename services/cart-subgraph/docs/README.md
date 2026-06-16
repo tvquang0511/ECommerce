@@ -3,6 +3,11 @@
 Mục tiêu: `cart-subgraph` là GraphQL subgraph quản lý giỏ hàng cho **người dùng đã đăng nhập**.
 Service này phối hợp với `user-service` để xác thực và với `product-subgraph` để lấy snapshot sản phẩm khi thêm vào giỏ.
 
+## Tài liệu nên đọc thêm
+
+- `README.md`: tổng quan service
+- `CART_TEST_GUIDE.md`: hướng dẫn test buyer flow end-to-end từ product sang cart
+
 ## Phạm vi
 
 - Chỉ hỗ trợ **user cart**
