@@ -10,7 +10,9 @@ import { env } from "./env.js";
 import { asyncHandler } from "./common/middlewares/asyncHandler.js";
 import { errorHandler } from "./common/middlewares/errorHandler.js";
 import { prisma } from "./db/prisma.js";
+import adminRouter from "./modules/admin/admin.router.js";
 import authRouter from "./modules/auth/auth.router.js";
+import sellersRouter from "./modules/sellers/sellers.router.js";
 import usersRouter from "./modules/users/users.router.js";
 import { buildOpenApiSpec } from "./openapi/buildOpenApiSpec.js";
 
@@ -47,6 +49,8 @@ export function createApp() {
 
   app.use("/api/users/auth", authRouter);
   app.use("/api/users", usersRouter);
+  app.use("/api/users", sellersRouter);
+  app.use("/api/users/admin", adminRouter);
 
   const uploadsRoot = path.resolve(process.cwd(), "uploads");
   app.use(

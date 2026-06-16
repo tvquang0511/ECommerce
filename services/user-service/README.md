@@ -19,6 +19,12 @@ Mounted under: `/api/users/auth`
 - `POST /forgot-password` (enqueues email; dev may return `devResetToken` if SMTP not set)
 - `POST /reset-password`
 - `POST /change-password` (requires `Authorization: Bearer <accessToken>`) — đổi mật khẩu khi đang đăng nhập (yêu cầu nhập mật khẩu hiện tại)
+- `POST /seller/apply` (requires `Authorization: Bearer <accessToken>`)
+- `GET /seller/me` (requires `Authorization: Bearer <accessToken>`)
+- `GET /admin/sellers` (requires admin access)
+- `POST /admin/sellers/:sellerProfileId/approve` (requires admin access)
+- `POST /admin/sellers/:sellerProfileId/suspend` (requires admin access)
+- `POST /admin/sellers/:sellerProfileId/ban` (requires admin access)
 
 ## Endpoints (Users)
 Mounted under: `/api/users`

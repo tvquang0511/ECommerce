@@ -3,6 +3,10 @@ import crypto from "node:crypto";
 import { prisma } from "../../db/prisma.js";
 
 export type AuditEventType =
+  | "SELLER_APPLIED"
+  | "SELLER_VERIFIED"
+  | "SELLER_SUSPENDED"
+  | "SELLER_BANNED"
   | "TWO_FACTOR_ENABLED"
   | "TWO_FACTOR_DISABLED"
   | "EMAIL_VERIFIED"
