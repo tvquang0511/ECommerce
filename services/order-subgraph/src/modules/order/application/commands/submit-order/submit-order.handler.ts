@@ -1,28 +1,39 @@
-import { Injectable } from '@nestjs/common';
+import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
 import { OrderCommandResult, OrderStatus } from '../../../graphql/order.gql.type';
-import { InventoryPublisherService } from '../../../infrastructure/integrations/inventory-publisher.service';
-import { PaymentPublisherService } from '../../../infrastructure/integrations/payment-publisher.service';
+import { OrderAggregate } from '../../../domain/aggregate/order.aggregate';
+import { OrderEventStoreRepo } from '../../../infrastructure/event-store/order-event-store.repo';
 import { SubmitOrderCommand } from './submit-order.command';
 
-@Injectable()
-export class SubmitOrderHandler {
+@CommandHandler(SubmitOrderCommand)
+export class SubmitOrderHandler
+  implements ICommandHandler<SubmitOrderCommand, OrderCommandResult>
+{
   constructor(
-    private readonly inventoryPublisher: InventoryPublisherService,
-    private readonly paymentPublisher: PaymentPublisherService,
+    private readonly eventStoreRepo: OrderEventStoreRepo,
+    private readonly eventBus: EventBus,
   ) {}
 
   async execute(command: SubmitOrderCommand): Promise<OrderCommandResult> {
-    await this.inventoryPublisher.publishReservationRequested(command.orderId);
-    await this.paymentPublisher.publishPaymentRequested(command.orderId);
+    const history = await this.eventStoreRepo.loadStream(command.orderId);
+    const aggregate = OrderAggregate.rehydrate(history);
+
+    aggregate.submit();
+
+    await this.eventStoreRepo.append(
+      aggregate.id,
+      command.expectedVersion,
+      aggregate.uncommittedEvents,
+    );
+    await this.eventBus.publishAll(aggregate.uncommittedEvents);
 
     return {
       orderId: command.orderId,
-      status: OrderStatus.SUBMITTED,
-      version: command.expectedVersion + 1,
+      status: aggregate.status as OrderStatus,
+      version: aggregate.version,
       correlationId: command.idempotencyKey,
       message:
-        'Skeleton submit-order handler ready. Connect event store and outbox in next phase.',
+        'Submit-order command now follows the event-sourced flow. Wire inventory/payment consumers in the next phase.',
     };
   }
 }

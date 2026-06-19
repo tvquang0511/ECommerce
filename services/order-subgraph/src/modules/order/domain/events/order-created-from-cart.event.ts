@@ -1,5 +1,5 @@
-export class OrderCreatedEvent {
-  readonly type = 'OrderCreated';
+export class OrderCreatedFromCartEvent {
+  readonly type = 'OrderCreatedFromCart';
 
   constructor(
     public readonly orderId: string,

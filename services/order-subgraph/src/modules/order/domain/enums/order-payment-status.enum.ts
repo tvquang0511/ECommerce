@@ -1,0 +1,7 @@
+export enum OrderPaymentStatusEnum {
+  NOT_REQUESTED = 'NOT_REQUESTED',
+  PENDING = 'PENDING',
+  AUTHORIZED = 'AUTHORIZED',
+  FAILED = 'FAILED',
+  EXPIRED = 'EXPIRED',
+}

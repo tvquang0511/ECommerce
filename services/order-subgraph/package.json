@@ -25,6 +25,7 @@
     "@nestjs/common": "^11.1.19",
     "@nestjs/config": "4.0.2",
     "@nestjs/core": "^11.1.19",
+    "@nestjs/cqrs": "^11.0.3",
     "@nestjs/graphql": "^13.4.0",
     "@nestjs/platform-express": "^11.1.19",
     "@types/passport-jwt": "^4.0.1",

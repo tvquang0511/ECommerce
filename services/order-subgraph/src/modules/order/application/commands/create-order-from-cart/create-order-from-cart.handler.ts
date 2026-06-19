@@ -1,18 +1,19 @@
-import { Injectable } from '@nestjs/common';
+import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
 import { OrderCommandResult, OrderStatus } from '../../../graphql/order.gql.type';
 import { CheckoutPricingService } from '../../services/checkout-pricing.service';
 import { OrderAggregate } from '../../../domain/aggregate/order.aggregate';
 import { OrderEventStoreRepo } from '../../../infrastructure/event-store/order-event-store.repo';
-import { OrderProjectorService } from '../../../infrastructure/projections/order-projector.service';
 import { CreateOrderFromCartCommand } from './create-order-from-cart.command';
 
-@Injectable()
-export class CreateOrderFromCartHandler {
+@CommandHandler(CreateOrderFromCartCommand)
+export class CreateOrderFromCartHandler
+  implements ICommandHandler<CreateOrderFromCartCommand, OrderCommandResult>
+{
   constructor(
     private readonly checkoutPricingService: CheckoutPricingService,
     private readonly eventStoreRepo: OrderEventStoreRepo,
-    private readonly projector: OrderProjectorService,
+    private readonly eventBus: EventBus,
   ) {}
 
   async execute(command: CreateOrderFromCartCommand): Promise<OrderCommandResult> {
@@ -27,7 +28,7 @@ export class CreateOrderFromCartHandler {
     });
 
     await this.eventStoreRepo.append(aggregate.id, 0, aggregate.uncommittedEvents);
-    await this.projector.project(aggregate.uncommittedEvents);
+    await this.eventBus.publishAll(aggregate.uncommittedEvents);
 
     return {
       orderId: aggregate.id,
