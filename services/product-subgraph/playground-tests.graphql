@@ -1,0 +1,131 @@
+# Product subgraph Playground test suite
+# Replace YOUR_ACCESS_TOKEN in the Headers tab:
+# {
+#   "Authorization": "Bearer YOUR_ACCESS_TOKEN"
+# }
+
+query PublicProducts {
+  products {
+    id
+    name
+    price
+    status
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+query PublicProductById($id: String!) {
+  product(id: $id) {
+    id
+    name
+    price
+    status
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+mutation CreateProduct($input: CreateProductInput!) {
+  createProduct(input: $input) {
+    id
+    name
+    price
+    status
+    slug
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+mutation UpdateProduct($id: String!, $input: UpdateProductInput!) {
+  updateProduct(id: $id, input: $input) {
+    id
+    name
+    price
+    status
+    slug
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+mutation SubmitProductForReview($id: String!) {
+  submitProductForReview(id: $id) {
+    id
+    name
+    price
+    status
+    slug
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+mutation DeleteProduct($id: String!) {
+  deleteProduct(id: $id)
+}
+
+mutation ApproveProduct($id: String!) {
+  approveProduct(id: $id) {
+    id
+    name
+    price
+    status
+    slug
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+mutation RejectProduct($id: String!) {
+  rejectProduct(id: $id) {
+    id
+    name
+    price
+    status
+    slug
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+mutation ArchiveProduct($id: String!) {
+  archiveProduct(id: $id) {
+    id
+    name
+    price
+    status
+    slug
+    sellerId
+    categoryId
+    tags
+    description
+  }
+}
+
+# Suggested variables
+# {
+#   "id": "PUT_A_REAL_PRODUCT_ID_HERE",
+#   "input": {
+#     "name": "Playground Test Product",
+#     "price": 99.99,
+#     "categoryId": "cat-test",
+#     "tags": ["test", "playground"],
+#     "description": "Created from Apollo Playground"
+#   }
+# }

@@ -1,0 +1,27 @@
+# Cart Subgraph - Playground smoke tests
+
+query Cart {
+  cart {
+    id
+    userId
+    currency
+    totals {
+      subtotal { amount currency }
+      discount { amount currency }
+      tax { amount currency }
+      total { amount currency }
+    }
+    items {
+      id
+      productId
+      quantity
+      unitPrice { amount currency }
+      titleSnapshot
+      imageSnapshot
+      createdAt
+      updatedAt
+      product { id }
+    }
+    updatedAt
+  }
+}

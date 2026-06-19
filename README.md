@@ -44,7 +44,7 @@
 > - Dùng **Apollo Federation**: 1 GraphQL Gateway + nhiều GraphQL subgraphs (product/cart/order).
 
 ### 2.1 `graphql-gateway` (Apollo Federation Gateway)
-- **Stack**: Node.js + TypeScript + Apollo Gateway (`@apollo/gateway`) + Apollo Server
+- **Stack**: Node.js + TypeScript + Express + Apollo Gateway (`@apollo/gateway`) + Apollo Server
 - **API**: GraphQL (public entrypoint cho UI)
 - **Sở hữu dữ liệu**: không sở hữu DB (stateless)
 - **Chức năng**:
@@ -216,19 +216,19 @@ server {
   }
 
   location /internal/graphql/carts {
-    proxy_pass http://cart-service:4003/graphql;
+    proxy_pass http://cart-service:14103/graphql;
   }
 
   location /internal/graphql/orders {
-    proxy_pass http://order-service:4004/graphql;
+    proxy_pass http://order-service:14104/graphql;
   }
 
   location /api/inventory/ {
-    proxy_pass http://inventory-service:4005/;
+    proxy_pass http://inventory-service:14105/;
   }
 
   location /api/payments/ {
-    proxy_pass http://payment-service:4006/;
+    proxy_pass http://payment-service:14106/;
   }
 }
 ```
@@ -301,9 +301,12 @@ Gợi ý layout:
 │  ├─ eslint-config/             # shared lint rules
 │  └─ tsconfig/                  # base tsconfig presets
 ├─ infra/
+│  ├─ docker/
+│  │  ├─ docker-compose.dev.yml
+│  │  ├─ docker-compose.edge.yml
+│  │  ├─ docker-compose.tool.yml
+│  │  └─ docker-compose.yml
 │  ├─ nginx/                     # nginx.conf (+ conf.d)
-│  ├─ docker-compose.dev.yml
-│  ├─ docker-compose.yml
 │  ├─ jenkins/                   # Jenkinsfile(s) / shared pipeline snippets
 │  └─ k8s/                       # Helm charts/manifests (phase Kubernetes)
 ├─ docs/
@@ -338,15 +341,28 @@ Quy ước tối thiểu cho mỗi service:
   - Chạy 1 package: `pnpm --filter <name-or-path> <script>`
   - Chạy ở root (workspace): `pnpm -w <cmd>`
 
+Tài liệu pnpm chi tiết: [docs/pnpm.md](docs/pnpm.md).
+
 ### 7.2) Khi chạy `docker-compose.dev` có cần Nginx chưa?
 
 - Chưa bắt buộc ở giai đoạn skeleton: bạn có thể chạy app bằng pnpm trên host (Next.js/gateway/services) và chỉ dùng Compose cho hạ tầng (Postgres/Mongo/Redis/RabbitMQ/MinIO).
 - Nên cấu hình Nginx sớm nếu bạn muốn **1 origin** để đỡ CORS và dễ xử lý refresh token cookie (đặc biệt khi auth dùng cookie HttpOnly).
 - Chạy hạ tầng dev:
-  - `pnpm deps:up` (hoặc `docker compose -f infra/docker-compose.dev.yml up -d`)
+  - `pnpm deps:up` (hoặc `make dev-up`)
 - Nếu muốn bật Nginx (optional):
-  - `docker compose -f infra/docker-compose.dev.yml --profile edge up -d`
+  - `make edge-up`
   - Truy cập qua `http://localhost:8080`
+- Nếu muốn bật tool xem DB (optional):
+  - `make tool-up` (hoặc `pnpm tools:up`)
+  - Mongo Express: `http://localhost:8081`
+  - Redis Commander: `http://localhost:8082`
+  - Redis Insight: `http://localhost:5540`
+
+Tài liệu kiến trúc:
+- Overview: [docs/architecture/overview.md](docs/architecture/overview.md)
+- Chức năng từng service: [docs/architecture/services.md](docs/architecture/services.md)
+- Template cây thư mục (NestJS-first): [docs/architecture/folder-structure.md](docs/architecture/folder-structure.md)
+- Lộ trình học Apollo + NestJS (tách biệt product plan): [docs/architecture/apollo-nestjs-learning-roadmap.md](docs/architecture/apollo-nestjs-learning-roadmap.md)
 
 ---
 
@@ -356,12 +372,41 @@ Quy ước tối thiểu cho mỗi service:
 
 ### Milestone 0 (Tuần 1) — Repo skeleton + Compose + Nginx + Federation “hello world”
 **Bạn học/practice**: monorepo workspaces, Docker Compose, Nginx reverse proxy, Apollo Gateway + 1 subgraph.
+
+#### Day 1 checklist (khuyến nghị)
+1) Cài toolchain
+  - Node.js LTS (>= 18)
+  - Corepack + pnpm: `corepack enable` rồi `corepack prepare pnpm@9.0.0 --activate`
+2) Cài dependencies workspace
+  - `pnpm install`
+3) Chạy 2 service GraphQL tối thiểu (hello federation)
+  - Terminal A: `pnpm --filter product-subgraph dev` (port `4002`)
+    - hoặc: `make product` / `pnpm run product`
+  - Terminal B: `pnpm --filter graphql-gateway dev` (port `4000`)
+    - hoặc: `make gateway` / `pnpm run gateway`
+  - Một lệnh (chạy cả 2): `make federation` hoặc `pnpm run federation`
+4) Test nhanh gateway
+  - Mở `http://localhost:4000/graphql` (Apollo landing page)
+  - Query thử:
+    - `{ ping }`
+    - `query { product(id: "1") { id name } }`
+5) (Tuỳ chọn) chạy hạ tầng bằng Docker Compose (DB/broker/blob)
+  - `make dev-up` (Postgres/Mongo/Redis/RabbitMQ/MinIO)
+
+> Troubleshooting (Postgres Docker): nếu `infra-postgres-1` bị `Exited (1)` và log có kiểu
+> `The data directory was initialized by PostgreSQL version 15, which is not compatible with this version 16.x`
+> thì bạn đang dùng **volume cũ**. Cách nhanh nhất (dev-only, sẽ mất data): `make clean-volumes` rồi `make dev-up`.
+6) (Tuỳ chọn) bật Nginx single-origin (để đỡ CORS/cookie về sau)
+  - `make edge-up`
+    - Gọi `http://localhost:8080/graphql` thay vì `http://localhost:4000/graphql`
+
 - Build:
   - Tạo `graphql-gateway` + `product-subgraph` (chỉ cần query `ping`).
   - Gateway compose từ subgraph bằng `IntrospectAndCompose`.
   - Nginx route `/graphql` → gateway.
 - Deliverables:
-  - `infra/docker-compose.dev.yml`: Postgres + Mongo + Redis + RabbitMQ + MinIO (hạ tầng dev). (Tuỳ chọn) bật Nginx để gom 1 origin và giảm CORS/cookie issues.
+  - `infra/docker/docker-compose.dev.yml`: Postgres + Mongo + Redis + RabbitMQ + MinIO (hạ tầng dev).
+  - `infra/docker/docker-compose.edge.yml`: (optional) Nginx single-origin.
   - Next.js page gọi query `{ ping }`.
 - Done criteria:
   - `POST /graphql` qua Nginx trả `ping` OK.

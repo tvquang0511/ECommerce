@@ -1,0 +1,121 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreateProductInput {
+  brand: String
+  categoryId: String
+  currency: String
+  description: String
+  name: String!
+  price: Float!
+  salePrice: Float
+  shortDescription: String
+  sku: String!
+  tags: [String!]
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  approveProduct(id: ID!): Product!
+  archiveProduct(id: ID!): Product!
+  confirmProductMediaUpload(id: ID!, input: ProductMediaConfirmInput!): Product!
+  createProduct(input: CreateProductInput!): Product!
+  createProductMediaUploadUrl(id: ID!, input: ProductMediaUploadInput!): ProductUploadUrlPayload!
+  deleteProduct(id: ID!): Boolean!
+  rejectProduct(id: ID!): Product!
+  removeProductMedia(id: ID!, objectKey: String!): Product!
+  submitProductForReview(id: ID!): Product!
+  updateProduct(id: ID!, input: UpdateProductInput!): Product!
+}
+
+type Product {
+  archivedAt: DateTime
+  brand: String
+  categoryId: String
+  coverImage: ProductImage
+  currency: String!
+  description: String
+  galleryImages: [ProductImage!]
+  id: ID!
+  name: String!
+  price: Float!
+  publishedAt: DateTime
+  salePrice: Float
+  sellerId: String!
+  shortDescription: String
+  sku: String!
+  slug: String!
+  status: ProductStatusEnum!
+  tags: [String!]
+}
+
+type ProductDownloadUrlPayload {
+  bucket: String!
+  downloadUrl: String!
+  expiresAt: DateTime!
+  objectKey: String!
+}
+
+type ProductImage {
+  bucket: String!
+  contentType: String!
+  objectKey: String!
+  size: Int!
+  uploadedAt: DateTime!
+}
+
+input ProductMediaConfirmInput {
+  contentType: String!
+  kind: ProductMediaKind!
+  objectKey: String!
+  size: Int!
+}
+
+enum ProductMediaKind {
+  COVER
+  GALLERY
+}
+
+input ProductMediaUploadInput {
+  contentType: String!
+  fileName: String!
+}
+
+enum ProductStatusEnum {
+  APPROVED
+  ARCHIVED
+  DRAFT
+  PENDING_REVIEW
+  REJECTED
+}
+
+type ProductUploadUrlPayload {
+  bucket: String!
+  expiresAt: DateTime!
+  objectKey: String!
+  uploadUrl: String!
+}
+
+type Query {
+  product(id: ID!): Product!
+  productMediaDownloadUrl(id: ID!, objectKey: String!): ProductDownloadUrlPayload!
+  products: [Product!]!
+}
+
+input UpdateProductInput {
+  brand: String
+  categoryId: String
+  currency: String
+  description: String
+  name: String
+  price: Float
+  salePrice: Float
+  shortDescription: String
+  sku: String
+  tags: [String!]
+}

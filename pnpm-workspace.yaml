@@ -2,3 +2,8 @@ packages:
   - "apps/*"
   - "services/*"
   - "packages/*"
+
+# Keep pnpm security settings at the monorepo root.
+ignoredBuiltDependencies:
+  - sharp
+  - unrs-resolver

@@ -1,6 +1,10 @@
 # Architecture Overview — E-commerce Microservices (Nginx + Apollo Federation)
 
-Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức **system design + chức năng**, ưu tiên giúp bạn:
+Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức **system design + chức năng**. Đây là tài liệu tổng quan, còn nguồn sự thật chuẩn nằm ở:
+
+- [architecture-standard.md](architecture-standard.md)
+
+Ưu tiên của tài liệu này là giúp bạn:
 - Nắm rõ “mỗi service làm gì / không làm gì” (service boundaries)
 - Biết luồng sync/async (HTTP vs RabbitMQ)
 - Biết vai trò của các “hạ tầng ngầm” như Redis, RabbitMQ, MinIO
@@ -91,8 +95,11 @@ Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức
 - `GET /api/users/me`
 
 **Auth strategy**
-- Access token: JWT (TTL ngắn) gửi qua `Authorization`.
-- Refresh token: HttpOnly cookie.
+- Access token: JWT `RS256` (TTL ngắn) gửi qua `Authorization`.
+- Refresh token: opaque random token (không phải JWT) lưu hash trong DB, gửi qua HttpOnly cookie (rotation + reuse detection).
+- (Optional) 2FA: email OTP (TTL ngắn) qua mail worker.
+
+Chi tiết: xem `docs/architecture/auth.md`.
 
 **Events (RabbitMQ)**
 - Publish (optional): `user.registered.v1`
@@ -355,15 +362,21 @@ Redis trong hệ này có **2 vai trò khác nhau** (đừng trộn khái niệm
 ## 6) Dev topology (khi chạy local)
 
 ### 6.1 Compose chỉ chạy hạ tầng
-- `infra/docker-compose.dev.yml` chạy: Postgres, Mongo, Redis, RabbitMQ, MinIO.
+- `infra/docker/docker-compose.dev.yml` chạy: Postgres, Mongo, Redis, RabbitMQ, MinIO.
 - Apps/services chạy bằng pnpm trên host.
 
 ### 6.2 Compose + Nginx (single origin, optional)
-- Bật profile `edge` để chạy Nginx trong Docker.
+- Dùng compose overlay: `infra/docker/docker-compose.edge.yml`.
 - Trong giai đoạn services chạy trên host, Nginx sẽ proxy tới `host.docker.internal:<port>`.
+
+### 6.3 Full stack bằng container (later)
+- `infra/docker/docker-compose.yml` dùng để chạy infra + một phần app containers (phục vụ test nhanh).
 
 ---
 
 ## 7) Tài liệu liên quan
 - Component diagram (PlantUML): xem trong [docs/diagrams/component-diagram.md](../diagrams/component-diagram.md).
 - Roadmap/milestones: xem [README.md](../../README.md).
+- Chức năng chi tiết từng service: xem [docs/architecture/services.md](services.md).
+- Template cây thư mục (NestJS-first + Express user-service): xem [docs/architecture/folder-structure.md](folder-structure.md).
+- pnpm guide: xem [docs/pnpm.md](../pnpm.md).

@@ -1,0 +1,31 @@
+# Optional DB tools overlay for local development.
+# Usage:
+#   docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml up -d
+#
+# UIs:
+# - Mongo Express: http://localhost:8081
+# - Redis Insight: http://localhost:5540
+
+services:
+  mongo-express:
+    image: mongo-express:1.0.2-20-alpine3.19
+    depends_on:
+      - mongo
+    environment:
+      ME_CONFIG_BASICAUTH: "false"
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017/
+    ports:
+      - "8081:8081"
+
+  redis-insight:
+    image: redis/redisinsight:latest
+    depends_on:
+      - redis
+    ports:
+      - "5540:5540"
+    volumes:
+      - redisinsight_data:/data
+
+volumes:
+  redisinsight_data:
+    name: ecommerce_redisinsight_data

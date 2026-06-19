@@ -3,8 +3,27 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
-    "deps:up": "docker compose -f infra/docker-compose.dev.yml up -d",
-    "deps:down": "docker compose -f infra/docker-compose.dev.yml down",
-    "deps:logs": "docker compose -f infra/docker-compose.dev.yml logs -f --tail=200"
+    "gateway": "pnpm --filter graphql-gateway dev",
+    "product": "pnpm --filter product-subgraph dev",
+    "product:lint": "pnpm --filter product-subgraph lint",
+    "product:test": "pnpm --filter product-subgraph test",
+    "product:e2e": "pnpm --filter product-subgraph test:e2e",
+    "product:g": "pnpm --filter product-subgraph exec nest g",
+    "user": "pnpm --filter user-service dev",
+    "federation": "pnpm -r --parallel --filter product-subgraph --filter graphql-gateway dev",
+    "deps:up": "docker compose -f infra/docker/docker-compose.dev.yml up -d",
+    "deps:down": "docker compose -f infra/docker/docker-compose.dev.yml down",
+    "deps:logs": "docker compose -f infra/docker/docker-compose.dev.yml logs -f --tail=200",
+    "edge:up": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml up -d",
+    "edge:down": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.edge.yml down",
+    "tools:up": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml up -d",
+    "tools:down": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml down",
+    "tools:logs": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml logs -f --tail=200 mongo-express redis-commander redis-insight",
+    "full:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "full:down": "docker compose -f infra/docker/docker-compose.yml down",
+    "full:build": "docker compose -f infra/docker/docker-compose.yml build"
+  },
+  "dependencies": {
+    "minio": "^8.0.7"
   }
 }

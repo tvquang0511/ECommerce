@@ -1,0 +1,30 @@
+# Prevent secrets and local-only files from being baked into images
+**/.env
+**/.env.*
+!**/.env.example
+
+**/.keys/
+**/*.pem
+**/*.key
+
+# Dependencies / caches
+**/node_modules/
+.pnpm-store/
+
+# VCS / editor
+.git/
+.vscode/
+.idea/
+
+# Build outputs
+**/dist/
+**/build/
+**/.next/
+coverage/
+
+# Keep required workspace runtime artifacts
+!packages/common/dist/
+!packages/common/dist/**
+
+# Logs
+*.log

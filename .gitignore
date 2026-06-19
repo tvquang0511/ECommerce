@@ -1,11 +1,19 @@
 # dependencies
 node_modules/
 .pnpm-store/
+/.pnp
+.pnp.*
+/.yarn/*
+!/.yarn/patches
+!/.yarn/plugins
+!/.yarn/releases
+!/.yarn/versions
 
 # build outputs
-/dist/
-/build/
-/.next/
+dist/
+build/
+.next/
+out/
 coverage/
 
 # logs
@@ -15,10 +23,20 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# vercel
+.vercel/
+
 # env
 .env
 .env.*
 !.env.example
+
+# typescript
+*.tsbuildinfo
+
+# key
+*.pem
+*.key
 
 # editor/ide
 .vscode/
@@ -27,3 +45,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# runtime uploads (local filesystem)
+uploads/
+services/**/uploads/
