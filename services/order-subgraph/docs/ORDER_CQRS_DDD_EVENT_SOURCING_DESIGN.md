@@ -142,6 +142,94 @@ GraphQL query
 
 ---
 
+## 4.1 Sơ đồ luồng tổng thể
+
+```text
+                   WRITE SIDE
+
+GraphQL Mutation
+  -> CommandBus
+  -> CommandHandler
+  -> OrderAggregate
+  -> append vào order_events
+  -> EventBus nội bộ
+     -> projector cập nhật read model
+     -> outbox ghi integration events
+  -> outbox worker publish RabbitMQ
+
+                   READ SIDE
+
+GraphQL Query
+  -> QueryBus
+  -> QueryHandler
+  -> đọc orders_read / order_items_read / order_timeline_read
+```
+
+## 4.2 Sơ đồ database giai đoạn đầu
+
+Ở phase đầu, mình khuyên dùng `chung một Postgres` cho `order-subgraph`.
+
+Nhưng phải tách rõ theo vai trò dữ liệu:
+
+```text
+Postgres của order-subgraph
+|
++-- event store tables
+|    +-- order_events
+|
++-- read model tables
+|    +-- orders_read
+|    +-- order_items_read
+|    +-- order_timeline_read
+|
++-- integration tables
+     +-- order_outbox
+```
+
+Điều này có nghĩa là:
+
+- dùng chung một database engine là ổn
+- nhưng không dùng chung một bảng cho cả đọc và ghi
+- `write side`, `read side`, `outbox` phải tách bảng rõ ràng
+
+Giai đoạn đầu làm vậy sẽ:
+
+- dễ setup
+- dễ debug
+- đúng tinh thần CQRS ở mức thực dụng
+- chưa cần tách hẳn thành 2 database vật lý
+
+Sau này nếu muốn scale mạnh hơn, bạn có thể nâng cấp dần:
+
+- `event store` vẫn ở Postgres chính
+- `read model` có thể tách ra DB khác
+- thậm chí `read model` seller/admin có thể sang Elasticsearch hoặc Redis
+
+Nhưng ở đồ án học tập, dùng chung một Postgres và tách bảng là lựa chọn rất hợp lý.
+
+## 4.3 Sơ đồ chi tiết luồng `submitOrder`
+
+```text
+submitOrder mutation
+  -> SubmitOrderCommand
+  -> SubmitOrderHandler
+  -> load order_events theo aggregate_id
+  -> OrderAggregate.rehydrate(events)
+  -> aggregate.submit()
+  -> append OrderSubmitted vào order_events
+  -> EventBus.publish(OrderSubmitted)
+  -> projector update orders_read
+  -> outbox ghi order.inventory.reservation.requested
+  -> outbox ghi order.payment.requested
+  -> worker publish RabbitMQ
+  -> inventory/payment phản hồi bằng event
+  -> consumer map event ngoài thành command nội bộ
+  -> aggregate append event mới
+  -> projector update lại read model
+```
+
+---
+
 ## 5. Mô hình domain nên có
 
 ### 5.1 Aggregate root
@@ -204,6 +292,40 @@ Nhưng để học event-driven tốt hơn thì nên giữ cả `AWAITING_INVENT
 - currency trong cùng một order phải nhất quán
 
 Nếu logic này nằm rải rác ở resolver hoặc service integration thì thiết kế sẽ nhanh rối.
+
+---
+
+## 6.1 Aggregate và read model khác nhau thế nào
+
+Đây là điểm rất dễ nhầm khi mới làm event sourcing.
+
+`OrderAggregate`:
+
+- là object nghiệp vụ trong memory
+- chỉ dùng ở command side
+- dùng để giữ invariant và sinh event
+- không phải bảng DB để frontend query
+
+`Read model`:
+
+- là bảng/collection phục vụ query
+- do projector cập nhật từ event
+- tối ưu để UI/API đọc nhanh
+
+Ví dụ:
+
+```text
+OrderAggregate
+  -> xử lý submit(), cancel(), markPaymentAuthorized()
+
+orders_read
+  -> lưu orderId, status, paymentStatus, totalAmount để query nhanh
+```
+
+Nói ngắn gọn:
+
+- aggregate dùng để quyết định
+- read model dùng để hiển thị
 
 ---
 

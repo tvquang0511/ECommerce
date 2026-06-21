@@ -404,6 +404,12 @@ importers:
       '@nestjs/platform-express':
         specifier: ^11.1.19
         version: 11.1.19(@nestjs/common@11.1.19(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.19)
+      '@prisma/adapter-pg':
+        specifier: ^7.7.0
+        version: 7.7.0
+      '@prisma/client':
+        specifier: ^7.7.0
+        version: 7.7.0(prisma@7.7.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3))(typescript@5.9.3)
       '@types/passport-jwt':
         specifier: ^4.0.1
         version: 4.0.1
@@ -419,6 +425,9 @@ importers:
       passport-jwt:
         specifier: ^4.0.1
         version: 4.0.1
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
@@ -450,6 +459,9 @@ importers:
       '@types/node':
         specifier: ^22.10.1
         version: 22.19.17
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
       '@types/supertest':
         specifier: ^7.0.0
         version: 7.2.0
@@ -465,6 +477,9 @@ importers:
       prettier:
         specifier: ^3.4.2
         version: 3.8.3
+      prisma:
+        specifier: ^7.7.0
+        version: 7.7.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.3)
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
