@@ -11,6 +11,7 @@ import { OrderInventoryReservedEvent } from '../../domain/events/order-inventory
 import { OrderPaymentAuthorizedEvent } from '../../domain/events/order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from '../../domain/events/order-payment-failed.event';
 import { OrderSubmittedEvent } from '../../domain/events/order-submitted.event';
+import { OrderItemSnapshot } from '../../domain/value-objects/order-item.vo';
 import { OrderEventMetadata, OrderEventRecord } from './order-event-record.type';
 
 @Injectable()
@@ -39,14 +40,19 @@ export class OrderEventMapper {
         return new OrderCreatedFromCartEvent(
           String(record.eventData.orderId),
           String(record.eventData.buyerId),
+          this.asOrderItemSnapshots(record.eventData.items),
+          this.asStringArray(record.eventData.sellerIds),
+          this.asNumber(record.eventData.totalAmount),
           String(record.eventData.currency),
+          this.asOptionalString(record.eventData.cartId),
         );
       case 'OrderCreatedDirect':
         return new OrderCreatedDirectEvent(
           String(record.eventData.orderId),
           String(record.eventData.buyerId),
-          String(record.eventData.productId),
-          Number(record.eventData.quantity),
+          this.asOrderItemSnapshots(record.eventData.items),
+          this.asStringArray(record.eventData.sellerIds),
+          this.asNumber(record.eventData.totalAmount),
           String(record.eventData.currency),
         );
       case 'OrderSubmitted':
@@ -82,7 +88,11 @@ export class OrderEventMapper {
       return {
         orderId: event.orderId,
         buyerId: event.buyerId,
+        items: event.items,
+        sellerIds: event.sellerIds,
+        totalAmount: event.totalAmount,
         currency: event.currency,
+        cartId: event.cartId ?? null,
       };
     }
 
@@ -90,8 +100,9 @@ export class OrderEventMapper {
       return {
         orderId: event.orderId,
         buyerId: event.buyerId,
-        productId: event.productId,
-        quantity: event.quantity,
+        items: event.items,
+        sellerIds: event.sellerIds,
+        totalAmount: event.totalAmount,
         currency: event.currency,
       };
     }
@@ -150,5 +161,56 @@ export class OrderEventMapper {
     }
 
     return value;
+  }
+
+  private asStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.filter((item): item is string => typeof item === 'string');
+  }
+
+  private asNumber(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+  }
+
+  private asOrderItemSnapshots(value: unknown): OrderItemSnapshot[] {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value.flatMap((item) => {
+      if (!item || typeof item !== 'object') {
+        return [];
+      }
+
+      const candidate = item as Record<string, unknown>;
+      if (
+        typeof candidate.lineId !== 'string' ||
+        typeof candidate.productId !== 'string' ||
+        typeof candidate.sellerId !== 'string' ||
+        typeof candidate.titleSnapshot !== 'string' ||
+        typeof candidate.quantity !== 'number' ||
+        typeof candidate.unitPriceAmount !== 'number' ||
+        typeof candidate.currency !== 'string'
+      ) {
+        return [];
+      }
+
+      return [
+        {
+          lineId: candidate.lineId,
+          productId: candidate.productId,
+          sellerId: candidate.sellerId,
+          titleSnapshot: candidate.titleSnapshot,
+          imageSnapshot:
+            typeof candidate.imageSnapshot === 'string' ? candidate.imageSnapshot : null,
+          quantity: candidate.quantity,
+          unitPriceAmount: candidate.unitPriceAmount,
+          currency: candidate.currency,
+        },
+      ];
+    });
   }
 }

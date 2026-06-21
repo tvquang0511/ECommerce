@@ -13,8 +13,9 @@ export class OrderCreatedDirectOutboxHandler
     await this.outboxRepo.enqueue('order.created-direct', {
       orderId: event.orderId,
       buyerId: event.buyerId,
-      productId: event.productId,
-      quantity: event.quantity,
+      items: event.items,
+      sellerIds: event.sellerIds,
+      totalAmount: event.totalAmount,
       currency: event.currency,
     });
   }

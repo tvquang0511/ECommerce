@@ -13,7 +13,11 @@ export class OrderCreatedFromCartOutboxHandler
     await this.outboxRepo.enqueue('order.created-from-cart', {
       orderId: event.orderId,
       buyerId: event.buyerId,
+      items: event.items,
+      sellerIds: event.sellerIds,
+      totalAmount: event.totalAmount,
       currency: event.currency,
+      cartId: event.cartId ?? null,
     });
   }
 }

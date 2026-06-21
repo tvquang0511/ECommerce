@@ -24,8 +24,6 @@ export class CreateOrderDirectHandler
 
     const aggregate = OrderAggregate.createDirect({
       buyerId: command.buyerId,
-      productId: pricingPreview.productId,
-      quantity: pricingPreview.quantity,
       currency: pricingPreview.currency,
     });
 

@@ -14,10 +14,14 @@ import { OrderInventoryReservedEvent } from '../events/order-inventory-reserved.
 import { OrderPaymentAuthorizedEvent } from '../events/order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from '../events/order-payment-failed.event';
 import { OrderSubmittedEvent } from '../events/order-submitted.event';
+import { OrderItemSnapshot, OrderItemVo } from '../value-objects/order-item.vo';
 
 export class OrderAggregate extends AggregateRoot {
   public id: string;
   public buyerId: string;
+  public items: OrderItemVo[];
+  public sellerIds: string[];
+  public totalAmount: number;
   public currency: string;
   public status: OrderStatusEnum;
   public inventoryStatus: OrderInventoryStatusEnum;
@@ -28,6 +32,9 @@ export class OrderAggregate extends AggregateRoot {
   private constructor(params: {
     id: string;
     buyerId: string;
+    items: OrderItemVo[];
+    sellerIds: string[];
+    totalAmount: number;
     currency: string;
     status: OrderStatusEnum;
     inventoryStatus: OrderInventoryStatusEnum;
@@ -38,6 +45,9 @@ export class OrderAggregate extends AggregateRoot {
     super();
     this.id = params.id;
     this.buyerId = params.buyerId;
+    this.items = params.items;
+    this.sellerIds = params.sellerIds;
+    this.totalAmount = params.totalAmount;
     this.currency = params.currency;
     this.status = params.status;
     this.inventoryStatus = params.inventoryStatus;
@@ -46,16 +56,30 @@ export class OrderAggregate extends AggregateRoot {
     this.uncommittedEvents = params.uncommittedEvents ?? [];
   }
 
-  static createDraft(params: { buyerId: string; currency: string }): OrderAggregate {
+  static createDraft(params: {
+    buyerId: string;
+    currency: string;
+    items?: OrderItemSnapshot[];
+    sellerIds?: string[];
+    totalAmount?: number;
+    cartId?: string;
+  }): OrderAggregate {
     const event = new OrderCreatedFromCartEvent(
       `ord_${randomUUID()}`,
       params.buyerId,
+      params.items ?? [],
+      params.sellerIds ?? [],
+      params.totalAmount ?? 0,
       params.currency,
+      params.cartId,
     );
 
     const aggregate = new OrderAggregate({
       id: event.orderId,
       buyerId: event.buyerId,
+      items: [],
+      sellerIds: [],
+      totalAmount: 0,
       currency: event.currency,
       status: OrderStatusEnum.DRAFT,
       inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
@@ -72,21 +96,26 @@ export class OrderAggregate extends AggregateRoot {
 
   static createDirect(params: {
     buyerId: string;
-    productId: string;
-    quantity: number;
+    items?: OrderItemSnapshot[];
+    sellerIds?: string[];
+    totalAmount?: number;
     currency: string;
   }): OrderAggregate {
     const event = new OrderCreatedDirectEvent(
       `ord_${randomUUID()}`,
       params.buyerId,
-      params.productId,
-      params.quantity,
+      params.items ?? [],
+      params.sellerIds ?? [],
+      params.totalAmount ?? 0,
       params.currency,
     );
 
     const aggregate = new OrderAggregate({
       id: event.orderId,
       buyerId: event.buyerId,
+      items: [],
+      sellerIds: [],
+      totalAmount: 0,
       currency: event.currency,
       status: OrderStatusEnum.DRAFT,
       inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
@@ -109,6 +138,9 @@ export class OrderAggregate extends AggregateRoot {
     const aggregate = new OrderAggregate({
       id: '',
       buyerId: '',
+      items: [],
+      sellerIds: [],
+      totalAmount: 0,
       currency: '',
       status: OrderStatusEnum.DRAFT,
       inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
@@ -210,6 +242,9 @@ export class OrderAggregate extends AggregateRoot {
   onOrderCreatedFromCartEvent(event: OrderCreatedFromCartEvent): void {
     this.id = event.orderId;
     this.buyerId = event.buyerId;
+    this.items = event.items.map((item) => OrderItemVo.fromSnapshot(item));
+    this.sellerIds = [...event.sellerIds];
+    this.totalAmount = event.totalAmount;
     this.currency = event.currency;
     this.status = OrderStatusEnum.DRAFT;
     this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;
@@ -219,6 +254,9 @@ export class OrderAggregate extends AggregateRoot {
   onOrderCreatedDirectEvent(event: OrderCreatedDirectEvent): void {
     this.id = event.orderId;
     this.buyerId = event.buyerId;
+    this.items = event.items.map((item) => OrderItemVo.fromSnapshot(item));
+    this.sellerIds = [...event.sellerIds];
+    this.totalAmount = event.totalAmount;
     this.currency = event.currency;
     this.status = OrderStatusEnum.DRAFT;
     this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;

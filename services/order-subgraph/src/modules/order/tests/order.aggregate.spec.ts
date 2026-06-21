@@ -10,17 +10,38 @@ import { OrderInventoryReservedEvent } from '../domain/events/order-inventory-re
 import { OrderPaymentAuthorizedEvent } from '../domain/events/order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from '../domain/events/order-payment-failed.event';
 import { OrderSubmittedEvent } from '../domain/events/order-submitted.event';
+import { OrderItemSnapshot } from '../domain/value-objects/order-item.vo';
+
+const orderItems: OrderItemSnapshot[] = [
+  {
+    lineId: 'line-1',
+    productId: 'p1003',
+    sellerId: 'seller-1',
+    titleSnapshot: 'Dell UltraSharp 27 4K',
+    imageSnapshot: 'products/p1003/cover.jpg',
+    quantity: 1,
+    unitPriceAmount: 11290000,
+    currency: 'VND',
+  },
+];
 
 describe('OrderAggregate', () => {
   it('creates a draft order from cart', () => {
     const aggregate = OrderAggregate.createDraft({
       buyerId: 'buyer-1',
+      items: orderItems,
+      sellerIds: ['seller-1'],
+      totalAmount: 11290000,
       currency: 'VND',
+      cartId: 'cart-1',
     });
 
     expect(aggregate.status).toBe(OrderStatusEnum.DRAFT);
     expect(aggregate.inventoryStatus).toBe(OrderInventoryStatusEnum.NOT_REQUESTED);
     expect(aggregate.paymentStatus).toBe(OrderPaymentStatusEnum.NOT_REQUESTED);
+    expect(aggregate.items).toHaveLength(1);
+    expect(aggregate.sellerIds).toEqual(['seller-1']);
+    expect(aggregate.totalAmount).toBe(11290000);
     expect(aggregate.uncommittedEvents).toHaveLength(1);
     expect(aggregate.uncommittedEvents[0]).toBeInstanceOf(OrderCreatedFromCartEvent);
   });
@@ -28,6 +49,9 @@ describe('OrderAggregate', () => {
   it('submits a draft order', () => {
     const aggregate = OrderAggregate.createDraft({
       buyerId: 'buyer-1',
+      items: orderItems,
+      sellerIds: ['seller-1'],
+      totalAmount: 11290000,
       currency: 'VND',
     });
 
@@ -41,7 +65,14 @@ describe('OrderAggregate', () => {
 
   it('cancels an order before confirmation', () => {
     const aggregate = OrderAggregate.rehydrate([
-      new OrderCreatedFromCartEvent('ord_test_1', 'buyer-1', 'VND'),
+      new OrderCreatedFromCartEvent(
+        'ord_test_1',
+        'buyer-1',
+        orderItems,
+        ['seller-1'],
+        11290000,
+        'VND',
+      ),
       new OrderSubmittedEvent('ord_test_1'),
     ]);
 
@@ -53,7 +84,14 @@ describe('OrderAggregate', () => {
 
   it('confirms the order when payment and inventory are both satisfied', () => {
     const aggregate = OrderAggregate.rehydrate([
-      new OrderCreatedFromCartEvent('ord_test_2', 'buyer-1', 'VND'),
+      new OrderCreatedFromCartEvent(
+        'ord_test_2',
+        'buyer-1',
+        orderItems,
+        ['seller-1'],
+        11290000,
+        'VND',
+      ),
       new OrderSubmittedEvent('ord_test_2'),
     ]);
 
@@ -70,7 +108,14 @@ describe('OrderAggregate', () => {
 
   it('fails and cancels the order when inventory is rejected', () => {
     const aggregate = OrderAggregate.rehydrate([
-      new OrderCreatedFromCartEvent('ord_test_3', 'buyer-1', 'VND'),
+      new OrderCreatedFromCartEvent(
+        'ord_test_3',
+        'buyer-1',
+        orderItems,
+        ['seller-1'],
+        11290000,
+        'VND',
+      ),
       new OrderSubmittedEvent('ord_test_3'),
     ]);
 
@@ -88,7 +133,14 @@ describe('OrderAggregate', () => {
 
   it('fails and cancels the order when payment fails', () => {
     const aggregate = OrderAggregate.rehydrate([
-      new OrderCreatedFromCartEvent('ord_test_4', 'buyer-1', 'VND'),
+      new OrderCreatedFromCartEvent(
+        'ord_test_4',
+        'buyer-1',
+        orderItems,
+        ['seller-1'],
+        11290000,
+        'VND',
+      ),
       new OrderSubmittedEvent('ord_test_4'),
     ]);
 
@@ -106,7 +158,14 @@ describe('OrderAggregate', () => {
 
   it('rehydrates the current state from event history', () => {
     const aggregate = OrderAggregate.rehydrate([
-      new OrderCreatedFromCartEvent('ord_test_5', 'buyer-1', 'VND'),
+      new OrderCreatedFromCartEvent(
+        'ord_test_5',
+        'buyer-1',
+        orderItems,
+        ['seller-1'],
+        11290000,
+        'VND',
+      ),
       new OrderSubmittedEvent('ord_test_5'),
       new OrderInventoryReservedEvent('ord_test_5'),
       new OrderPaymentAuthorizedEvent('ord_test_5'),
@@ -114,6 +173,8 @@ describe('OrderAggregate', () => {
     ]);
 
     expect(aggregate.id).toBe('ord_test_5');
+    expect(aggregate.items).toHaveLength(1);
+    expect(aggregate.totalAmount).toBe(11290000);
     expect(aggregate.status).toBe(OrderStatusEnum.CONFIRMED);
     expect(aggregate.inventoryStatus).toBe(OrderInventoryStatusEnum.RESERVED);
     expect(aggregate.paymentStatus).toBe(OrderPaymentStatusEnum.AUTHORIZED);
