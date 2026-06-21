@@ -16,6 +16,7 @@ import { InventoryPublisherService } from './infrastructure/integrations/invento
 import { PaymentPublisherService } from './infrastructure/integrations/payment-publisher.service';
 import { OrderOutboxRepo } from './infrastructure/outbox/order-outbox.repo';
 import { OrderOutboxWorker } from './infrastructure/outbox/order-outbox.worker';
+import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service';
 
 @Module({
   imports: [CqrsModule],
@@ -23,6 +24,7 @@ import { OrderOutboxWorker } from './infrastructure/outbox/order-outbox.worker';
     OrderResolver,
     CheckoutPricingService,
     OrderPolicy,
+    OrderPrismaService,
     OrderEventStoreRepo,
     OrderEventMapper,
     OrderProjectionRepo,

@@ -10,6 +10,6 @@ export class OrderCreatedFromCartProjectorHandler
   constructor(private readonly projectionRepo: OrderProjectionRepo) {}
 
   async handle(event: OrderCreatedFromCartEvent): Promise<void> {
-    this.projectionRepo.seedDraft(event.orderId, event.buyerId, event.currency);
+    await this.projectionRepo.seedDraft(event.orderId, event.buyerId, event.currency);
   }
 }

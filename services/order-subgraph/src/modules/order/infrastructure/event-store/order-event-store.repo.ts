@@ -1,14 +1,17 @@
 import { Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 
 import { OrderDomainEvent } from '../../domain/events/order-domain-event';
 import { OrderEventMapper } from './order-event.mapper';
 import { OrderEventMetadata, OrderEventRecord } from './order-event-record.type';
+import { OrderPrismaService } from '../prisma/order-prisma.service';
 
 @Injectable()
 export class OrderEventStoreRepo {
-  private readonly streams = new Map<string, OrderEventRecord[]>();
-
-  constructor(private readonly eventMapper: OrderEventMapper) {}
+  constructor(
+    private readonly eventMapper: OrderEventMapper,
+    private readonly prisma: OrderPrismaService,
+  ) {}
 
   async append(
     aggregateId: string,
@@ -16,8 +19,12 @@ export class OrderEventStoreRepo {
     events: OrderDomainEvent[],
     metadata?: OrderEventMetadata,
   ): Promise<void> {
-    const currentStream = this.streams.get(aggregateId) ?? [];
-    const currentVersion = currentStream.length === 0 ? 0 : currentStream.length - 1;
+    const aggregate = await this.prisma.orderEvent.aggregate({
+      where: { aggregateId },
+      _max: { sequence: true },
+    });
+    const currentVersionRaw = aggregate._max.sequence ?? null;
+    const currentVersion = currentVersionRaw ?? 0;
 
     if (currentVersion !== expectedVersion) {
       throw new Error(
@@ -30,18 +37,42 @@ export class OrderEventStoreRepo {
         aggregateId,
         event,
         metadata,
-        sequence: currentStream.length + index,
+        sequence:
+          currentVersionRaw === null ? index : currentVersion + index + 1,
       }),
     );
 
-    this.streams.set(aggregateId, [...currentStream, ...persisted]);
+    await this.prisma.orderEvent.createMany({
+      data: persisted.map((record) => ({
+        id: record.id,
+        aggregateId: record.aggregateId,
+        aggregateType: record.aggregateType,
+        sequence: record.sequence,
+        eventType: record.eventType,
+        eventData: record.eventData as Prisma.InputJsonValue,
+        metadata: record.metadata as Prisma.InputJsonValue,
+        occurredAt: new Date(record.occurredAt),
+      })),
+    });
   }
 
   async loadStream(aggregateId: string): Promise<OrderDomainEvent[]> {
-    const currentStream = this.streams.get(aggregateId) ?? [];
-    return currentStream
-      .slice()
-      .sort((left, right) => left.sequence - right.sequence)
-      .map((record) => this.eventMapper.toDomain(record));
+    const currentStream = await this.prisma.orderEvent.findMany({
+      where: { aggregateId },
+      orderBy: { sequence: 'asc' },
+    });
+
+    return currentStream.map((record) =>
+      this.eventMapper.toDomain({
+        id: record.id,
+        aggregateId: record.aggregateId,
+        aggregateType: 'order',
+        sequence: record.sequence,
+        eventType: record.eventType,
+        eventData: record.eventData as Record<string, unknown>,
+        metadata: record.metadata as OrderEventMetadata,
+        occurredAt: record.occurredAt.toISOString(),
+      } satisfies OrderEventRecord),
+    );
   }
 }

@@ -6,53 +6,106 @@ import {
   OrderPaymentStatus,
   OrderStatus,
 } from '../../graphql/order.gql.type';
+import { OrderPrismaService } from '../prisma/order-prisma.service';
 
 @Injectable()
 export class OrderProjectionRepo {
-  private readonly orders: Order[] = [];
+  constructor(private readonly prisma: OrderPrismaService) {}
 
   async findVisibleById(orderId: string, actorId: string): Promise<Order | null> {
-    return (
-      this.orders.find(
-        (order) =>
-          order.id === orderId &&
-          (order.buyerId === actorId || order.sellerIds.includes(actorId)),
-      ) ?? null
-    );
+    const row = await this.prisma.orderRead.findFirst({
+      where: {
+        orderId,
+        OR: [{ buyerId: actorId }, { sellerIds: { has: actorId } }],
+      },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return this.toOrder(row);
   }
 
   async listByBuyerId(buyerId: string): Promise<Order[]> {
-    return this.orders.filter((order) => order.buyerId === buyerId);
+    const rows = await this.prisma.orderRead.findMany({
+      where: { buyerId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return rows.map((row) => this.toOrder(row));
   }
 
-  markSubmitted(orderId: string): void {
-    const order = this.orders.find((entry) => entry.id === orderId);
-    if (!order) {
-      return;
-    }
-
-    order.status = OrderStatus.SUBMITTED;
-    order.inventoryStatus = OrderInventoryStatus.PENDING;
-    order.paymentStatus = OrderPaymentStatus.PENDING;
-    order.version += 1;
-    order.updatedAt = new Date().toISOString();
+  async markSubmitted(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        status: OrderStatus.SUBMITTED,
+        inventoryStatus: OrderInventoryStatus.PENDING,
+        paymentStatus: OrderPaymentStatus.PENDING,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
   }
 
-  seedDraft(orderId: string, buyerId: string, currency: string): Order {
-    const order: Order = {
-      id: orderId,
-      buyerId,
-      sellerIds: [],
-      status: OrderStatus.DRAFT,
-      inventoryStatus: OrderInventoryStatus.NOT_REQUESTED,
-      paymentStatus: OrderPaymentStatus.NOT_REQUESTED,
-      total: { amount: 0, currency },
-      version: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+  async seedDraft(orderId: string, buyerId: string, currency: string): Promise<Order> {
+    const row = await this.prisma.orderRead.upsert({
+      where: { orderId },
+      update: {
+        buyerId,
+        currency,
+        updatedAt: new Date(),
+      },
+      create: {
+        orderId,
+        buyerId,
+        sellerIds: [],
+        status: OrderStatus.DRAFT,
+        inventoryStatus: OrderInventoryStatus.NOT_REQUESTED,
+        paymentStatus: OrderPaymentStatus.NOT_REQUESTED,
+        totalAmount: 0,
+        currency,
+        version: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      },
+    });
+
+    return this.toOrder(row);
+  }
+
+  private toOrder(row: OrderProjectionRow): Order {
+    return {
+      id: row.orderId ?? row.id ?? '',
+      buyerId: row.buyerId,
+      sellerIds: row.sellerIds ?? [],
+      status: row.status as OrderStatus,
+      inventoryStatus: row.inventoryStatus as OrderInventoryStatus,
+      paymentStatus: row.paymentStatus as OrderPaymentStatus,
+      total: {
+        amount: row.totalAmount,
+        currency: row.currency,
+      },
+      version: row.version,
+      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+      updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
       items: [],
     };
-    this.orders.push(order);
-    return order;
   }
+}
+
+interface OrderProjectionRow {
+  orderId?: string;
+  id?: string;
+  buyerId: string;
+  sellerIds: string[];
+  status: string;
+  inventoryStatus: string;
+  paymentStatus: string;
+  totalAmount: number;
+  currency: string;
+  version: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }

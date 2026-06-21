@@ -10,6 +10,6 @@ export class OrderSubmittedProjectorHandler
   constructor(private readonly projectionRepo: OrderProjectionRepo) {}
 
   async handle(event: OrderSubmittedEvent): Promise<void> {
-    this.projectionRepo.markSubmitted(event.orderId);
+    await this.projectionRepo.markSubmitted(event.orderId);
   }
 }
