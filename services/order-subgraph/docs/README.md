@@ -14,6 +14,7 @@ Tài liệu nên đọc kèm:
 
 - `CQRS_BUS_AND_EVENT_DESIGN.md`: giải thích kỹ bus pattern, mediator mindset, và vai trò của event trong CQRS
 - `ORDER_CQRS_DDD_EVENT_SOURCING_DESIGN.md`: bản thiết kế đầy đủ hơn cho hướng C, dùng `CQRS + DDD + Event Sourcing`
+- `ORDER_CREATION_DESIGN.md`: chốt rule giá, cart snapshot, order snapshot và hướng hoàn thiện `createOrderFromCart` / `createOrderDirect`
 
 ---
 

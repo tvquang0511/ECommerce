@@ -6,6 +6,7 @@ import { OrderPaymentStatusEnum } from '../enums/order-payment-status.enum';
 import { OrderStatusEnum } from '../enums/order-status.enum';
 import { OrderCancelledEvent } from '../events/order-cancelled.event';
 import { OrderConfirmedEvent } from '../events/order-confirmed.event';
+import { OrderCreatedDirectEvent } from '../events/order-created-direct.event';
 import { OrderCreatedFromCartEvent } from '../events/order-created-from-cart.event';
 import { OrderDomainEvent } from '../events/order-domain-event';
 import { OrderInventoryRejectedEvent } from '../events/order-inventory-rejected.event';
@@ -49,6 +50,37 @@ export class OrderAggregate extends AggregateRoot {
     const event = new OrderCreatedFromCartEvent(
       `ord_${randomUUID()}`,
       params.buyerId,
+      params.currency,
+    );
+
+    const aggregate = new OrderAggregate({
+      id: event.orderId,
+      buyerId: event.buyerId,
+      currency: event.currency,
+      status: OrderStatusEnum.DRAFT,
+      inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
+      paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
+      version: -1,
+      uncommittedEvents: [],
+    });
+
+    aggregate.uncommittedEvents.push(event);
+    aggregate.apply(event);
+
+    return aggregate;
+  }
+
+  static createDirect(params: {
+    buyerId: string;
+    productId: string;
+    quantity: number;
+    currency: string;
+  }): OrderAggregate {
+    const event = new OrderCreatedDirectEvent(
+      `ord_${randomUUID()}`,
+      params.buyerId,
+      params.productId,
+      params.quantity,
       params.currency,
     );
 
@@ -176,6 +208,15 @@ export class OrderAggregate extends AggregateRoot {
   }
 
   onOrderCreatedFromCartEvent(event: OrderCreatedFromCartEvent): void {
+    this.id = event.orderId;
+    this.buyerId = event.buyerId;
+    this.currency = event.currency;
+    this.status = OrderStatusEnum.DRAFT;
+    this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;
+    this.paymentStatus = OrderPaymentStatusEnum.NOT_REQUESTED;
+  }
+
+  onOrderCreatedDirectEvent(event: OrderCreatedDirectEvent): void {
     this.id = event.orderId;
     this.buyerId = event.buyerId;
     this.currency = event.currency;

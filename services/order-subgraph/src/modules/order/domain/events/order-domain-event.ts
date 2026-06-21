@@ -1,6 +1,7 @@
 import { OrderCancelledEvent } from './order-cancelled.event';
 import { OrderConfirmedEvent } from './order-confirmed.event';
 import { OrderCreatedFromCartEvent } from './order-created-from-cart.event';
+import { OrderCreatedDirectEvent } from './order-created-direct.event';
 import { OrderInventoryRejectedEvent } from './order-inventory-rejected.event';
 import { OrderInventoryReservedEvent } from './order-inventory-reserved.event';
 import { OrderPaymentAuthorizedEvent } from './order-payment-authorized.event';
@@ -9,6 +10,7 @@ import { OrderSubmittedEvent } from './order-submitted.event';
 
 export type OrderDomainEvent =
   | OrderCreatedFromCartEvent
+  | OrderCreatedDirectEvent
   | OrderSubmittedEvent
   | OrderInventoryReservedEvent
   | OrderInventoryRejectedEvent

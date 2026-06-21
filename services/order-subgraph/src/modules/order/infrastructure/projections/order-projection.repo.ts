@@ -49,6 +49,74 @@ export class OrderProjectionRepo {
     });
   }
 
+  async markCancelled(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        status: OrderStatus.CANCELLED,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async markConfirmed(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        status: OrderStatus.CONFIRMED,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async markPaymentAuthorized(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        paymentStatus: OrderPaymentStatus.AUTHORIZED,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async markPaymentFailed(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        paymentStatus: OrderPaymentStatus.FAILED,
+        status: OrderStatus.FAILED,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async markInventoryReserved(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        inventoryStatus: OrderInventoryStatus.RESERVED,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  async markInventoryRejected(orderId: string): Promise<void> {
+    await this.prisma.orderRead.update({
+      where: { orderId },
+      data: {
+        inventoryStatus: OrderInventoryStatus.REJECTED,
+        status: OrderStatus.FAILED,
+        version: { increment: 1 },
+        updatedAt: new Date(),
+      },
+    });
+  }
+
   async seedDraft(orderId: string, buyerId: string, currency: string): Promise<Order> {
     const row = await this.prisma.orderRead.upsert({
       where: { orderId },

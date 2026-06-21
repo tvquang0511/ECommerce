@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 
 import { OrderCancelledEvent } from '../../domain/events/order-cancelled.event';
 import { OrderConfirmedEvent } from '../../domain/events/order-confirmed.event';
+import { OrderCreatedDirectEvent } from '../../domain/events/order-created-direct.event';
 import { OrderCreatedFromCartEvent } from '../../domain/events/order-created-from-cart.event';
 import { OrderDomainEvent } from '../../domain/events/order-domain-event';
 import { OrderInventoryRejectedEvent } from '../../domain/events/order-inventory-rejected.event';
@@ -40,6 +41,14 @@ export class OrderEventMapper {
           String(record.eventData.buyerId),
           String(record.eventData.currency),
         );
+      case 'OrderCreatedDirect':
+        return new OrderCreatedDirectEvent(
+          String(record.eventData.orderId),
+          String(record.eventData.buyerId),
+          String(record.eventData.productId),
+          Number(record.eventData.quantity),
+          String(record.eventData.currency),
+        );
       case 'OrderSubmitted':
         return new OrderSubmittedEvent(String(record.eventData.orderId));
       case 'OrderInventoryReserved':
@@ -73,6 +82,16 @@ export class OrderEventMapper {
       return {
         orderId: event.orderId,
         buyerId: event.buyerId,
+        currency: event.currency,
+      };
+    }
+
+    if (event instanceof OrderCreatedDirectEvent) {
+      return {
+        orderId: event.orderId,
+        buyerId: event.buyerId,
+        productId: event.productId,
+        quantity: event.quantity,
         currency: event.currency,
       };
     }

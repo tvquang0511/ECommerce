@@ -18,4 +18,8 @@ export class CheckoutPricingService {
       currency: 'VND',
     };
   }
+
+  async previewDirect(productId: string, quantity: number) {
+    return this.productReader.previewDirectOrder(productId, quantity);
+  }
 }

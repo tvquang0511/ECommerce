@@ -16,6 +16,23 @@ export class CreateOrderFromCartInput {
 }
 
 @InputType()
+export class CreateOrderDirectInput {
+  @Field()
+  @IsString()
+  @Length(1, 128)
+  productId!: string;
+
+  @Field(() => Int)
+  @Min(1)
+  quantity!: number;
+
+  @Field()
+  @IsString()
+  @Length(3, 128)
+  idempotencyKey!: string;
+}
+
+@InputType()
 export class SubmitOrderInput {
   @Field()
   @IsString()

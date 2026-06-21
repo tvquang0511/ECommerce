@@ -1,0 +1,15 @@
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+
+import { OrderPaymentAuthorizedEvent } from '../../../domain/events/order-payment-authorized.event';
+import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
+
+@EventsHandler(OrderPaymentAuthorizedEvent)
+export class OrderPaymentAuthorizedProjectorHandler
+  implements IEventHandler<OrderPaymentAuthorizedEvent>
+{
+  constructor(private readonly projectionRepo: OrderProjectionRepo) {}
+
+  async handle(event: OrderPaymentAuthorizedEvent): Promise<void> {
+    await this.projectionRepo.markPaymentAuthorized(event.orderId);
+  }
+}

@@ -8,9 +8,11 @@ import { AuthActor } from '../../auth/auth.types';
 import { Order, OrderCommandResult } from './order.gql.type';
 import {
   CancelOrderInput,
+  CreateOrderDirectInput,
   CreateOrderFromCartInput,
   SubmitOrderInput,
 } from './order.input';
+import { CreateOrderDirectCommand } from '../application/commands/create-order-direct/create-order-direct.command';
 import { CreateOrderFromCartCommand } from '../application/commands/create-order-from-cart/create-order-from-cart.command';
 import { SubmitOrderCommand } from '../application/commands/submit-order/submit-order.command';
 import { CancelOrderCommand } from '../application/commands/cancel-order/cancel-order.command';
@@ -58,6 +60,22 @@ export class OrderResolver {
       new CreateOrderFromCartCommand(
         actor.userId,
         input.cartId,
+        input.idempotencyKey,
+      ),
+    );
+  }
+
+  @Mutation(() => OrderCommandResult, { name: 'createOrderDirect' })
+  @UseGuards(AuthGuard)
+  async createOrderDirect(
+    @Args('input') input: CreateOrderDirectInput,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<OrderCommandResult> {
+    return this.commandBus.execute(
+      new CreateOrderDirectCommand(
+        actor.userId,
+        input.productId,
+        input.quantity,
         input.idempotencyKey,
       ),
     );

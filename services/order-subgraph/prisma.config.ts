@@ -13,6 +13,6 @@ export default defineConfig({
   datasource: {
     url:
       process.env.ORDER_DATABASE_URL ??
-      'postgresql://postgres:postgres@localhost:5432/ecommerce',
+      'postgresql://postgres:postgres@localhost:5432/order',
   },
 });
