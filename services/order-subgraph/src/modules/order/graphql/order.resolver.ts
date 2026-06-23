@@ -1,5 +1,5 @@
 import { CommandBus, QueryBus } from '@nestjs/cqrs';
-import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { Args, Context, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
 import { AuthGuard } from '../../auth/guards/auth.guard';
@@ -55,12 +55,14 @@ export class OrderResolver {
   async createOrderFromCart(
     @Args('input') input: CreateOrderFromCartInput,
     @CurrentActor() actor: AuthActor,
+    @Context('req') req: { headers?: Record<string, string | string[] | undefined> },
   ): Promise<OrderCommandResult> {
     return this.commandBus.execute(
       new CreateOrderFromCartCommand(
         actor.userId,
         input.cartId,
         input.idempotencyKey,
+        this.extractBearerToken(req),
       ),
     );
   }
@@ -112,5 +114,18 @@ export class OrderResolver {
         input.reason,
       ),
     );
+  }
+
+  private extractBearerToken(req: {
+    headers?: Record<string, string | string[] | undefined>;
+  }): string | undefined {
+    const authorization = req.headers?.authorization;
+    const headerValue = Array.isArray(authorization) ? authorization[0] : authorization;
+    if (!headerValue) {
+      return undefined;
+    }
+
+    const match = /^Bearer\s+(.+)$/.exec(headerValue.trim());
+    return match?.[1]?.trim() || undefined;
   }
 }

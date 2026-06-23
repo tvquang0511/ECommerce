@@ -19,12 +19,17 @@ export class CreateOrderFromCartHandler
   async execute(command: CreateOrderFromCartCommand): Promise<OrderCommandResult> {
     const pricingPreview = await this.checkoutPricingService.previewFromCart(
       command.buyerId,
+      command.accessToken,
       command.cartId,
     );
 
     const aggregate = OrderAggregate.createDraft({
       buyerId: command.buyerId,
+      items: pricingPreview.items,
+      sellerIds: pricingPreview.sellerIds,
+      totalAmount: pricingPreview.totalAmount,
       currency: pricingPreview.currency,
+      cartId: pricingPreview.cartId,
     });
 
     await this.eventStoreRepo.append(aggregate.id, 0, aggregate.uncommittedEvents);
@@ -35,8 +40,7 @@ export class CreateOrderFromCartHandler
       status: OrderStatus.DRAFT,
       version: 0,
       correlationId: command.idempotencyKey,
-      message:
-        'Skeleton create-order-from-cart handler ready. Replace placeholder integrations next.',
+      message: 'Draft order created from cart with repriced product snapshots.',
     };
   }
 }
