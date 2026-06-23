@@ -42,6 +42,9 @@ yarn-error.log*
 .vscode/
 .idea/
 
+# prisma
+services/*/prisma/generated/
+
 # OS
 .DS_Store
 Thumbs.db

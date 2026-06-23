@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
+import { AuthModule } from '../auth/auth.module';
 import { OrderResolver } from './graphql/order.resolver';
 import { OrderCommandHandlers } from './application/commands';
 import { OrderQueryHandlers } from './application/queries';
@@ -19,7 +20,7 @@ import { OrderOutboxWorker } from './infrastructure/outbox/order-outbox.worker';
 import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service';
 
 @Module({
-  imports: [CqrsModule],
+  imports: [CqrsModule, AuthModule],
   providers: [
     OrderResolver,
     CheckoutPricingService,

@@ -9,6 +9,12 @@ input CancelOrderInput {
   reason: String
 }
 
+input CreateOrderDirectInput {
+  idempotencyKey: String!
+  productId: String!
+  quantity: Int!
+}
+
 input CreateOrderFromCartInput {
   cartId: String
   idempotencyKey: String!
@@ -21,6 +27,7 @@ type Money {
 
 type Mutation {
   cancelOrder(input: CancelOrderInput!): OrderCommandResult!
+  createOrderDirect(input: CreateOrderDirectInput!): OrderCommandResult!
   createOrderFromCart(input: CreateOrderFromCartInput!): OrderCommandResult!
   submitOrder(input: SubmitOrderInput!): OrderCommandResult!
 }

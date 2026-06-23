@@ -80,9 +80,17 @@ export type PublicUser = {
   gender: Gender | null;
 };
 
+export type RegisterResult = {
+  requiresEmailVerification: true;
+  challengeId: string;
+  expiresAt: string;
+  user: PublicUser;
+  devOtp?: string;
+};
+
 export const userService = {
   register(input: { email: string; password: string; displayName: string }) {
-    return request<{ accessToken: string; user: PublicUser }>(
+    return request<RegisterResult>(
       `${AUTH_API_PREFIX}/register`,
       {
         method: 'POST',
@@ -106,6 +114,25 @@ export const userService = {
   verifyTwoFactor(input: { challengeId: string; code: string }) {
     return request<{ accessToken: string; user: PublicUser }>(
       `${AUTH_API_PREFIX}/2fa/verify`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(input),
+      },
+    );
+  },
+
+  verifyEmail(input: { challengeId: string; code: string }) {
+    return request<{ ok: true }>(`${AUTH_API_PREFIX}/verify-email`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  },
+
+  resendEmailVerification(input: { email: string }) {
+    return request<{ ok: true; challengeId?: string; expiresAt?: string; devOtp?: string }>(
+      `${AUTH_API_PREFIX}/verify-email/resend`,
       {
         method: 'POST',
         headers: { 'content-type': 'application/json' },

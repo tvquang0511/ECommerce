@@ -13,11 +13,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAccessToken } from '@/lib/auth/useAccessToken';
-import { userService } from '@/lib/http/userService';
+import { userService, type RegisterResult } from '@/lib/http/userService';
 
 export default function RegisterPage() {
   const router = useRouter();
-  const { accessToken, setToken } = useAccessToken();
+  const { accessToken } = useAccessToken();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -45,10 +45,23 @@ export default function RegisterPage() {
     }
 
     try {
-      const res = await userService.register({ displayName, email, password });
-      setToken(res.accessToken);
-      toast.success('Tạo tài khoản thành công');
-      router.replace('/account/profile');
+      const res = (await userService.register({
+        displayName,
+        email,
+        password,
+      })) as RegisterResult;
+
+      toast.success('Tạo tài khoản thành công. Hãy xác minh email để tiếp tục.');
+
+      const params = new URLSearchParams({
+        email,
+        challengeId: res.challengeId,
+      });
+      if (res.devOtp) {
+        params.set('devOtp', res.devOtp);
+      }
+
+      router.replace(`/auth/verify-email?${params.toString()}`);
     } catch (err) {
       setError(err);
     } finally {

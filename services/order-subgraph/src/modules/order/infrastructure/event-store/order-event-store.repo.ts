@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import type { Prisma as PrismaTypes } from '../../../../../prisma/generated';
 
 import { OrderDomainEvent } from '../../domain/events/order-domain-event';
 import { OrderEventMapper } from './order-event.mapper';
 import { OrderEventMetadata, OrderEventRecord } from './order-event-record.type';
 import { OrderPrismaService } from '../prisma/order-prisma.service';
+import { Prisma } from '../prisma/order-prisma.generated';
 
 @Injectable()
 export class OrderEventStoreRepo {
@@ -49,8 +50,8 @@ export class OrderEventStoreRepo {
         aggregateType: record.aggregateType,
         sequence: record.sequence,
         eventType: record.eventType,
-        eventData: record.eventData as Prisma.InputJsonValue,
-        metadata: record.metadata as Prisma.InputJsonValue,
+        eventData: record.eventData as PrismaTypes.InputJsonValue,
+        metadata: record.metadata as PrismaTypes.InputJsonValue,
         occurredAt: new Date(record.occurredAt),
       })),
     });

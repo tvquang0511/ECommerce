@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { Prisma } from '@prisma/client';
+import type { Prisma as PrismaTypes } from '../../../../../prisma/generated';
 
 import { OrderPrismaService } from '../prisma/order-prisma.service';
+import { Prisma } from '../prisma/order-prisma.generated';
 
 export interface OrderOutboxEntry {
   id: string;
@@ -32,8 +33,8 @@ export class OrderOutboxRepo {
         id: randomUUID(),
         aggregateId,
         eventType,
-        payload: payload as Prisma.InputJsonValue,
-        headers: headers as Prisma.InputJsonValue,
+        payload: payload as PrismaTypes.InputJsonValue,
+        headers: headers as PrismaTypes.InputJsonValue,
       },
     });
   }
