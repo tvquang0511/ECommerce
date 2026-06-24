@@ -2,6 +2,7 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderCreatedFromCartEvent } from '../../../domain/events/order-created-from-cart.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
+import { getEventSequenceOrThrow } from '../projector-sequence.util';
 
 @EventsHandler(OrderCreatedFromCartEvent)
 export class OrderCreatedFromCartProjectorHandler
@@ -17,6 +18,7 @@ export class OrderCreatedFromCartProjectorHandler
       items: event.items,
       totalAmount: event.totalAmount,
       currency: event.currency,
+      sequence: getEventSequenceOrThrow(event),
     });
   }
 }

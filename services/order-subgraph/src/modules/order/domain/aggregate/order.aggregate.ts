@@ -27,6 +27,8 @@ export class OrderAggregate extends AggregateRoot {
   public inventoryStatus: OrderInventoryStatusEnum;
   public paymentStatus: OrderPaymentStatusEnum;
   public version: number;
+  public cartId?: string;
+  public selectedCartItemIds: string[];
   public readonly uncommittedEvents: OrderDomainEvent[];
 
   private constructor(params: {
@@ -40,6 +42,8 @@ export class OrderAggregate extends AggregateRoot {
     inventoryStatus: OrderInventoryStatusEnum;
     paymentStatus: OrderPaymentStatusEnum;
     version: number;
+    cartId?: string;
+    selectedCartItemIds?: string[];
     uncommittedEvents?: OrderDomainEvent[];
   }) {
     super();
@@ -53,6 +57,8 @@ export class OrderAggregate extends AggregateRoot {
     this.inventoryStatus = params.inventoryStatus;
     this.paymentStatus = params.paymentStatus;
     this.version = params.version;
+    this.cartId = params.cartId;
+    this.selectedCartItemIds = params.selectedCartItemIds ?? [];
     this.uncommittedEvents = params.uncommittedEvents ?? [];
   }
 
@@ -63,6 +69,7 @@ export class OrderAggregate extends AggregateRoot {
     sellerIds?: string[];
     totalAmount?: number;
     cartId?: string;
+    selectedItemIds?: string[];
   }): OrderAggregate {
     const event = new OrderCreatedFromCartEvent(
       `ord_${randomUUID()}`,
@@ -72,6 +79,7 @@ export class OrderAggregate extends AggregateRoot {
       params.totalAmount ?? 0,
       params.currency,
       params.cartId,
+      params.selectedItemIds ?? [],
     );
 
     const aggregate = new OrderAggregate({
@@ -85,6 +93,8 @@ export class OrderAggregate extends AggregateRoot {
       inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
       paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
       version: -1,
+      cartId: event.cartId,
+      selectedCartItemIds: event.selectedItemIds,
       uncommittedEvents: [],
     });
 
@@ -121,6 +131,7 @@ export class OrderAggregate extends AggregateRoot {
       inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
       paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
       version: -1,
+      selectedCartItemIds: [],
       uncommittedEvents: [],
     });
 
@@ -146,6 +157,7 @@ export class OrderAggregate extends AggregateRoot {
       inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
       paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
       version: -1,
+      selectedCartItemIds: [],
     });
 
     events.forEach((event, index) => {
@@ -246,6 +258,8 @@ export class OrderAggregate extends AggregateRoot {
     this.sellerIds = [...event.sellerIds];
     this.totalAmount = event.totalAmount;
     this.currency = event.currency;
+    this.cartId = event.cartId;
+    this.selectedCartItemIds = [...event.selectedItemIds];
     this.status = OrderStatusEnum.DRAFT;
     this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;
     this.paymentStatus = OrderPaymentStatusEnum.NOT_REQUESTED;
@@ -258,6 +272,8 @@ export class OrderAggregate extends AggregateRoot {
     this.sellerIds = [...event.sellerIds];
     this.totalAmount = event.totalAmount;
     this.currency = event.currency;
+    this.cartId = undefined;
+    this.selectedCartItemIds = [];
     this.status = OrderStatusEnum.DRAFT;
     this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;
     this.paymentStatus = OrderPaymentStatusEnum.NOT_REQUESTED;

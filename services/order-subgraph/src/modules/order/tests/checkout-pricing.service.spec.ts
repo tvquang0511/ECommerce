@@ -55,7 +55,7 @@ describe('CheckoutPricingService', () => {
     cartReader.readBuyerCart.mockResolvedValue(cart);
     productReader.revalidateProducts.mockResolvedValue(liveProducts);
 
-    const result = await service.previewFromCart('buyer-1', 'token-123', 'cart-1');
+    const result = await service.previewFromCart('buyer-1', 'token-123', 'cart-1', ['ci-1']);
 
     expect(cartReader.readBuyerCart).toHaveBeenCalledWith('buyer-1', 'token-123', 'cart-1');
     expect(productReader.revalidateProducts).toHaveBeenCalledWith(['p1003']);
@@ -108,7 +108,7 @@ describe('CheckoutPricingService', () => {
     });
     productReader.revalidateProducts.mockResolvedValue([]);
 
-    await expect(service.previewFromCart('buyer-2')).rejects.toThrow(
+    await expect(service.previewFromCart('buyer-2', undefined, undefined, ['ci-2'])).rejects.toThrow(
       'Missing product snapshot for p404',
     );
   });
@@ -158,8 +158,37 @@ describe('CheckoutPricingService', () => {
       },
     ]);
 
-    await expect(service.previewFromCart('buyer-3')).rejects.toThrow(
+    await expect(service.previewFromCart('buyer-3', undefined, undefined, ['ci-3', 'ci-4'])).rejects.toThrow(
       'Mixed currencies are not supported yet',
     );
+  });
+
+  it('fails when no cart items are selected', async () => {
+    await expect(service.previewFromCart('buyer-4')).rejects.toThrow(
+      'At least one cart item must be selected',
+    );
+  });
+
+  it('fails when some selected cart items do not exist', async () => {
+    cartReader.readBuyerCart.mockResolvedValue({
+      cartId: 'cart-4',
+      buyerId: 'buyer-4',
+      currency: 'VND',
+      items: [
+        {
+          itemId: 'ci-5',
+          productId: 'p1003',
+          quantity: 1,
+          titleSnapshot: 'Item A',
+          imageSnapshot: null,
+          unitPriceAmount: 100,
+          currency: 'VND',
+        },
+      ],
+    });
+
+    await expect(
+      service.previewFromCart('buyer-4', undefined, undefined, ['ci-5', 'ci-404']),
+    ).rejects.toThrow('Selected cart items not found: ci-404');
   });
 });

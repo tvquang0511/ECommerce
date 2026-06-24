@@ -34,6 +34,7 @@ describe('OrderAggregate', () => {
       totalAmount: 11290000,
       currency: 'VND',
       cartId: 'cart-1',
+      selectedItemIds: ['ci-1'],
     });
 
     expect(aggregate.status).toBe(OrderStatusEnum.DRAFT);
@@ -44,6 +45,7 @@ describe('OrderAggregate', () => {
     expect(aggregate.totalAmount).toBe(11290000);
     expect(aggregate.uncommittedEvents).toHaveLength(1);
     expect(aggregate.uncommittedEvents[0]).toBeInstanceOf(OrderCreatedFromCartEvent);
+    expect(aggregate.selectedCartItemIds).toEqual(['ci-1']);
   });
 
   it('submits a draft order', () => {
@@ -72,6 +74,8 @@ describe('OrderAggregate', () => {
         ['seller-1'],
         11290000,
         'VND',
+        undefined,
+        ['ci-1'],
       ),
       new OrderSubmittedEvent('ord_test_1'),
     ]);
@@ -91,6 +95,8 @@ describe('OrderAggregate', () => {
         ['seller-1'],
         11290000,
         'VND',
+        undefined,
+        ['ci-1'],
       ),
       new OrderSubmittedEvent('ord_test_2'),
     ]);
@@ -115,6 +121,8 @@ describe('OrderAggregate', () => {
         ['seller-1'],
         11290000,
         'VND',
+        undefined,
+        ['ci-1'],
       ),
       new OrderSubmittedEvent('ord_test_3'),
     ]);
@@ -140,6 +148,8 @@ describe('OrderAggregate', () => {
         ['seller-1'],
         11290000,
         'VND',
+        undefined,
+        ['ci-1'],
       ),
       new OrderSubmittedEvent('ord_test_4'),
     ]);
@@ -165,6 +175,8 @@ describe('OrderAggregate', () => {
         ['seller-1'],
         11290000,
         'VND',
+        undefined,
+        ['ci-1'],
       ),
       new OrderSubmittedEvent('ord_test_5'),
       new OrderInventoryReservedEvent('ord_test_5'),

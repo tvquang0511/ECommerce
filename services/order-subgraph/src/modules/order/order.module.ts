@@ -12,6 +12,7 @@ import { OrderEventStoreRepo } from './infrastructure/event-store/order-event-st
 import { OrderEventMapper } from './infrastructure/event-store/order-event.mapper';
 import { OrderProjectionRepo } from './infrastructure/projections/order-projection.repo';
 import { CartReaderService } from './infrastructure/integrations/cart-reader.service';
+import { CartWriterService } from './infrastructure/integrations/cart-writer.service';
 import { ProductReaderService } from './infrastructure/integrations/product-reader.service';
 import { InventoryPublisherService } from './infrastructure/integrations/inventory-publisher.service';
 import { PaymentPublisherService } from './infrastructure/integrations/payment-publisher.service';
@@ -30,6 +31,7 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
     OrderEventMapper,
     OrderProjectionRepo,
     CartReaderService,
+    CartWriterService,
     ProductReaderService,
     InventoryPublisherService,
     PaymentPublisherService,

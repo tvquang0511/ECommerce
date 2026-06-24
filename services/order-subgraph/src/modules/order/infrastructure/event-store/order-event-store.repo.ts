@@ -5,7 +5,6 @@ import { OrderDomainEvent } from '../../domain/events/order-domain-event';
 import { OrderEventMapper } from './order-event.mapper';
 import { OrderEventMetadata, OrderEventRecord } from './order-event-record.type';
 import { OrderPrismaService } from '../prisma/order-prisma.service';
-import { Prisma } from '../prisma/order-prisma.generated';
 
 @Injectable()
 export class OrderEventStoreRepo {
@@ -43,6 +42,13 @@ export class OrderEventStoreRepo {
       }),
     );
 
+    persisted.forEach((record, index) => {
+      const event = events[index];
+      event.eventId = record.id;
+      event.sequence = record.sequence;
+      event.occurredAt = record.occurredAt;
+    });
+
     await this.prisma.orderEvent.createMany({
       data: persisted.map((record) => ({
         id: record.id,
@@ -64,16 +70,37 @@ export class OrderEventStoreRepo {
     });
 
     return currentStream.map((record) =>
-      this.eventMapper.toDomain({
-        id: record.id,
-        aggregateId: record.aggregateId,
-        aggregateType: 'order',
-        sequence: record.sequence,
-        eventType: record.eventType,
-        eventData: record.eventData as Record<string, unknown>,
-        metadata: record.metadata as OrderEventMetadata,
-        occurredAt: record.occurredAt.toISOString(),
-      } satisfies OrderEventRecord),
+      this.attachEnvelope(
+        this.eventMapper.toDomain({
+          id: record.id,
+          aggregateId: record.aggregateId,
+          aggregateType: 'order',
+          sequence: record.sequence,
+          eventType: record.eventType,
+          eventData: record.eventData as Record<string, unknown>,
+          metadata: record.metadata as OrderEventMetadata,
+          occurredAt: record.occurredAt.toISOString(),
+        } satisfies OrderEventRecord),
+        record,
+      ),
     );
+  }
+
+  private attachEnvelope(
+    event: OrderDomainEvent,
+    record: {
+      id: string;
+      sequence: number;
+      occurredAt: string | Date;
+    },
+  ): OrderDomainEvent {
+    event.eventId = record.id;
+    event.sequence = record.sequence;
+    event.occurredAt =
+      record.occurredAt instanceof Date
+        ? record.occurredAt.toISOString()
+        : record.occurredAt;
+
+    return event;
   }
 }

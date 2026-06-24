@@ -7,14 +7,15 @@ import { OrderInventoryReservedEvent } from './order-inventory-reserved.event';
 import { OrderPaymentAuthorizedEvent } from './order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from './order-payment-failed.event';
 import { OrderSubmittedEvent } from './order-submitted.event';
+import { OrderEventEnvelope } from './order-event-envelope.type';
 
 export type OrderDomainEvent =
-  | OrderCreatedFromCartEvent
-  | OrderCreatedDirectEvent
-  | OrderSubmittedEvent
-  | OrderInventoryReservedEvent
-  | OrderInventoryRejectedEvent
-  | OrderPaymentAuthorizedEvent
-  | OrderPaymentFailedEvent
-  | OrderConfirmedEvent
-  | OrderCancelledEvent;
+  | (OrderCreatedFromCartEvent & OrderEventEnvelope)
+  | (OrderCreatedDirectEvent & OrderEventEnvelope)
+  | (OrderSubmittedEvent & OrderEventEnvelope)
+  | (OrderInventoryReservedEvent & OrderEventEnvelope)
+  | (OrderInventoryRejectedEvent & OrderEventEnvelope)
+  | (OrderPaymentAuthorizedEvent & OrderEventEnvelope)
+  | (OrderPaymentFailedEvent & OrderEventEnvelope)
+  | (OrderConfirmedEvent & OrderEventEnvelope)
+  | (OrderCancelledEvent & OrderEventEnvelope);

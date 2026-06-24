@@ -18,6 +18,7 @@ export class OrderCreatedFromCartOutboxHandler
       totalAmount: event.totalAmount,
       currency: event.currency,
       cartId: event.cartId ?? null,
+      selectedItemIds: event.selectedItemIds,
     });
   }
 }

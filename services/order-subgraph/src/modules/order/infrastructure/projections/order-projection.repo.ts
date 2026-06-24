@@ -44,84 +44,49 @@ export class OrderProjectionRepo {
     return rows.map((row) => this.toOrder(row));
   }
 
-  async markSubmitted(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        status: OrderStatus.SUBMITTED,
-        inventoryStatus: OrderInventoryStatus.PENDING,
-        paymentStatus: OrderPaymentStatus.PENDING,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markSubmitted(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      status: OrderStatus.SUBMITTED,
+      inventoryStatus: OrderInventoryStatus.PENDING,
+      paymentStatus: OrderPaymentStatus.PENDING,
     });
   }
 
-  async markCancelled(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        status: OrderStatus.CANCELLED,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markCancelled(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      status: OrderStatus.CANCELLED,
     });
   }
 
-  async markConfirmed(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        status: OrderStatus.CONFIRMED,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markConfirmed(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      status: OrderStatus.CONFIRMED,
     });
   }
 
-  async markPaymentAuthorized(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        paymentStatus: OrderPaymentStatus.AUTHORIZED,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markPaymentAuthorized(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      paymentStatus: OrderPaymentStatus.AUTHORIZED,
     });
   }
 
-  async markPaymentFailed(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        paymentStatus: OrderPaymentStatus.FAILED,
-        status: OrderStatus.FAILED,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markPaymentFailed(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      paymentStatus: OrderPaymentStatus.FAILED,
+      status: OrderStatus.FAILED,
     });
   }
 
-  async markInventoryReserved(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        inventoryStatus: OrderInventoryStatus.RESERVED,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markInventoryReserved(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      inventoryStatus: OrderInventoryStatus.RESERVED,
     });
   }
 
-  async markInventoryRejected(orderId: string): Promise<void> {
-    await this.prisma.orderRead.update({
-      where: { orderId },
-      data: {
-        inventoryStatus: OrderInventoryStatus.REJECTED,
-        status: OrderStatus.FAILED,
-        version: { increment: 1 },
-        updatedAt: new Date(),
-      },
+  async markInventoryRejected(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      inventoryStatus: OrderInventoryStatus.REJECTED,
+      status: OrderStatus.FAILED,
     });
   }
 
@@ -132,10 +97,22 @@ export class OrderProjectionRepo {
     items: OrderItemSnapshot[];
     totalAmount: number;
     currency: string;
+    sequence: number;
   }): Promise<Order> {
     const now = new Date();
 
     const row = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.orderRead.findUnique({
+        where: { orderId: params.orderId },
+        include: {
+          items: true,
+        },
+      });
+
+      if (existing && existing.version >= params.sequence) {
+        return existing;
+      }
+
       const orderRow = await tx.orderRead.upsert({
         where: { orderId: params.orderId },
         update: {
@@ -143,6 +120,7 @@ export class OrderProjectionRepo {
           sellerIds: params.sellerIds,
           totalAmount: params.totalAmount,
           currency: params.currency,
+          version: params.sequence,
           updatedAt: now,
         },
         create: {
@@ -154,7 +132,7 @@ export class OrderProjectionRepo {
           paymentStatus: OrderPaymentStatus.NOT_REQUESTED,
           totalAmount: params.totalAmount,
           currency: params.currency,
-          version: 0,
+          version: params.sequence,
           createdAt: now,
           updatedAt: now,
         },
@@ -188,6 +166,30 @@ export class OrderProjectionRepo {
     });
 
     return this.toOrder(row);
+  }
+
+  private async updateIfNewer(
+    orderId: string,
+    sequence: number,
+    data: {
+      status?: OrderStatus;
+      inventoryStatus?: OrderInventoryStatus;
+      paymentStatus?: OrderPaymentStatus;
+    },
+  ): Promise<void> {
+    await this.prisma.orderRead.updateMany({
+      where: {
+        orderId,
+        version: {
+          lt: sequence,
+        },
+      },
+      data: {
+        ...data,
+        version: sequence,
+        updatedAt: new Date(),
+      },
+    });
   }
 
   private toOrder(row: OrderProjectionRow): Order {

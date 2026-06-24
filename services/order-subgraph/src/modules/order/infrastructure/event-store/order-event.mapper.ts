@@ -45,6 +45,7 @@ export class OrderEventMapper {
           this.asNumber(record.eventData.totalAmount),
           String(record.eventData.currency),
           this.asOptionalString(record.eventData.cartId),
+          this.asStringArray(record.eventData.selectedItemIds),
         );
       case 'OrderCreatedDirect':
         return new OrderCreatedDirectEvent(
@@ -93,6 +94,7 @@ export class OrderEventMapper {
         totalAmount: event.totalAmount,
         currency: event.currency,
         cartId: event.cartId ?? null,
+        selectedItemIds: event.selectedItemIds,
       };
     }
 

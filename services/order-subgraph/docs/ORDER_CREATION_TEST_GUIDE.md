@@ -10,6 +10,8 @@ Muc tieu:
 - xac nhan order creation da dung gia live tu `product-subgraph`
 - xac nhan `order_events`, `orders_read`, `order_items_read` da duoc cap nhat
 - xac nhan read model tra ve snapshot thuc su cua order
+- xac nhan `createOrderFromCart` chi tao draft tu cac cart item duoc chon
+- xac nhan cart chi bi xoa cac item da chon sau `submitOrder` thanh cong
 
 ---
 
@@ -237,12 +239,19 @@ Variables:
 ```json
 {
   "input": {
+    "selectedItemIds": ["<CART_ITEM_ID_1>"],
     "idempotencyKey": "order-cart-001"
   }
 }
 ```
 
+`selectedItemIds` la danh sach item ma buyer chon de dat hang, giong luong cua Shopee.
+
 Neu ban muon truyen `cartId` thi co the lay tu query `cart`, nhung hien tai `order-subgraph` dang doc cart cua buyer va `cartId` chu yeu de trace.
+
+Vi du neu cart co 3 item, buyer co the chi chon 1 hoac 2 item de tao draft order.
+
+Cart chua bi xoa o buoc nay.
 
 Ky vong:
 
@@ -346,17 +355,78 @@ Ky vong:
 
 ---
 
-## 6. Cac truong hop ban nen thu them
+## 6. Test `submitOrder` sau khi tao tu cart
+
+Mutation:
+
+```graphql
+mutation SubmitOrder($input: SubmitOrderInput!) {
+  submitOrder(input: $input) {
+    orderId
+    status
+    version
+    correlationId
+    message
+  }
+}
+```
+
+Variables:
+
+```json
+{
+  "input": {
+    "orderId": "<ORDER_ID_TAO_TU_CART>",
+    "expectedVersion": 0,
+    "idempotencyKey": "submit-order-cart-001"
+  }
+}
+```
+
+Ky vong:
+
+- `status = SUBMITTED`
+- `version = 1`
+- chi sau buoc nay moi remove cac `selectedItemIds` khoi cart
+
+Sau do query lai `cart`:
+
+```graphql
+query Cart {
+  cart {
+    id
+    items {
+      id
+      productId
+      quantity
+      titleSnapshot
+    }
+  }
+}
+```
+
+Ky vong:
+
+- cac item da chon de tao order khong con trong cart
+- cac item khong chon van con nguyen
+- neu `submitOrder` fail thi cart giu nguyen
+
+---
+
+## 7. Cac truong hop ban nen thu them
 
 - `createOrderDirect` voi product khong `APPROVED`
 - `createOrderDirect` voi `quantity <= 0`
 - `createOrderFromCart` khi cart rong
+- `createOrderFromCart` khi khong truyen `selectedItemIds`
+- `createOrderFromCart` khi `selectedItemIds` co item khong ton tai trong cart
 - `createOrderFromCart` khi product trong cart bi doi gia
 - `createOrderFromCart` khi mot product trong cart bi `ARCHIVED` hoac `REJECTED`
+- `submitOrder` tu cart va kiem tra chi xoa selected items
 
 ---
 
-## 7. Lenh chay test code
+## 8. Lenh chay test code
 
 Chay cac test lien quan den order creation:
 

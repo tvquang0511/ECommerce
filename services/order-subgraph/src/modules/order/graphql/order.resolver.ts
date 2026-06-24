@@ -61,6 +61,7 @@ export class OrderResolver {
       new CreateOrderFromCartCommand(
         actor.userId,
         input.cartId,
+        input.selectedItemIds,
         input.idempotencyKey,
         this.extractBearerToken(req),
       ),
@@ -88,6 +89,7 @@ export class OrderResolver {
   async submitOrder(
     @Args('input') input: SubmitOrderInput,
     @CurrentActor() actor: AuthActor,
+    @Context('req') req: { headers?: Record<string, string | string[] | undefined> },
   ): Promise<OrderCommandResult> {
     return this.commandBus.execute(
       new SubmitOrderCommand(
@@ -95,6 +97,7 @@ export class OrderResolver {
         actor.userId,
         input.expectedVersion,
         input.idempotencyKey,
+        this.extractBearerToken(req),
       ),
     );
   }

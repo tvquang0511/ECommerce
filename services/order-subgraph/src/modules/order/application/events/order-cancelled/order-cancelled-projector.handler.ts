@@ -2,6 +2,7 @@ import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderCancelledEvent } from '../../../domain/events/order-cancelled.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
+import { getEventSequenceOrThrow } from '../projector-sequence.util';
 
 @EventsHandler(OrderCancelledEvent)
 export class OrderCancelledProjectorHandler
@@ -10,6 +11,6 @@ export class OrderCancelledProjectorHandler
   constructor(private readonly projectionRepo: OrderProjectionRepo) {}
 
   async handle(event: OrderCancelledEvent): Promise<void> {
-    await this.projectionRepo.markCancelled(event.orderId);
+    await this.projectionRepo.markCancelled(event.orderId, getEventSequenceOrThrow(event));
   }
 }

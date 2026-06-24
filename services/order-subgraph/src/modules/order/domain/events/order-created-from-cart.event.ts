@@ -11,5 +11,6 @@ export class OrderCreatedFromCartEvent {
     public readonly totalAmount: number,
     public readonly currency: string,
     public readonly cartId?: string,
+    public readonly selectedItemIds: string[] = [],
   ) {}
 }

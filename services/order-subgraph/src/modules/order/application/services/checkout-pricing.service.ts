@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 
 import { CartReaderService } from '../../infrastructure/integrations/cart-reader.service';
@@ -24,17 +24,38 @@ export class CheckoutPricingService {
     buyerId: string,
     accessToken?: string,
     cartId?: string,
+    selectedItemIds: string[] = [],
   ): Promise<OrderPricingPreview> {
+    if (selectedItemIds.length === 0) {
+      throw new BadRequestException('At least one cart item must be selected');
+    }
+
     const cart = await this.cartReader.readBuyerCart(buyerId, accessToken, cartId);
+    const selectedItems = cart.items.filter((item) =>
+      selectedItemIds.includes(item.itemId),
+    );
+
+    if (selectedItems.length !== selectedItemIds.length) {
+      const selectedSet = new Set(selectedItems.map((item) => item.itemId));
+      const missingItemIds = selectedItemIds.filter((itemId) => !selectedSet.has(itemId));
+      throw new BadRequestException(
+        `Selected cart items not found: ${missingItemIds.join(', ')}`,
+      );
+    }
+
+    if (selectedItems.length === 0) {
+      throw new BadRequestException('Selected cart items are empty');
+    }
+
     const productSnapshots = await this.productReader.revalidateProducts(
-      cart.items.map((item) => item.productId),
+      selectedItems.map((item) => item.productId),
     );
 
     const snapshotByProductId = new Map(
       productSnapshots.map((snapshot) => [snapshot.productId, snapshot]),
     );
 
-    const items = cart.items.map((cartItem) => {
+    const items = selectedItems.map((cartItem) => {
       const productSnapshot = snapshotByProductId.get(cartItem.productId);
       if (!productSnapshot) {
         throw new Error(`Missing product snapshot for ${cartItem.productId}`);

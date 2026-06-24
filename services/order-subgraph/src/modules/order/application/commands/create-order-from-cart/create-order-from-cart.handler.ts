@@ -21,6 +21,7 @@ export class CreateOrderFromCartHandler
       command.buyerId,
       command.accessToken,
       command.cartId,
+      command.selectedItemIds,
     );
 
     const aggregate = OrderAggregate.createDraft({
@@ -30,6 +31,7 @@ export class CreateOrderFromCartHandler
       totalAmount: pricingPreview.totalAmount,
       currency: pricingPreview.currency,
       cartId: pricingPreview.cartId,
+      selectedItemIds: command.selectedItemIds,
     });
 
     await this.eventStoreRepo.append(aggregate.id, 0, aggregate.uncommittedEvents);
@@ -40,7 +42,8 @@ export class CreateOrderFromCartHandler
       status: OrderStatus.DRAFT,
       version: 0,
       correlationId: command.idempotencyKey,
-      message: 'Draft order created from cart with repriced product snapshots.',
+      message:
+        'Draft order created from selected cart items with repriced product snapshots.',
     };
   }
 }

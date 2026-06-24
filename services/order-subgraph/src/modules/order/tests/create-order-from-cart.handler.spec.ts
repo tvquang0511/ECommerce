@@ -48,6 +48,7 @@ describe('CreateOrderFromCartHandler', () => {
     const command = new CreateOrderFromCartCommand(
       'buyer-1',
       'cart-1',
+      ['ci-1'],
       'order-create-001',
       'token-123',
     );
@@ -58,6 +59,7 @@ describe('CreateOrderFromCartHandler', () => {
       'buyer-1',
       'token-123',
       'cart-1',
+      ['ci-1'],
     );
     expect(eventStoreRepo.append).toHaveBeenCalledTimes(1);
     expect(eventBus.publishAll).toHaveBeenCalledTimes(1);
@@ -67,6 +69,7 @@ describe('CreateOrderFromCartHandler', () => {
     expect(events).toHaveLength(1);
     expect(events[0]).toBeInstanceOf(OrderCreatedFromCartEvent);
     expect((events[0] as OrderCreatedFromCartEvent).items).toEqual(pricingPreview.items);
+    expect((events[0] as OrderCreatedFromCartEvent).selectedItemIds).toEqual(['ci-1']);
     expect((events[0] as OrderCreatedFromCartEvent).sellerIds).toEqual(['seller-1']);
     expect((events[0] as OrderCreatedFromCartEvent).totalAmount).toBe(22580000);
     expect(eventBus.publishAll).toHaveBeenCalledWith(events);
