@@ -111,6 +111,48 @@ export class CheckoutPricingService {
     };
   }
 
+  async repriceDraftItems(items: OrderItemSnapshot[]): Promise<OrderPricingPreview> {
+    if (items.length === 0) {
+      throw new BadRequestException('Draft order has no items to re-price');
+    }
+
+    const productSnapshots = await this.productReader.revalidateProducts(
+      items.map((item) => item.productId),
+    );
+
+    const snapshotByProductId = new Map(
+      productSnapshots.map((snapshot) => [snapshot.productId, snapshot]),
+    );
+
+    const repricedItems = items.map((draftItem) => {
+      const productSnapshot = snapshotByProductId.get(draftItem.productId);
+      if (!productSnapshot) {
+        throw new Error(`Missing product snapshot for ${draftItem.productId}`);
+      }
+
+      return {
+        lineId: draftItem.lineId,
+        productId: productSnapshot.productId,
+        sellerId: productSnapshot.sellerId,
+        titleSnapshot: productSnapshot.titleSnapshot,
+        imageSnapshot: productSnapshot.imageSnapshot ?? null,
+        quantity: draftItem.quantity,
+        unitPriceAmount: productSnapshot.unitPriceAmount,
+        currency: productSnapshot.currency,
+      } satisfies OrderItemSnapshot;
+    });
+
+    return {
+      items: repricedItems,
+      sellerIds: [...new Set(repricedItems.map((item) => item.sellerId))],
+      totalAmount: repricedItems.reduce(
+        (sum, item) => sum + item.unitPriceAmount * item.quantity,
+        0,
+      ),
+      currency: this.resolveCurrency(repricedItems.map((item) => item.currency)),
+    };
+  }
+
   private resolveCurrency(currencies: string[]): string {
     const normalized = [...new Set(currencies.filter(Boolean))];
     if (normalized.length === 0) {

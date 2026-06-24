@@ -13,6 +13,7 @@ import { OrderInventoryRejectedEvent } from '../events/order-inventory-rejected.
 import { OrderInventoryReservedEvent } from '../events/order-inventory-reserved.event';
 import { OrderPaymentAuthorizedEvent } from '../events/order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from '../events/order-payment-failed.event';
+import { OrderRepricedEvent } from '../events/order-repriced.event';
 import { OrderSubmittedEvent } from '../events/order-submitted.event';
 import { OrderItemSnapshot, OrderItemVo } from '../value-objects/order-item.vo';
 
@@ -176,6 +177,29 @@ export class OrderAggregate extends AggregateRoot {
     this.raise(new OrderSubmittedEvent(this.id));
   }
 
+  reprice(params: {
+    items: OrderItemSnapshot[];
+    sellerIds: string[];
+    totalAmount: number;
+    currency: string;
+    reason?: string;
+  }): void {
+    if (this.status !== OrderStatusEnum.DRAFT) {
+      throw new Error('Only draft orders can be repriced.');
+    }
+
+    this.raise(
+      new OrderRepricedEvent(
+        this.id,
+        params.items,
+        params.sellerIds,
+        params.totalAmount,
+        params.currency,
+        params.reason,
+      ),
+    );
+  }
+
   cancel(reason?: string): void {
     if ([OrderStatusEnum.CONFIRMED, OrderStatusEnum.CANCELLED].includes(this.status)) {
       throw new Error(`Cannot cancel order in status ${this.status}.`);
@@ -283,6 +307,13 @@ export class OrderAggregate extends AggregateRoot {
     this.status = OrderStatusEnum.SUBMITTED;
     this.inventoryStatus = OrderInventoryStatusEnum.PENDING;
     this.paymentStatus = OrderPaymentStatusEnum.PENDING;
+  }
+
+  onOrderRepricedEvent(event: OrderRepricedEvent): void {
+    this.items = event.items.map((item) => OrderItemVo.fromSnapshot(item));
+    this.sellerIds = [...event.sellerIds];
+    this.totalAmount = event.totalAmount;
+    this.currency = event.currency;
   }
 
   onOrderInventoryReservedEvent(_: OrderInventoryReservedEvent): void {

@@ -169,6 +169,22 @@ Sau này nếu muốn nâng UX, có thể thêm `previewCheckout` để báo cho
 
 Nhưng phase hiện tại chưa cần.
 
+### Rule 9
+
+`DRAFT` không phải là cơ chế khóa giá.
+
+### Rule 10
+
+`submitOrder` luôn phải đọc lại product hiện tại và re-price lại order trước khi chuyển sang `SUBMITTED`.
+
+### Rule 11
+
+Nếu giá thay đổi giữa lúc tạo draft và lúc submit, hệ thống dùng giá mới nhất tại thời điểm submit.
+
+### Rule 12
+
+Snapshot cũ trong draft vẫn được giữ để audit và để biết buyer đã từng nhìn thấy gì, nhưng không được coi là giá giao dịch cuối cùng.
+
 ---
 
 ## 5. Mục tiêu cuối cùng của 2 command tạo order
@@ -517,6 +533,52 @@ Sau này nếu muốn học sâu hơn, có thể tách thành:
 
 Nhưng phase hiện tại chưa cần.
 
+### 12.5 Draft để lâu rồi mới submit
+
+Đây là case rất thực tế.
+
+Ví dụ:
+
+- buyer tạo `DRAFT` lúc 10:00
+- lúc đó giá sản phẩm là `1.200.000`
+- đến 10:30 seller giảm giá còn `1.050.000`
+- 10:35 buyer mới bấm `submitOrder`
+
+Kết quả mong muốn:
+
+- hệ thống không được giữ nguyên total cũ một cách mù quáng
+- `submitOrder` phải query lại product hiện tại
+- re-price lại item
+- chốt total mới theo giá mới nhất
+
+Nói ngắn gọn:
+
+- draft snapshot dùng để hiển thị và audit
+- submit mới là lúc chốt giá thật
+
+### 12.6 Cart snapshot đã cũ ngay từ trước khi tạo draft
+
+Đây cũng là case bình thường.
+
+Ví dụ:
+
+- buyer thêm hàng vào cart từ hôm trước
+- cart vẫn còn snapshot giá cũ
+- hôm nay buyer mới bấm checkout
+
+Kết quả mong muốn:
+
+- `createOrderFromCart` không tin `cart.unitPrice` hay `cart.totals`
+- order-service phải gọi lại `product-subgraph`
+- lấy giá live hiện tại để dựng `DRAFT`
+
+Điều này nghĩa là:
+
+- ngay cả lúc tạo draft từ cart, hệ thống đã phải re-check giá một lần
+- và đến lúc submit, hệ thống vẫn nên re-check thêm một lần nữa
+
+Vì hai thời điểm đó có thể cách nhau khá lâu.
+
 ---
 
 ## 13. Quyết định kiến trúc chốt cho phase này
@@ -527,6 +589,8 @@ Nhưng phase hiện tại chưa cần.
 - `order` là nơi chốt snapshot giao dịch chính thức
 - `createOrderDirect` dùng giá live từ `product`
 - `createOrderFromCart` re-price lại từ `product`
+- `DRAFT` không khóa giá
+- `submitOrder` re-price lại lần cuối từ `product`
 - `order` không tin `cart.totals`
 - event tạo order phải mang đủ snapshot item và total
 - aggregate phải giữ `items`, `sellerIds`, `totalAmount`
@@ -534,7 +598,100 @@ Nhưng phase hiện tại chưa cần.
 
 ---
 
-## 14. Thứ tự implement hợp lý
+## 14. Checklist sửa `submitOrder` để re-price đúng chuẩn
+
+Checklist này là bộ việc nên làm trước khi coi `submitOrder` là hoàn chỉnh về nghiệp vụ.
+
+### 14.1 Nạp lại aggregate từ event store
+
+- load toàn bộ stream event của `orderId`
+- rehydrate thành `OrderAggregate`
+- fail nếu order không tồn tại
+- fail nếu status không phải `DRAFT`
+
+### 14.2 Đọc lại toàn bộ product hiện tại
+
+- lấy `productId` từ `aggregate.items`
+- gọi `ProductReaderService`
+- lấy dữ liệu live mới nhất cho toàn bộ item
+
+### 14.3 Validate lại từng sản phẩm
+
+- product còn tồn tại
+- product còn `APPROVED`
+- product còn thuộc seller hợp lệ
+- product còn có giá hợp lệ
+- currency còn đồng nhất
+
+### 14.4 Dựng lại snapshot mới
+
+- tạo lại `OrderItemSnapshot[]` từ product hiện tại + quantity cũ của order
+- tính lại `unitPriceAmount`
+- tính lại `lineTotal`
+- tính lại `totalAmount`
+- tính lại `sellerIds`
+
+### 14.5 So sánh với snapshot đang có trong draft
+
+- so sánh giá từng line
+- so sánh total
+- so sánh title/image nếu cần
+- xác định có thay đổi nghiệp vụ đáng kể hay không
+
+### 14.6 Nếu có thay đổi, ghi nhận bằng event riêng
+
+Khuyến nghị nên thêm một event như:
+
+- `OrderRepricedEvent`
+
+Event này nên chứa:
+
+- `orderId`
+- snapshot item mới
+- total mới
+- currency
+- metadata về lý do re-price
+
+Mục đích:
+
+- event store phản ánh đúng việc draft đã được làm mới trước submit
+- projection/read model theo kịp
+- audit rõ ràng
+
+### 14.7 Chỉ sau khi re-price xong mới submit
+
+- append event re-price nếu có
+- publish domain event tương ứng
+- sau đó mới gọi `aggregate.submit()`
+- append `OrderSubmittedEvent`
+
+### 14.8 Cart chỉ xóa sau submit thành công
+
+- nếu order đến được `SUBMITTED`
+- và phần persistence/event store không lỗi
+- mới cho flow dọn `selectedItemIds` ở cart
+
+### 14.9 Chuẩn bị phản hồi cho frontend
+
+Về sau có thể cân nhắc 2 chiến lược:
+
+- chiến lược mềm: tự cập nhật giá mới rồi submit luôn
+- chiến lược chặt: phát hiện đổi giá thì trả lỗi business để buyer xác nhận lại
+
+Với phase hiện tại, chiến lược mềm sẽ đơn giản hơn để implement.
+
+### 14.10 Bổ sung test bắt buộc
+
+- submit draft khi giá không đổi
+- submit draft khi giá giảm
+- submit draft khi giá tăng
+- submit draft khi product bị archived/rejected
+- submit draft khi một item không còn tồn tại
+- submit draft nhiều lần không được double submit
+
+---
+
+## 15. Thứ tự implement hợp lý
 
 Sau khi chốt thiết kế này, thứ tự làm nên là:
 
@@ -550,7 +707,7 @@ Sau khi chốt thiết kế này, thứ tự làm nên là:
 
 ---
 
-## 15. Kết luận
+## 16. Kết luận
 
 Muốn `createOrderFromCart` và `createOrderDirect` trở thành order thật, điểm mấu chốt không nằm ở việc thêm nhiều command, mà nằm ở việc:
 

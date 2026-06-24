@@ -8,6 +8,7 @@ import { OrderInventoryRejectedProjectorHandler } from './order-inventory-reject
 import { OrderInventoryReservedProjectorHandler } from './order-inventory-reserved/order-inventory-reserved-projector.handler';
 import { OrderPaymentAuthorizedProjectorHandler } from './order-payment-authorized/order-payment-authorized-projector.handler';
 import { OrderPaymentFailedProjectorHandler } from './order-payment-failed/order-payment-failed-projector.handler';
+import { OrderRepricedProjectorHandler } from './order-repriced/order-repriced-projector.handler';
 import { OrderSubmittedOutboxHandler } from './order-submitted/order-submitted-outbox.handler';
 import { OrderSubmittedProjectorHandler } from './order-submitted/order-submitted-projector.handler';
 
@@ -16,6 +17,7 @@ export const OrderEventHandlers = [
   OrderCreatedDirectOutboxHandler,
   OrderCreatedFromCartProjectorHandler,
   OrderCreatedFromCartOutboxHandler,
+  OrderRepricedProjectorHandler,
   OrderSubmittedProjectorHandler,
   OrderSubmittedOutboxHandler,
   OrderCancelledProjectorHandler,

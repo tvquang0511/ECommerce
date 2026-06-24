@@ -52,6 +52,59 @@ export class OrderProjectionRepo {
     });
   }
 
+  async repriceDraft(
+    orderId: string,
+    sequence: number,
+    params: {
+      sellerIds: string[];
+      items: OrderItemSnapshot[];
+      totalAmount: number;
+      currency: string;
+    },
+  ): Promise<void> {
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.orderRead.findUnique({
+        where: { orderId },
+      });
+
+      if (!existing || existing.version >= sequence) {
+        return;
+      }
+
+      await tx.orderRead.update({
+        where: { orderId },
+        data: {
+          sellerIds: params.sellerIds,
+          totalAmount: params.totalAmount,
+          currency: params.currency,
+          version: sequence,
+          updatedAt: now,
+        },
+      });
+
+      await tx.orderItemRead.deleteMany({
+        where: { orderId },
+      });
+
+      if (params.items.length > 0) {
+        await tx.orderItemRead.createMany({
+          data: params.items.map((item) => ({
+            lineId: item.lineId,
+            orderId,
+            productId: item.productId,
+            sellerId: item.sellerId,
+            titleSnapshot: item.titleSnapshot,
+            quantity: item.quantity,
+            unitPriceAmount: item.unitPriceAmount,
+            currency: item.currency,
+          })),
+        });
+      }
+    });
+  }
+
   async markCancelled(orderId: string, sequence: number): Promise<void> {
     await this.updateIfNewer(orderId, sequence, {
       status: OrderStatus.CANCELLED,

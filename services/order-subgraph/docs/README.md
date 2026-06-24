@@ -15,6 +15,8 @@ Tài liệu nên đọc kèm:
 - `CQRS_BUS_AND_EVENT_DESIGN.md`: giải thích kỹ bus pattern, mediator mindset, và vai trò của event trong CQRS
 - `ORDER_CQRS_DDD_EVENT_SOURCING_DESIGN.md`: bản thiết kế đầy đủ hơn cho hướng C, dùng `CQRS + DDD + Event Sourcing`
 - `ORDER_CREATION_DESIGN.md`: chốt rule giá, cart snapshot, order snapshot và hướng hoàn thiện `createOrderFromCart` / `createOrderDirect`
+- `ORDER_LIFECYCLE_AND_OUTBOX_RULES.md`: chốt lifecycle nghiệp vụ của order, rule submit/cancel/fail/confirm, draft expiry và vai trò của outbox
+- `ORDER_OUTBOX_DESIGN.md`: thiết kế outbox của order, message contract, worker, retry, callback flow và hướng nối inventory/payment
 
 ---
 

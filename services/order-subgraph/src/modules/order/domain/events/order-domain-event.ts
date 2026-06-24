@@ -6,12 +6,14 @@ import { OrderInventoryRejectedEvent } from './order-inventory-rejected.event';
 import { OrderInventoryReservedEvent } from './order-inventory-reserved.event';
 import { OrderPaymentAuthorizedEvent } from './order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from './order-payment-failed.event';
+import { OrderRepricedEvent } from './order-repriced.event';
 import { OrderSubmittedEvent } from './order-submitted.event';
 import { OrderEventEnvelope } from './order-event-envelope.type';
 
 export type OrderDomainEvent =
   | (OrderCreatedFromCartEvent & OrderEventEnvelope)
   | (OrderCreatedDirectEvent & OrderEventEnvelope)
+  | (OrderRepricedEvent & OrderEventEnvelope)
   | (OrderSubmittedEvent & OrderEventEnvelope)
   | (OrderInventoryReservedEvent & OrderEventEnvelope)
   | (OrderInventoryRejectedEvent & OrderEventEnvelope)

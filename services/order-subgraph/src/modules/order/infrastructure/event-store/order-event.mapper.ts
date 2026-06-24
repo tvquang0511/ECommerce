@@ -10,6 +10,7 @@ import { OrderInventoryRejectedEvent } from '../../domain/events/order-inventory
 import { OrderInventoryReservedEvent } from '../../domain/events/order-inventory-reserved.event';
 import { OrderPaymentAuthorizedEvent } from '../../domain/events/order-payment-authorized.event';
 import { OrderPaymentFailedEvent } from '../../domain/events/order-payment-failed.event';
+import { OrderRepricedEvent } from '../../domain/events/order-repriced.event';
 import { OrderSubmittedEvent } from '../../domain/events/order-submitted.event';
 import { OrderItemSnapshot } from '../../domain/value-objects/order-item.vo';
 import { OrderEventMetadata, OrderEventRecord } from './order-event-record.type';
@@ -55,6 +56,16 @@ export class OrderEventMapper {
           this.asStringArray(record.eventData.sellerIds),
           this.asNumber(record.eventData.totalAmount),
           String(record.eventData.currency),
+        );
+      case 'OrderRepriced':
+        return new OrderRepricedEvent(
+          String(record.eventData.orderId),
+          this.asOrderItemSnapshots(record.eventData.items),
+          this.asStringArray(record.eventData.sellerIds),
+          this.asNumber(record.eventData.totalAmount),
+          String(record.eventData.currency),
+          this.asOptionalString(record.eventData.reason) ??
+            'Product data revalidated before submit.',
         );
       case 'OrderSubmitted':
         return new OrderSubmittedEvent(String(record.eventData.orderId));
@@ -106,6 +117,17 @@ export class OrderEventMapper {
         sellerIds: event.sellerIds,
         totalAmount: event.totalAmount,
         currency: event.currency,
+      };
+    }
+
+    if (event instanceof OrderRepricedEvent) {
+      return {
+        orderId: event.orderId,
+        items: event.items,
+        sellerIds: event.sellerIds,
+        totalAmount: event.totalAmount,
+        currency: event.currency,
+        reason: event.reason,
       };
     }
 
