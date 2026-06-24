@@ -1,13 +1,9 @@
-import type { PrismaClient as PrismaClientType } from "@prisma/client";
-import prismaClientModule from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../prisma/generated/index.js";
 
 import { env } from "../env.js";
 
-// Properly type the PrismaClient constructor
-const PrismaClient = prismaClientModule.PrismaClient as unknown as {
-  new (options?: any): PrismaClientType;
-};
+type PrismaClientType = PrismaClient;
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClientType };
 

@@ -1,0 +1,101 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CancelOrderInput {
+  expectedVersion: Int!
+  idempotencyKey: String!
+  orderId: String!
+  reason: String
+}
+
+input CreateOrderDirectInput {
+  idempotencyKey: String!
+  productId: String!
+  quantity: Int!
+}
+
+input CreateOrderFromCartInput {
+  cartId: String
+  idempotencyKey: String!
+}
+
+type Money {
+  amount: Int!
+  currency: String!
+}
+
+type Mutation {
+  cancelOrder(input: CancelOrderInput!): OrderCommandResult!
+  createOrderDirect(input: CreateOrderDirectInput!): OrderCommandResult!
+  createOrderFromCart(input: CreateOrderFromCartInput!): OrderCommandResult!
+  submitOrder(input: SubmitOrderInput!): OrderCommandResult!
+}
+
+type Order {
+  buyerId: String!
+  createdAt: String!
+  id: ID!
+  inventoryStatus: OrderInventoryStatus!
+  items: [OrderItem!]!
+  paymentStatus: OrderPaymentStatus!
+  sellerIds: [String!]!
+  status: OrderStatus!
+  total: Money!
+  updatedAt: String!
+  version: Int!
+}
+
+type OrderCommandResult {
+  correlationId: String!
+  message: String!
+  orderId: ID!
+  status: OrderStatus!
+  version: Int!
+}
+
+enum OrderInventoryStatus {
+  NOT_REQUESTED
+  PENDING
+  REJECTED
+  RESERVED
+}
+
+type OrderItem {
+  lineId: ID!
+  productId: String!
+  quantity: Int!
+  sellerId: String!
+  titleSnapshot: String!
+  unitPrice: Money!
+}
+
+enum OrderPaymentStatus {
+  AUTHORIZED
+  EXPIRED
+  FAILED
+  NOT_REQUESTED
+  PENDING
+}
+
+enum OrderStatus {
+  AWAITING_INVENTORY
+  AWAITING_PAYMENT
+  CANCELLED
+  CONFIRMED
+  DRAFT
+  FAILED
+  SUBMITTED
+}
+
+type Query {
+  myOrders: [Order!]!
+  order(id: ID!): Order
+  orders: [Order!]!
+}
+
+input SubmitOrderInput {
+  expectedVersion: Int!
+  idempotencyKey: String!
+  orderId: String!
+}

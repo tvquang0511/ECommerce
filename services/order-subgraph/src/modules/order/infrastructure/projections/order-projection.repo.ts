@@ -1,38 +1,306 @@
 import { Injectable } from '@nestjs/common';
 
-import { Order, OrderStatus } from '../../graphql/order.gql.type';
+import {
+  Order,
+  OrderInventoryStatus,
+  OrderItem,
+  OrderPaymentStatus,
+  OrderStatus,
+} from '../../graphql/order.gql.type';
+import { OrderPrismaService } from '../prisma/order-prisma.service';
+import { OrderItemSnapshot } from '../../domain/value-objects/order-item.vo';
 
 @Injectable()
 export class OrderProjectionRepo {
-  private readonly orders: Order[] = [];
+  constructor(private readonly prisma: OrderPrismaService) {}
 
   async findVisibleById(orderId: string, actorId: string): Promise<Order | null> {
-    return (
-      this.orders.find(
-        (order) =>
-          order.id === orderId &&
-          (order.buyerId === actorId || order.sellerIds.includes(actorId)),
-      ) ?? null
-    );
+    const row = await this.prisma.orderRead.findFirst({
+      where: {
+        orderId,
+        OR: [{ buyerId: actorId }, { sellerIds: { has: actorId } }],
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    if (!row) {
+      return null;
+    }
+
+    return this.toOrder(row);
   }
 
   async listByBuyerId(buyerId: string): Promise<Order[]> {
-    return this.orders.filter((order) => order.buyerId === buyerId);
+    const rows = await this.prisma.orderRead.findMany({
+      where: { buyerId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        items: true,
+      },
+    });
+
+    return rows.map((row) => this.toOrder(row));
   }
 
-  seedDraft(orderId: string, buyerId: string, currency: string): Order {
-    const order: Order = {
-      id: orderId,
-      buyerId,
-      sellerIds: [],
-      status: OrderStatus.DRAFT,
-      total: { amount: 0, currency },
-      version: 0,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      items: [],
-    };
-    this.orders.push(order);
-    return order;
+  async markSubmitted(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      status: OrderStatus.SUBMITTED,
+      inventoryStatus: OrderInventoryStatus.PENDING,
+      paymentStatus: OrderPaymentStatus.PENDING,
+    });
   }
+
+  async repriceDraft(
+    orderId: string,
+    sequence: number,
+    params: {
+      sellerIds: string[];
+      items: OrderItemSnapshot[];
+      totalAmount: number;
+      currency: string;
+    },
+  ): Promise<void> {
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.orderRead.findUnique({
+        where: { orderId },
+      });
+
+      if (!existing || existing.version >= sequence) {
+        return;
+      }
+
+      await tx.orderRead.update({
+        where: { orderId },
+        data: {
+          sellerIds: params.sellerIds,
+          totalAmount: params.totalAmount,
+          currency: params.currency,
+          version: sequence,
+          updatedAt: now,
+        },
+      });
+
+      await tx.orderItemRead.deleteMany({
+        where: { orderId },
+      });
+
+      if (params.items.length > 0) {
+        await tx.orderItemRead.createMany({
+          data: params.items.map((item) => ({
+            lineId: item.lineId,
+            orderId,
+            productId: item.productId,
+            sellerId: item.sellerId,
+            titleSnapshot: item.titleSnapshot,
+            quantity: item.quantity,
+            unitPriceAmount: item.unitPriceAmount,
+            currency: item.currency,
+          })),
+        });
+      }
+    });
+  }
+
+  async markCancelled(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      status: OrderStatus.CANCELLED,
+    });
+  }
+
+  async markConfirmed(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      status: OrderStatus.CONFIRMED,
+    });
+  }
+
+  async markPaymentAuthorized(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      paymentStatus: OrderPaymentStatus.AUTHORIZED,
+    });
+  }
+
+  async markPaymentFailed(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      paymentStatus: OrderPaymentStatus.FAILED,
+      status: OrderStatus.FAILED,
+    });
+  }
+
+  async markInventoryReserved(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      inventoryStatus: OrderInventoryStatus.RESERVED,
+    });
+  }
+
+  async markInventoryRejected(orderId: string, sequence: number): Promise<void> {
+    await this.updateIfNewer(orderId, sequence, {
+      inventoryStatus: OrderInventoryStatus.REJECTED,
+      status: OrderStatus.FAILED,
+    });
+  }
+
+  async seedDraft(params: {
+    orderId: string;
+    buyerId: string;
+    sellerIds: string[];
+    items: OrderItemSnapshot[];
+    totalAmount: number;
+    currency: string;
+    sequence: number;
+  }): Promise<Order> {
+    const now = new Date();
+
+    const row = await this.prisma.$transaction(async (tx) => {
+      const existing = await tx.orderRead.findUnique({
+        where: { orderId: params.orderId },
+        include: {
+          items: true,
+        },
+      });
+
+      if (existing && existing.version >= params.sequence) {
+        return existing;
+      }
+
+      const orderRow = await tx.orderRead.upsert({
+        where: { orderId: params.orderId },
+        update: {
+          buyerId: params.buyerId,
+          sellerIds: params.sellerIds,
+          totalAmount: params.totalAmount,
+          currency: params.currency,
+          version: params.sequence,
+          updatedAt: now,
+        },
+        create: {
+          orderId: params.orderId,
+          buyerId: params.buyerId,
+          sellerIds: params.sellerIds,
+          status: OrderStatus.DRAFT,
+          inventoryStatus: OrderInventoryStatus.NOT_REQUESTED,
+          paymentStatus: OrderPaymentStatus.NOT_REQUESTED,
+          totalAmount: params.totalAmount,
+          currency: params.currency,
+          version: params.sequence,
+          createdAt: now,
+          updatedAt: now,
+        },
+      });
+
+      await tx.orderItemRead.deleteMany({
+        where: { orderId: params.orderId },
+      });
+
+      if (params.items.length > 0) {
+        await tx.orderItemRead.createMany({
+          data: params.items.map((item) => ({
+            lineId: item.lineId,
+            orderId: params.orderId,
+            productId: item.productId,
+            sellerId: item.sellerId,
+            titleSnapshot: item.titleSnapshot,
+            quantity: item.quantity,
+            unitPriceAmount: item.unitPriceAmount,
+            currency: item.currency,
+          })),
+        });
+      }
+
+      return tx.orderRead.findUniqueOrThrow({
+        where: { orderId: params.orderId },
+        include: {
+          items: true,
+        },
+      });
+    });
+
+    return this.toOrder(row);
+  }
+
+  private async updateIfNewer(
+    orderId: string,
+    sequence: number,
+    data: {
+      status?: OrderStatus;
+      inventoryStatus?: OrderInventoryStatus;
+      paymentStatus?: OrderPaymentStatus;
+    },
+  ): Promise<void> {
+    await this.prisma.orderRead.updateMany({
+      where: {
+        orderId,
+        version: {
+          lt: sequence,
+        },
+      },
+      data: {
+        ...data,
+        version: sequence,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
+  private toOrder(row: OrderProjectionRow): Order {
+    return {
+      id: row.orderId ?? row.id ?? '',
+      buyerId: row.buyerId,
+      sellerIds: row.sellerIds ?? [],
+      status: row.status as OrderStatus,
+      inventoryStatus: row.inventoryStatus as OrderInventoryStatus,
+      paymentStatus: row.paymentStatus as OrderPaymentStatus,
+      total: {
+        amount: row.totalAmount,
+        currency: row.currency,
+      },
+      version: row.version,
+      createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+      updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : row.updatedAt,
+      items: (row.items ?? []).map((item) => this.toOrderItem(item)),
+    };
+  }
+
+  private toOrderItem(row: OrderItemProjectionRow): OrderItem {
+    return {
+      lineId: row.lineId,
+      productId: row.productId,
+      sellerId: row.sellerId,
+      titleSnapshot: row.titleSnapshot,
+      quantity: row.quantity,
+      unitPrice: {
+        amount: row.unitPriceAmount,
+        currency: row.currency,
+      },
+    };
+  }
+}
+
+interface OrderProjectionRow {
+  orderId?: string;
+  id?: string;
+  buyerId: string;
+  sellerIds: string[];
+  status: string;
+  inventoryStatus: string;
+  paymentStatus: string;
+  totalAmount: number;
+  currency: string;
+  version: number;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  items?: OrderItemProjectionRow[];
+}
+
+interface OrderItemProjectionRow {
+  lineId: string;
+  productId: string;
+  sellerId: string;
+  titleSnapshot: string;
+  quantity: number;
+  unitPriceAmount: number;
+  currency: string;
 }

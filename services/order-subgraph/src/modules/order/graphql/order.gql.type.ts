@@ -1,9 +1,19 @@
 import { Field, ID, Int, ObjectType, registerEnumType } from '@nestjs/graphql';
 
+import { OrderInventoryStatusEnum } from '../domain/enums/order-inventory-status.enum';
+import { OrderPaymentStatusEnum } from '../domain/enums/order-payment-status.enum';
 import { OrderStatusEnum } from '../domain/enums/order-status.enum';
 
 registerEnumType(OrderStatusEnum, {
   name: 'OrderStatus',
+});
+
+registerEnumType(OrderInventoryStatusEnum, {
+  name: 'OrderInventoryStatus',
+});
+
+registerEnumType(OrderPaymentStatusEnum, {
+  name: 'OrderPaymentStatus',
 });
 
 @ObjectType()
@@ -50,6 +60,12 @@ export class Order {
   @Field(() => OrderStatusEnum)
   status!: OrderStatusEnum;
 
+  @Field(() => OrderInventoryStatusEnum)
+  inventoryStatus!: OrderInventoryStatusEnum;
+
+  @Field(() => OrderPaymentStatusEnum)
+  paymentStatus!: OrderPaymentStatusEnum;
+
   @Field(() => Money)
   total!: Money;
 
@@ -85,3 +101,5 @@ export class OrderCommandResult {
 }
 
 export { OrderStatusEnum as OrderStatus };
+export { OrderInventoryStatusEnum as OrderInventoryStatus };
+export { OrderPaymentStatusEnum as OrderPaymentStatus };

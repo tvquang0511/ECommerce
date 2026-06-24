@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model OrderEvent {
+  id            String   @id @db.Uuid
+  aggregateId   String   @map("aggregate_id")
+  aggregateType String   @map("aggregate_type")
+  sequence      Int
+  eventType     String   @map("event_type")
+  eventData     Json     @map("event_data")
+  metadata      Json
+  occurredAt    DateTime @map("occurred_at") @db.Timestamptz(6)
+
+  @@unique([aggregateId, sequence])
+  @@index([aggregateId])
+  @@index([eventType])
+  @@index([occurredAt])
+  @@map("order_events")
+}
+
+model OrderRead {
+  orderId         String   @id @map("order_id")
+  buyerId         String   @map("buyer_id")
+  sellerIds       String[] @default([]) @map("seller_ids")
+  status          String
+  inventoryStatus String   @map("inventory_status")
+  paymentStatus   String   @map("payment_status")
+  totalAmount     Int      @map("total_amount")
+  currency        String
+  version         Int
+  createdAt       DateTime @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @map("updated_at") @db.Timestamptz(6)
+
+  items OrderItemRead[]
+
+  @@index([buyerId])
+  @@map("orders_read")
+}
+
+model OrderItemRead {
+  lineId          String @id @map("line_id")
+  orderId         String @map("order_id")
+  productId       String @map("product_id")
+  sellerId        String @map("seller_id")
+  titleSnapshot   String @map("title_snapshot")
+  quantity        Int
+  unitPriceAmount Int    @map("unit_price_amount")
+  currency        String
+
+  order OrderRead @relation(fields: [orderId], references: [orderId], onDelete: Cascade)
+
+  @@index([orderId])
+  @@map("order_items_read")
+}
+
+model OrderOutbox {
+  id          String    @id @db.Uuid
+  aggregateId String    @map("aggregate_id")
+  eventType   String    @map("event_type")
+  payload     Json
+  headers     Json      @default("{}")
+  publishedAt DateTime? @map("published_at") @db.Timestamptz(6)
+  retryCount  Int       @default(0) @map("retry_count")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([publishedAt])
+  @@index([aggregateId])
+  @@index([createdAt])
+  @@map("order_outbox")
+}

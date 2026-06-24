@@ -4,5 +4,6 @@ export class SubmitOrderCommand {
     public readonly actorId: string,
     public readonly expectedVersion: number,
     public readonly idempotencyKey: string,
+    public readonly accessToken?: string,
   ) {}
 }

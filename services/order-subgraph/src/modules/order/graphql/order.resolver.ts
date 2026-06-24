@@ -1,4 +1,5 @@
-import { Args, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
+import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { Args, Context, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
 import { AuthGuard } from '../../auth/guards/auth.guard';
@@ -7,28 +8,22 @@ import { AuthActor } from '../../auth/auth.types';
 import { Order, OrderCommandResult } from './order.gql.type';
 import {
   CancelOrderInput,
+  CreateOrderDirectInput,
   CreateOrderFromCartInput,
   SubmitOrderInput,
 } from './order.input';
+import { CreateOrderDirectCommand } from '../application/commands/create-order-direct/create-order-direct.command';
 import { CreateOrderFromCartCommand } from '../application/commands/create-order-from-cart/create-order-from-cart.command';
 import { SubmitOrderCommand } from '../application/commands/submit-order/submit-order.command';
 import { CancelOrderCommand } from '../application/commands/cancel-order/cancel-order.command';
-import { CreateOrderFromCartHandler } from '../application/commands/create-order-from-cart/create-order-from-cart.handler';
-import { SubmitOrderHandler } from '../application/commands/submit-order/submit-order.handler';
-import { CancelOrderHandler } from '../application/commands/cancel-order/cancel-order.handler';
-import { GetOrderHandler } from '../application/queries/get-order/get-order.handler';
-import { ListMyOrdersHandler } from '../application/queries/list-my-orders/list-my-orders.handler';
 import { GetOrderQuery } from '../application/queries/get-order/get-order.query';
 import { ListMyOrdersQuery } from '../application/queries/list-my-orders/list-my-orders.query';
 
 @Resolver(() => Order)
 export class OrderResolver {
   constructor(
-    private readonly createOrderFromCartHandler: CreateOrderFromCartHandler,
-    private readonly submitOrderHandler: SubmitOrderHandler,
-    private readonly cancelOrderHandler: CancelOrderHandler,
-    private readonly getOrderHandler: GetOrderHandler,
-    private readonly listMyOrdersHandler: ListMyOrdersHandler,
+    private readonly commandBus: CommandBus,
+    private readonly queryBus: QueryBus,
   ) {}
 
   @Query(() => [Order], { name: 'orders' })
@@ -39,7 +34,7 @@ export class OrderResolver {
   @Query(() => [Order], { name: 'myOrders' })
   @UseGuards(AuthGuard)
   async myOrders(@CurrentActor() actor: AuthActor): Promise<Order[]> {
-    return this.listMyOrdersHandler.execute(new ListMyOrdersQuery(actor.userId));
+    return this.queryBus.execute(new ListMyOrdersQuery(actor.userId));
   }
 
   @Query(() => Order, { name: 'order', nullable: true })
@@ -48,9 +43,7 @@ export class OrderResolver {
     @Args('id', { type: () => ID }) id: string,
     @CurrentActor() actor: AuthActor,
   ): Promise<Order | null> {
-    const order = await this.getOrderHandler.execute(
-      new GetOrderQuery(id, actor.userId),
-    );
+    const order = await this.queryBus.execute(new GetOrderQuery(id, actor.userId));
     if (!order) {
       throw new NotFoundException(`Order ${id} not found`);
     }
@@ -62,11 +55,30 @@ export class OrderResolver {
   async createOrderFromCart(
     @Args('input') input: CreateOrderFromCartInput,
     @CurrentActor() actor: AuthActor,
+    @Context('req') req: { headers?: Record<string, string | string[] | undefined> },
   ): Promise<OrderCommandResult> {
-    return this.createOrderFromCartHandler.execute(
+    return this.commandBus.execute(
       new CreateOrderFromCartCommand(
         actor.userId,
         input.cartId,
+        input.selectedItemIds,
+        input.idempotencyKey,
+        this.extractBearerToken(req),
+      ),
+    );
+  }
+
+  @Mutation(() => OrderCommandResult, { name: 'createOrderDirect' })
+  @UseGuards(AuthGuard)
+  async createOrderDirect(
+    @Args('input') input: CreateOrderDirectInput,
+    @CurrentActor() actor: AuthActor,
+  ): Promise<OrderCommandResult> {
+    return this.commandBus.execute(
+      new CreateOrderDirectCommand(
+        actor.userId,
+        input.productId,
+        input.quantity,
         input.idempotencyKey,
       ),
     );
@@ -77,13 +89,15 @@ export class OrderResolver {
   async submitOrder(
     @Args('input') input: SubmitOrderInput,
     @CurrentActor() actor: AuthActor,
+    @Context('req') req: { headers?: Record<string, string | string[] | undefined> },
   ): Promise<OrderCommandResult> {
-    return this.submitOrderHandler.execute(
+    return this.commandBus.execute(
       new SubmitOrderCommand(
         input.orderId,
         actor.userId,
         input.expectedVersion,
         input.idempotencyKey,
+        this.extractBearerToken(req),
       ),
     );
   }
@@ -94,7 +108,7 @@ export class OrderResolver {
     @Args('input') input: CancelOrderInput,
     @CurrentActor() actor: AuthActor,
   ): Promise<OrderCommandResult> {
-    return this.cancelOrderHandler.execute(
+    return this.commandBus.execute(
       new CancelOrderCommand(
         input.orderId,
         actor.userId,
@@ -103,5 +117,18 @@ export class OrderResolver {
         input.reason,
       ),
     );
+  }
+
+  private extractBearerToken(req: {
+    headers?: Record<string, string | string[] | undefined>;
+  }): string | undefined {
+    const authorization = req.headers?.authorization;
+    const headerValue = Array.isArray(authorization) ? authorization[0] : authorization;
+    if (!headerValue) {
+      return undefined;
+    }
+
+    const match = /^Bearer\s+(.+)$/.exec(headerValue.trim());
+    return match?.[1]?.trim() || undefined;
   }
 }

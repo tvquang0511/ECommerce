@@ -102,6 +102,9 @@ product:
 cart:
 	pnpm --filter cart-subgraph dev
 
+order:
+	pnpm --filter order-subgraph dev
+
 product-g:
 	$(MAKE) service-g SVC=product-subgraph KIND="$(KIND)" NAME="$(NAME)" OPTS="$(OPTS)" ARGS="$(ARGS)"
 

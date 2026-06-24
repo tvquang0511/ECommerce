@@ -1,37 +1,344 @@
 import { randomUUID } from 'node:crypto';
+import { AggregateRoot } from '@nestjs/cqrs';
 
-import { OrderCreatedEvent } from '../events/order-created.event';
+import { OrderInventoryStatusEnum } from '../enums/order-inventory-status.enum';
+import { OrderPaymentStatusEnum } from '../enums/order-payment-status.enum';
+import { OrderStatusEnum } from '../enums/order-status.enum';
+import { OrderCancelledEvent } from '../events/order-cancelled.event';
+import { OrderConfirmedEvent } from '../events/order-confirmed.event';
+import { OrderCreatedDirectEvent } from '../events/order-created-direct.event';
+import { OrderCreatedFromCartEvent } from '../events/order-created-from-cart.event';
+import { OrderDomainEvent } from '../events/order-domain-event';
+import { OrderInventoryRejectedEvent } from '../events/order-inventory-rejected.event';
+import { OrderInventoryReservedEvent } from '../events/order-inventory-reserved.event';
+import { OrderPaymentAuthorizedEvent } from '../events/order-payment-authorized.event';
+import { OrderPaymentFailedEvent } from '../events/order-payment-failed.event';
+import { OrderRepricedEvent } from '../events/order-repriced.event';
+import { OrderSubmittedEvent } from '../events/order-submitted.event';
+import { OrderItemSnapshot, OrderItemVo } from '../value-objects/order-item.vo';
 
-export class OrderAggregate {
-  public readonly id: string;
-  public readonly buyerId: string;
-  public readonly currency: string;
-  public readonly uncommittedEvents: OrderCreatedEvent[];
+export class OrderAggregate extends AggregateRoot {
+  public id: string;
+  public buyerId: string;
+  public items: OrderItemVo[];
+  public sellerIds: string[];
+  public totalAmount: number;
+  public currency: string;
+  public status: OrderStatusEnum;
+  public inventoryStatus: OrderInventoryStatusEnum;
+  public paymentStatus: OrderPaymentStatusEnum;
+  public version: number;
+  public cartId?: string;
+  public selectedCartItemIds: string[];
+  public readonly uncommittedEvents: OrderDomainEvent[];
 
   private constructor(params: {
     id: string;
     buyerId: string;
+    items: OrderItemVo[];
+    sellerIds: string[];
+    totalAmount: number;
     currency: string;
-    uncommittedEvents: OrderCreatedEvent[];
+    status: OrderStatusEnum;
+    inventoryStatus: OrderInventoryStatusEnum;
+    paymentStatus: OrderPaymentStatusEnum;
+    version: number;
+    cartId?: string;
+    selectedCartItemIds?: string[];
+    uncommittedEvents?: OrderDomainEvent[];
   }) {
+    super();
     this.id = params.id;
     this.buyerId = params.buyerId;
+    this.items = params.items;
+    this.sellerIds = params.sellerIds;
+    this.totalAmount = params.totalAmount;
     this.currency = params.currency;
-    this.uncommittedEvents = params.uncommittedEvents;
+    this.status = params.status;
+    this.inventoryStatus = params.inventoryStatus;
+    this.paymentStatus = params.paymentStatus;
+    this.version = params.version;
+    this.cartId = params.cartId;
+    this.selectedCartItemIds = params.selectedCartItemIds ?? [];
+    this.uncommittedEvents = params.uncommittedEvents ?? [];
   }
 
-  static createDraft(params: { buyerId: string; currency: string }): OrderAggregate {
-    const event = new OrderCreatedEvent(
+  static createDraft(params: {
+    buyerId: string;
+    currency: string;
+    items?: OrderItemSnapshot[];
+    sellerIds?: string[];
+    totalAmount?: number;
+    cartId?: string;
+    selectedItemIds?: string[];
+  }): OrderAggregate {
+    const event = new OrderCreatedFromCartEvent(
       `ord_${randomUUID()}`,
       params.buyerId,
+      params.items ?? [],
+      params.sellerIds ?? [],
+      params.totalAmount ?? 0,
+      params.currency,
+      params.cartId,
+      params.selectedItemIds ?? [],
+    );
+
+    const aggregate = new OrderAggregate({
+      id: event.orderId,
+      buyerId: event.buyerId,
+      items: [],
+      sellerIds: [],
+      totalAmount: 0,
+      currency: event.currency,
+      status: OrderStatusEnum.DRAFT,
+      inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
+      paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
+      version: -1,
+      cartId: event.cartId,
+      selectedCartItemIds: event.selectedItemIds,
+      uncommittedEvents: [],
+    });
+
+    aggregate.uncommittedEvents.push(event);
+    aggregate.apply(event);
+
+    return aggregate;
+  }
+
+  static createDirect(params: {
+    buyerId: string;
+    items?: OrderItemSnapshot[];
+    sellerIds?: string[];
+    totalAmount?: number;
+    currency: string;
+  }): OrderAggregate {
+    const event = new OrderCreatedDirectEvent(
+      `ord_${randomUUID()}`,
+      params.buyerId,
+      params.items ?? [],
+      params.sellerIds ?? [],
+      params.totalAmount ?? 0,
       params.currency,
     );
 
-    return new OrderAggregate({
+    const aggregate = new OrderAggregate({
       id: event.orderId,
       buyerId: event.buyerId,
+      items: [],
+      sellerIds: [],
+      totalAmount: 0,
       currency: event.currency,
-      uncommittedEvents: [event],
+      status: OrderStatusEnum.DRAFT,
+      inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
+      paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
+      version: -1,
+      selectedCartItemIds: [],
+      uncommittedEvents: [],
     });
+
+    aggregate.uncommittedEvents.push(event);
+    aggregate.apply(event);
+
+    return aggregate;
+  }
+
+  static rehydrate(events: OrderDomainEvent[]): OrderAggregate {
+    if (events.length === 0) {
+      throw new Error('Cannot rehydrate order aggregate without events.');
+    }
+
+    const aggregate = new OrderAggregate({
+      id: '',
+      buyerId: '',
+      items: [],
+      sellerIds: [],
+      totalAmount: 0,
+      currency: '',
+      status: OrderStatusEnum.DRAFT,
+      inventoryStatus: OrderInventoryStatusEnum.NOT_REQUESTED,
+      paymentStatus: OrderPaymentStatusEnum.NOT_REQUESTED,
+      version: -1,
+      selectedCartItemIds: [],
+    });
+
+    events.forEach((event, index) => {
+      aggregate.apply(event, true);
+      aggregate.version = index;
+    });
+
+    return aggregate;
+  }
+
+  submit(): void {
+    if (this.status !== OrderStatusEnum.DRAFT) {
+      throw new Error('Only draft orders can be submitted.');
+    }
+
+    this.raise(new OrderSubmittedEvent(this.id));
+  }
+
+  reprice(params: {
+    items: OrderItemSnapshot[];
+    sellerIds: string[];
+    totalAmount: number;
+    currency: string;
+    reason?: string;
+  }): void {
+    if (this.status !== OrderStatusEnum.DRAFT) {
+      throw new Error('Only draft orders can be repriced.');
+    }
+
+    this.raise(
+      new OrderRepricedEvent(
+        this.id,
+        params.items,
+        params.sellerIds,
+        params.totalAmount,
+        params.currency,
+        params.reason,
+      ),
+    );
+  }
+
+  cancel(reason?: string): void {
+    if ([OrderStatusEnum.CONFIRMED, OrderStatusEnum.CANCELLED].includes(this.status)) {
+      throw new Error(`Cannot cancel order in status ${this.status}.`);
+    }
+
+    this.raise(new OrderCancelledEvent(this.id, reason));
+  }
+
+  markInventoryReserved(): void {
+    if (this.status === OrderStatusEnum.CANCELLED) {
+      throw new Error('Cannot reserve inventory for a cancelled order.');
+    }
+
+    if (
+      this.inventoryStatus === OrderInventoryStatusEnum.RESERVED ||
+      this.status === OrderStatusEnum.CONFIRMED
+    ) {
+      return;
+    }
+
+    this.raise(new OrderInventoryReservedEvent(this.id));
+    this.confirmIfReady();
+  }
+
+  markInventoryRejected(reason?: string): void {
+    if (this.status === OrderStatusEnum.CANCELLED) {
+      return;
+    }
+
+    this.raise(new OrderInventoryRejectedEvent(this.id, reason));
+    this.raise(new OrderCancelledEvent(this.id, reason ?? 'Inventory reservation rejected.'));
+  }
+
+  markPaymentAuthorized(): void {
+    if (this.status === OrderStatusEnum.CANCELLED) {
+      throw new Error('Cannot authorize payment for a cancelled order.');
+    }
+
+    if (
+      this.paymentStatus === OrderPaymentStatusEnum.AUTHORIZED ||
+      this.status === OrderStatusEnum.CONFIRMED
+    ) {
+      return;
+    }
+
+    this.raise(new OrderPaymentAuthorizedEvent(this.id));
+    this.confirmIfReady();
+  }
+
+  markPaymentFailed(reason?: string): void {
+    if (this.status === OrderStatusEnum.CANCELLED) {
+      return;
+    }
+
+    this.raise(new OrderPaymentFailedEvent(this.id, reason));
+    this.raise(new OrderCancelledEvent(this.id, reason ?? 'Payment authorization failed.'));
+  }
+
+  private confirmIfReady(): void {
+    const canConfirm =
+      this.status === OrderStatusEnum.SUBMITTED &&
+      this.inventoryStatus === OrderInventoryStatusEnum.RESERVED &&
+      this.paymentStatus === OrderPaymentStatusEnum.AUTHORIZED;
+
+    if (canConfirm) {
+      this.raise(new OrderConfirmedEvent(this.id));
+    }
+  }
+
+  private raise(event: OrderDomainEvent): void {
+    this.version += 1;
+    this.uncommittedEvents.push(event);
+    this.apply(event);
+  }
+
+  onOrderCreatedFromCartEvent(event: OrderCreatedFromCartEvent): void {
+    this.id = event.orderId;
+    this.buyerId = event.buyerId;
+    this.items = event.items.map((item) => OrderItemVo.fromSnapshot(item));
+    this.sellerIds = [...event.sellerIds];
+    this.totalAmount = event.totalAmount;
+    this.currency = event.currency;
+    this.cartId = event.cartId;
+    this.selectedCartItemIds = [...event.selectedItemIds];
+    this.status = OrderStatusEnum.DRAFT;
+    this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;
+    this.paymentStatus = OrderPaymentStatusEnum.NOT_REQUESTED;
+  }
+
+  onOrderCreatedDirectEvent(event: OrderCreatedDirectEvent): void {
+    this.id = event.orderId;
+    this.buyerId = event.buyerId;
+    this.items = event.items.map((item) => OrderItemVo.fromSnapshot(item));
+    this.sellerIds = [...event.sellerIds];
+    this.totalAmount = event.totalAmount;
+    this.currency = event.currency;
+    this.cartId = undefined;
+    this.selectedCartItemIds = [];
+    this.status = OrderStatusEnum.DRAFT;
+    this.inventoryStatus = OrderInventoryStatusEnum.NOT_REQUESTED;
+    this.paymentStatus = OrderPaymentStatusEnum.NOT_REQUESTED;
+  }
+
+  onOrderSubmittedEvent(_: OrderSubmittedEvent): void {
+    this.status = OrderStatusEnum.SUBMITTED;
+    this.inventoryStatus = OrderInventoryStatusEnum.PENDING;
+    this.paymentStatus = OrderPaymentStatusEnum.PENDING;
+  }
+
+  onOrderRepricedEvent(event: OrderRepricedEvent): void {
+    this.items = event.items.map((item) => OrderItemVo.fromSnapshot(item));
+    this.sellerIds = [...event.sellerIds];
+    this.totalAmount = event.totalAmount;
+    this.currency = event.currency;
+  }
+
+  onOrderInventoryReservedEvent(_: OrderInventoryReservedEvent): void {
+    this.inventoryStatus = OrderInventoryStatusEnum.RESERVED;
+  }
+
+  onOrderInventoryRejectedEvent(_: OrderInventoryRejectedEvent): void {
+    this.inventoryStatus = OrderInventoryStatusEnum.REJECTED;
+    this.status = OrderStatusEnum.FAILED;
+  }
+
+  onOrderPaymentAuthorizedEvent(_: OrderPaymentAuthorizedEvent): void {
+    this.paymentStatus = OrderPaymentStatusEnum.AUTHORIZED;
+  }
+
+  onOrderPaymentFailedEvent(_: OrderPaymentFailedEvent): void {
+    this.paymentStatus = OrderPaymentStatusEnum.FAILED;
+    this.status = OrderStatusEnum.FAILED;
+  }
+
+  onOrderConfirmedEvent(_: OrderConfirmedEvent): void {
+    this.status = OrderStatusEnum.CONFIRMED;
+  }
+
+  onOrderCancelledEvent(_: OrderCancelledEvent): void {
+    this.status = OrderStatusEnum.CANCELLED;
   }
 }

@@ -10,6 +10,14 @@ Tài liệu này mô tả hướng thiết kế `order-subgraph` cho đồ án c
 
 `order-subgraph` không nên chỉ là một service CRUD đơn giản. Đây nên là service trung tâm để bạn học đúng bài toán microservices nâng cao: command side, query side, event store, projection, outbox, integration events, saga từng bước.
 
+Tài liệu nên đọc kèm:
+
+- `CQRS_BUS_AND_EVENT_DESIGN.md`: giải thích kỹ bus pattern, mediator mindset, và vai trò của event trong CQRS
+- `ORDER_CQRS_DDD_EVENT_SOURCING_DESIGN.md`: bản thiết kế đầy đủ hơn cho hướng C, dùng `CQRS + DDD + Event Sourcing`
+- `ORDER_CREATION_DESIGN.md`: chốt rule giá, cart snapshot, order snapshot và hướng hoàn thiện `createOrderFromCart` / `createOrderDirect`
+- `ORDER_LIFECYCLE_AND_OUTBOX_RULES.md`: chốt lifecycle nghiệp vụ của order, rule submit/cancel/fail/confirm, draft expiry và vai trò của outbox
+- `ORDER_OUTBOX_DESIGN.md`: thiết kế outbox của order, message contract, worker, retry, callback flow và hướng nối inventory/payment
+
 ---
 
 ## 1. Mục tiêu học tập
@@ -708,7 +716,7 @@ services/order-subgraph/
           aggregate/
             order.aggregate.ts
           events/
-            order-created.event.ts
+            order-created-from-cart.event.ts
             order-submitted.event.ts
             order-confirmed.event.ts
             order-cancelled.event.ts

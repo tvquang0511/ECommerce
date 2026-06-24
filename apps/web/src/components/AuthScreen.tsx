@@ -1,6 +1,12 @@
 import { cn } from '@/lib/utils';
 
-type AuthScreenVariant = 'login' | 'register' | 'forgot' | 'reset' | 'two-factor';
+type AuthScreenVariant =
+  | 'login'
+  | 'register'
+  | 'forgot'
+  | 'reset'
+  | 'two-factor'
+  | 'verify-email';
 
 const paletteByVariant: Record<
   AuthScreenVariant,
@@ -46,6 +52,13 @@ const paletteByVariant: Record<
     glowA: 'bg-red-300/40',
     glowB: 'bg-orange-300/40',
     glowC: 'bg-lime-300/40',
+  },
+  'verify-email': {
+    gradient: 'from-cyan-200 via-white to-emerald-200 lg:from-cyan-300 lg:via-sky-100 lg:to-emerald-300 xl:from-cyan-400 xl:to-emerald-400',
+    heroGradient: 'from-cyan-600 via-sky-500 to-emerald-500',
+    glowA: 'bg-cyan-300/40',
+    glowB: 'bg-sky-300/40',
+    glowC: 'bg-emerald-300/40',
   },
 };
 

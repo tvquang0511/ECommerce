@@ -1,5 +1,12 @@
 import { Field, InputType, Int } from '@nestjs/graphql';
-import { IsOptional, IsString, Length, Min } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsOptional,
+  IsString,
+  Length,
+  Min,
+} from 'class-validator';
 
 @InputType()
 export class CreateOrderFromCartInput {
@@ -8,6 +15,30 @@ export class CreateOrderFromCartInput {
   @IsString()
   @Length(1, 128)
   cartId?: string;
+
+  @Field(() => [String])
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  @Length(1, 128, { each: true })
+  selectedItemIds!: string[];
+
+  @Field()
+  @IsString()
+  @Length(3, 128)
+  idempotencyKey!: string;
+}
+
+@InputType()
+export class CreateOrderDirectInput {
+  @Field()
+  @IsString()
+  @Length(1, 128)
+  productId!: string;
+
+  @Field(() => Int)
+  @Min(1)
+  quantity!: number;
 
   @Field()
   @IsString()
