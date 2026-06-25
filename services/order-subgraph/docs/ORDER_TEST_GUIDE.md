@@ -1,19 +1,21 @@
 # Order Test Guide
 
-Tài liệu này là guide ngắn để test `order-subgraph` ở mức end-to-end nội bộ:
+Tài liệu này dùng để test tay `order-subgraph` theo luồng hiện tại:
 
-- mutation
-- event store
-- read model
-- outbox
+- tạo draft order
+- submit order
+- ghi event store
+- cập nhật read model bằng projector
+- đẩy outbox
+- nhận callback từ inventory
 
-Guide này chưa đi đến inventory/payment callback đầy đủ. Mục tiêu là xác nhận nền `CQRS + Event Sourcing + Outbox` đã chạy đúng.
+Guide này tập trung vào phần nội bộ của `order-subgraph` và `inventory-service`. `payment` hiện vẫn là stub.
 
 ---
 
 ## 1. Chuẩn bị
 
-### 1.1 Bật hạ tầng dev
+### 1.1 Chạy hạ tầng dev
 
 Từ root repo:
 
@@ -21,7 +23,7 @@ Từ root repo:
 docker compose -f infra/docker/docker-compose.dev.yml up -d
 ```
 
-### 1.2 Apply migration
+### 1.2 Apply migration và generate Prisma
 
 ```powershell
 pnpm.cmd --filter order-subgraph prisma:generate
@@ -32,26 +34,51 @@ pnpm.cmd --filter order-subgraph prisma:migrate:deploy
 
 ```powershell
 pnpm.cmd --filter order-subgraph start:dev
+pnpm.cmd --filter inventory-service start:dev
 ```
 
-Service sẽ chạy ở:
+Endpoint:
 
 ```text
-http://localhost:4004/graphql
+Order GraphQL: http://localhost:4004/graphql
+Inventory REST: http://localhost:4010
+```
+
+### 1.4 Kiểm tra biến môi trường
+
+`services/order-subgraph/.env`
+
+```env
+OUTBOX_WORKER_ENABLED=true
+OUTBOX_WORKER_INTERVAL_MS=1000
+OUTBOX_WORKER_BATCH_SIZE=20
+INVENTORY_SERVICE_BASE_URL=http://localhost:4010
+```
+
+`services/inventory-service/.env`
+
+```env
+PORT=4010
+ORDER_SUBGRAPH_BASE_URL=http://localhost:4004
 ```
 
 ---
 
-## 2. Test `createOrderFromCart`
+## 2. Test `createOrderDirect`
 
-> Lưu ý: use case này hiện vẫn phụ thuộc `checkoutPricingService.previewFromCart(...)`.
-> Nếu cart/product service của bạn đã chạy, dùng flow thật. Nếu chưa, hãy test tiếp `submitOrder` và `cancelOrder` bằng order đã có stream hợp lệ sau khi create thành công.
+Header GraphQL:
+
+```json
+{
+  "Authorization": "Bearer <BUYER_ACCESS_TOKEN>"
+}
+```
 
 Mutation:
 
 ```graphql
-mutation CreateOrder($input: CreateOrderFromCartInput!) {
-  createOrderFromCart(input: $input) {
+mutation CreateOrderDirect($input: CreateOrderDirectInput!) {
+  createOrderDirect(input: $input) {
     orderId
     status
     version
@@ -66,52 +93,71 @@ Variables:
 ```json
 {
   "input": {
-    "cartId": "cart-demo-1",
-    "idempotencyKey": "order-create-001"
+    "productId": "p1003",
+    "quantity": 1,
+    "idempotencyKey": "order-direct-001"
   }
 }
 ```
 
 Kỳ vọng:
 
-- trả về `status = DRAFT`
-- có `orderId`
-
-Kiểm tra DB:
-
-```powershell
-docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT aggregate_id, sequence, event_type FROM order_events ORDER BY occurred_at DESC;"
-```
-
-Bạn nên thấy:
-
-- một event `OrderCreatedFromCart`
-
-Kiểm tra read model:
-
-```powershell
-docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT order_id, status, inventory_status, payment_status, version FROM orders_read ORDER BY created_at DESC;"
-```
-
-Bạn nên thấy:
-
 - `status = DRAFT`
-- `inventory_status = NOT_REQUESTED`
-- `payment_status = NOT_REQUESTED`
-
-Kiểm tra outbox:
-
-```powershell
-docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT event_type, aggregate_id, published_at, retry_count FROM order_outbox ORDER BY created_at DESC;"
-```
-
-Bạn nên thấy:
-
-- một row `order.created-from-cart`
+- `version = 0`
+- có `orderId`
 
 ---
 
-## 3. Test `submitOrder`
+## 3. Query read model sau khi tạo draft
+
+Query:
+
+```graphql
+query Order($id: ID!) {
+  order(id: $id) {
+    id
+    buyerId
+    sellerIds
+    status
+    inventoryStatus
+    paymentStatus
+    version
+    total {
+      amount
+      currency
+    }
+    items {
+      lineId
+      productId
+      sellerId
+      titleSnapshot
+      quantity
+      unitPrice {
+        amount
+        currency
+      }
+    }
+  }
+}
+```
+
+Variables:
+
+```json
+{
+  "id": "REPLACE_WITH_ORDER_ID"
+}
+```
+
+Kỳ vọng:
+
+- `status = DRAFT`
+- `inventoryStatus = NOT_REQUESTED`
+- `paymentStatus = NOT_REQUESTED`
+
+---
+
+## 4. Test `submitOrder`
 
 Mutation:
 
@@ -139,137 +185,125 @@ Variables:
 }
 ```
 
-Kỳ vọng:
+Kỳ vọng ngay sau khi submit:
 
-- trả về `status = SUBMITTED`
+- `status = SUBMITTED`
+- `version` tăng lên
 
-Kiểm tra event store:
+Query lại order:
+
+- `status = SUBMITTED`
+- `inventoryStatus = PENDING`
+- `paymentStatus = PENDING`
+
+---
+
+## 5. Kiểm tra event store
 
 ```powershell
 docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT aggregate_id, sequence, event_type FROM order_events WHERE aggregate_id = 'REPLACE_WITH_ORDER_ID' ORDER BY sequence ASC;"
 ```
 
-Bạn nên thấy:
+Bạn nên thấy tối thiểu:
 
-- `OrderCreatedFromCart`
+- `OrderCreatedDirect` hoặc `OrderCreatedFromCart`
 - `OrderSubmitted`
 
-Kiểm tra read model:
+Nếu draft bị re-price trước submit, bạn sẽ thấy thêm:
 
-```powershell
-docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT order_id, status, inventory_status, payment_status, version FROM orders_read WHERE order_id = 'REPLACE_WITH_ORDER_ID';"
-```
+- `OrderRepriced`
 
-Bạn nên thấy:
+---
 
-- `status = SUBMITTED`
-- `inventory_status = PENDING`
-- `payment_status = PENDING`
-
-Kiểm tra outbox:
+## 6. Kiểm tra outbox
 
 ```powershell
 docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT event_type, aggregate_id, published_at, retry_count FROM order_outbox WHERE aggregate_id = 'REPLACE_WITH_ORDER_ID' ORDER BY created_at ASC;"
 ```
 
-Bạn nên thấy thêm:
+Bạn nên thấy:
 
 - `order.submitted`
 
----
-
-## 4. Flush outbox thủ công
-
-Hiện tại worker chưa gắn scheduler/background loop.  
-Để test thủ công, chạy:
-
-```powershell
-pnpm.cmd --filter order-subgraph outbox:flush
-```
-
-Kỳ vọng:
-
-- script in ra số lượng outbox entries đã xử lý
-
-Kiểm tra lại DB:
-
-```powershell
-docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT event_type, aggregate_id, published_at, retry_count FROM order_outbox WHERE aggregate_id = 'REPLACE_WITH_ORDER_ID' ORDER BY created_at ASC;"
-```
-
-Bạn nên thấy:
-
-- `published_at` đã có giá trị cho các record được xử lý thành công
+Nếu worker đang chạy ổn, `published_at` sẽ có giá trị sau khoảng 1 giây.
 
 ---
 
-## 5. Test `cancelOrder`
+## 7. Test callback từ inventory về order
 
-Mutation:
+Sau khi outbox worker gọi sang `inventory-service`, inventory sẽ:
 
-```graphql
-mutation CancelOrder($input: CancelOrderInput!) {
-  cancelOrder(input: $input) {
-    orderId
-    status
-    version
-    correlationId
-    message
-  }
-}
-```
+- reserve thành công nếu còn hàng
+- hoặc reject nếu hết hàng
 
-Variables:
+Sau đó inventory callback ngược về:
 
-```json
-{
-  "input": {
-    "orderId": "REPLACE_WITH_ORDER_ID",
-    "expectedVersion": 1,
-    "idempotencyKey": "order-cancel-001",
-    "reason": "buyer changed mind"
-  }
-}
-```
+- `POST /internal/order-callbacks/inventory/reserved`
+- hoặc `POST /internal/order-callbacks/inventory/rejected`
+
+Bạn chỉ cần query lại order sau 1-2 giây.
+
+### 7.1 Nếu reserve thành công
 
 Kỳ vọng:
 
-- trả về `status = CANCELLED`
+- `inventoryStatus = RESERVED`
+- `status` vẫn là `SUBMITTED` vì payment chưa authorize
 
-Kiểm tra event store:
+Event store sẽ có thêm:
 
-```powershell
-docker exec -it <postgres-container> psql -U ecommerce -d ecommerce -c "SELECT aggregate_id, sequence, event_type FROM order_events WHERE aggregate_id = 'REPLACE_WITH_ORDER_ID' ORDER BY sequence ASC;"
-```
+- `OrderInventoryReserved`
 
-Bạn sẽ thấy thêm:
+### 7.2 Nếu reserve thất bại
 
+Ví dụ tạo order với sản phẩm đang hết hàng như `p1004`.
+
+Kỳ vọng:
+
+- `inventoryStatus = REJECTED`
+- `status = CANCELLED`
+
+Event store sẽ có thêm:
+
+- `OrderInventoryRejected`
 - `OrderCancelled`
 
-> Lưu ý: read model cho `OrderCancelled` chưa được projector cập nhật đầy đủ nếu bạn chưa implement projector event này.
+---
+
+## 8. Test nhanh bằng inventory REST
+
+Xem tồn kho:
+
+```powershell
+curl http://localhost:4010/api/inventory/stock
+```
+
+Xem reservation của order:
+
+```powershell
+curl http://localhost:4010/api/inventory/reservations/REPLACE_WITH_ORDER_ID
+```
 
 ---
 
-## 6. Những gì guide này xác nhận được
+## 9. Những gì guide này xác nhận được
 
-Nếu các bước trên chạy ổn, nghĩa là:
+Nếu các bước trên chạy đúng, nghĩa là:
 
 - command handler đã append event store thật
 - aggregate đang sinh event đúng
-- projector hiện có đang cập nhật read model đúng
-- outbox đã lưu vào Postgres thật
-- worker đã flush outbox được
+- projector đang cập nhật read model đúng
+- outbox đang được ghi vào Postgres
+- outbox worker đang flush được
+- inventory callback đã quay ngược về order-subgraph
 
 ---
 
-## 7. Phần còn thiếu sau guide này
+## 10. Phần chưa hoàn thiện
 
-Guide này chưa cover:
+Hiện tại guide này chưa cover đầy đủ:
 
-- inventory callback
-- payment callback
-- projector cho `OrderCancelled`, `OrderConfirmed`, `OrderPaymentAuthorized`, `OrderPaymentFailed`
-- retry strategy thật cho worker
-- publish RabbitMQ thật thay vì publisher stub
-
-Đó sẽ là bước tiếp theo sau khi nền hiện tại đã ổn.
+- payment callback thật
+- confirm order khi cả inventory và payment đều xong
+- release inventory khi cancel sau bước reserve
+- RabbitMQ publisher/consumer thật thay cho HTTP callback demo
