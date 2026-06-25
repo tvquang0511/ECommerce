@@ -1,15 +1,23 @@
 # Order Test Guide
 
-Tài liệu này dùng để test tay `order-subgraph` theo luồng hiện tại:
+Tài liệu này dùng để test tay flow event-driven hiện tại của `order-subgraph`.
+
+Luồng cần kiểm tra:
 
 - tạo draft order
 - submit order
 - ghi event store
 - cập nhật read model bằng projector
-- đẩy outbox
-- nhận callback từ inventory
+- ghi outbox
+- outbox worker publish RabbitMQ
+- `inventory-service` consume message và callback về order
+- `payment-service` consume message và callback về order
 
-Guide này tập trung vào phần nội bộ của `order-subgraph` và `inventory-service`. `payment` hiện chưa cần service thật, ta sẽ giả lập callback thủ công để hoàn thiện flow event-driven.
+Hiện tại đây là bản scaffold học tập:
+
+- `inventory-service` dùng stock in-memory
+- `payment-service` luôn authorize thành công
+- chưa có database riêng cho inventory/payment
 
 ---
 
@@ -23,18 +31,19 @@ Từ root repo:
 docker compose -f infra/docker/docker-compose.dev.yml up -d
 ```
 
-### 1.2 Apply migration và generate Prisma
+### 1.2 Apply migration và generate Prisma cho order
 
 ```powershell
 pnpm.cmd --filter order-subgraph prisma:generate
 pnpm.cmd --filter order-subgraph prisma:migrate:deploy
 ```
 
-### 1.3 Chạy service
+### 1.3 Chạy các service
 
 ```powershell
 pnpm.cmd --filter order-subgraph start:dev
 pnpm.cmd --filter inventory-service start:dev
+pnpm.cmd --filter payment-service start:dev
 ```
 
 Endpoint:
@@ -42,6 +51,7 @@ Endpoint:
 ```text
 Order GraphQL: http://localhost:4004/graphql
 Inventory REST: http://localhost:4010
+Payment REST: http://localhost:4020
 ```
 
 ### 1.4 Kiểm tra biến môi trường
@@ -52,7 +62,8 @@ Inventory REST: http://localhost:4010
 OUTBOX_WORKER_ENABLED=true
 OUTBOX_WORKER_INTERVAL_MS=1000
 OUTBOX_WORKER_BATCH_SIZE=20
-INVENTORY_SERVICE_BASE_URL=http://localhost:4010
+RABBITMQ_URL=amqp://rabbit:rabbit@localhost:5672
+RABBITMQ_EXCHANGE=order.integration
 ```
 
 `services/inventory-service/.env`
@@ -60,6 +71,19 @@ INVENTORY_SERVICE_BASE_URL=http://localhost:4010
 ```env
 PORT=4010
 ORDER_SUBGRAPH_BASE_URL=http://localhost:4004
+RABBITMQ_URL=amqp://rabbit:rabbit@localhost:5672
+RABBITMQ_EXCHANGE=order.integration
+INVENTORY_RESERVATION_QUEUE=inventory.reservation.requested.q
+```
+
+`services/payment-service/.env`
+
+```env
+PORT=4020
+ORDER_SUBGRAPH_BASE_URL=http://localhost:4004
+RABBITMQ_URL=amqp://rabbit:rabbit@localhost:5672
+RABBITMQ_EXCHANGE=order.integration
+PAYMENT_AUTHORIZATION_QUEUE=payment.authorization.requested.q
 ```
 
 ---
@@ -229,26 +253,26 @@ Nếu worker đang chạy ổn, `published_at` sẽ có giá trị sau khoảng 
 
 ---
 
-## 7. Test callback từ inventory về order
+## 7. Kiểm tra inventory consume và callback
 
-Sau khi outbox worker gọi sang `inventory-service`, inventory sẽ:
+Sau khi outbox worker publish `order.submitted` ra RabbitMQ:
 
-- reserve thành công nếu còn hàng
-- hoặc reject nếu hết hàng
+- `inventory-service` consume `inventory.reservation.requested`
+- service này reserve stock in-memory
+- sau đó callback ngược về order
 
-Sau đó inventory callback ngược về:
+Callback nội bộ hiện dùng:
 
 - `POST /internal/order-callbacks/inventory/reserved`
-- hoặc `POST /internal/order-callbacks/inventory/rejected`
-
-Bạn chỉ cần query lại order sau 1-2 giây.
+- `POST /internal/order-callbacks/inventory/rejected`
 
 ### 7.1 Nếu reserve thành công
 
 Kỳ vọng:
 
 - `inventoryStatus = RESERVED`
-- `status` vẫn là `SUBMITTED` vì payment chưa authorize
+- `status` có thể vẫn là `SUBMITTED` nếu payment callback chưa về kịp
+- hoặc có thể đã lên `CONFIRMED` nếu payment callback cũng xong rất nhanh
 
 Event store sẽ có thêm:
 
@@ -256,7 +280,7 @@ Event store sẽ có thêm:
 
 ### 7.2 Nếu reserve thất bại
 
-Ví dụ tạo order với sản phẩm đang hết hàng như `p1004`.
+Ví dụ tạo order với sản phẩm hết hàng như `p1004`.
 
 Kỳ vọng:
 
@@ -270,7 +294,32 @@ Event store sẽ có thêm:
 
 ---
 
-## 8. Test nhanh bằng inventory REST
+## 8. Kiểm tra payment consume và callback
+
+Sau khi outbox worker publish `order.submitted` ra RabbitMQ:
+
+- `payment-service` consume `payment.authorization.requested`
+- service này hiện luôn authorize thành công
+- sau đó callback ngược về order
+
+Callback nội bộ hiện dùng:
+
+- `POST /internal/order-callbacks/payment/authorized`
+
+Với happy path, bạn nên thấy event store có thêm:
+
+- `OrderPaymentAuthorized`
+- `OrderConfirmed`
+
+Query lại order, bạn nên thấy:
+
+- `status = CONFIRMED`
+- `inventoryStatus = RESERVED`
+- `paymentStatus = AUTHORIZED`
+
+---
+
+## 9. Test nhanh bằng inventory REST
 
 Xem tồn kho:
 
@@ -286,7 +335,7 @@ curl http://localhost:4010/api/inventory/reservations/REPLACE_WITH_ORDER_ID
 
 ---
 
-## 9. Những gì guide này xác nhận được
+## 10. Những gì guide này xác nhận được
 
 Nếu các bước trên chạy đúng, nghĩa là:
 
@@ -294,62 +343,10 @@ Nếu các bước trên chạy đúng, nghĩa là:
 - aggregate đang sinh event đúng
 - projector đang cập nhật read model đúng
 - outbox đang được ghi vào Postgres
-- outbox worker đang flush được
-- inventory callback đã quay ngược về order-subgraph
-
----
-
-## 10. Giả lập payment callback để test nhánh confirm/fail
-
-Hiện tại chưa bắt buộc phải scaffold `payment-service`.
-
-Lý do:
-
-- `order-subgraph` đã có đầy đủ command, aggregate event và projector cho `payment`
-- để demo event-driven, chỉ cần callback quay ngược về order là đủ
-- khi nào bạn muốn học sâu hơn về blockchain hoặc payment orchestration thì mới tách thành service riêng
-
-### 10.1 Giả lập payment authorized
-
-Gọi REST vào order-subgraph:
-
-```powershell
-curl -X POST http://localhost:4004/internal/order-callbacks/payment/authorized `
-  -H "Content-Type: application/json" `
-  -d "{\"orderId\":\"REPLACE_WITH_ORDER_ID\",\"expectedVersion\":2,\"correlationId\":\"payment-auth-001\"}"
-```
-
-`expectedVersion` ở đây phải là version hiện tại của order sau bước inventory callback.
-
-Kỳ vọng:
-
-- nếu order đã `inventoryStatus = RESERVED` thì callback này sẽ làm order đi tiếp sang `CONFIRMED`
-- event store có thêm:
-  - `OrderPaymentAuthorized`
-  - `OrderConfirmed`
-
-Query lại order, bạn nên thấy:
-
-- `status = CONFIRMED`
-- `inventoryStatus = RESERVED`
-- `paymentStatus = AUTHORIZED`
-
-### 10.2 Giả lập payment failed
-
-```powershell
-curl -X POST http://localhost:4004/internal/order-callbacks/payment/failed `
-  -H "Content-Type: application/json" `
-  -d "{\"orderId\":\"REPLACE_WITH_ORDER_ID\",\"expectedVersion\":2,\"correlationId\":\"payment-fail-001\",\"reason\":\"card declined\"}"
-```
-
-Kỳ vọng:
-
-- event store có thêm:
-  - `OrderPaymentFailed`
-  - `OrderCancelled`
-- read model chuyển sang:
-  - `paymentStatus = FAILED`
-  - `status = CANCELLED`
+- outbox worker đang publish RabbitMQ được
+- `inventory-service` đang consume message thật
+- `payment-service` đang consume message thật
+- callback từ inventory/payment đã quay ngược về order-subgraph
 
 ---
 
@@ -357,7 +354,8 @@ Kỳ vọng:
 
 Hiện tại guide này chưa cover đầy đủ:
 
-- payment service thật
-- confirm order khi cả inventory và payment đều xong
+- payment failed branch thật
 - release inventory khi cancel sau bước reserve
-- RabbitMQ publisher/consumer thật thay cho HTTP callback demo
+- retry policy sâu hơn cho consumer
+- RabbitMQ DLQ hoặc poison message handling
+- database riêng cho inventory/payment

@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
 
 import { OrderSubmittedEvent } from '../../../domain/events/order-submitted.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -14,3 +14,4 @@ export class OrderSubmittedProjectorHandler
     await this.projectionRepo.markSubmitted(event.orderId, getEventSequenceOrThrow(event));
   }
 }
+

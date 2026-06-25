@@ -1,4 +1,4 @@
-import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
+import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs/dist';
 
 import { OrderCommandResult, OrderStatus } from '../../../graphql/order.gql.type';
 import { OrderAggregate } from '../../../domain/aggregate/order.aggregate';
@@ -39,3 +39,4 @@ export class MarkInventoryRejectedHandler
     };
   }
 }
+

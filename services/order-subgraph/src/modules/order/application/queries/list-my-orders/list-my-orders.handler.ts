@@ -1,4 +1,4 @@
-import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
+import { IQueryHandler, QueryHandler } from '@nestjs/cqrs/dist';
 
 import { Order } from '../../../graphql/order.gql.type';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -14,3 +14,4 @@ export class ListMyOrdersHandler
     return this.projectionRepo.listByBuyerId(query.buyerId);
   }
 }
+

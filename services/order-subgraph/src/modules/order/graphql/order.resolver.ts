@@ -1,4 +1,4 @@
-import { CommandBus, QueryBus } from '@nestjs/cqrs';
+import { CommandBus, QueryBus } from '@nestjs/cqrs/dist';
 import { Args, Context, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
@@ -132,3 +132,4 @@ export class OrderResolver {
     return match?.[1]?.trim() || undefined;
   }
 }
+

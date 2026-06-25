@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
 
 import { OrderCreatedFromCartEvent } from '../../../domain/events/order-created-from-cart.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -22,3 +22,4 @@ export class OrderCreatedFromCartProjectorHandler
     });
   }
 }
+

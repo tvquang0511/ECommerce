@@ -1,4 +1,4 @@
-import { EventBus } from '@nestjs/cqrs';
+import { EventBus } from '@nestjs/cqrs/dist';
 
 import { CreateOrderFromCartHandler } from '../application/commands/create-order-from-cart/create-order-from-cart.handler';
 import { CreateOrderFromCartCommand } from '../application/commands/create-order-from-cart/create-order-from-cart.command';
@@ -81,3 +81,4 @@ describe('CreateOrderFromCartHandler', () => {
     expect(result.orderId).toMatch(/^ord_/);
   });
 });
+

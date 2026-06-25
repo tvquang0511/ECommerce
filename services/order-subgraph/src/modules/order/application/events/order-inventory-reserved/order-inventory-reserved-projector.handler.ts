@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
 
 import { OrderInventoryReservedEvent } from '../../../domain/events/order-inventory-reserved.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -17,3 +17,4 @@ export class OrderInventoryReservedProjectorHandler
     );
   }
 }
+

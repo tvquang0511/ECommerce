@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
 
 import { OrderPaymentAuthorizedEvent } from '../../../domain/events/order-payment-authorized.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -17,3 +17,4 @@ export class OrderPaymentAuthorizedProjectorHandler
     );
   }
 }
+

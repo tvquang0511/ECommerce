@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { AggregateRoot } from '@nestjs/cqrs';
+import { AggregateRoot } from '@nestjs/cqrs/dist';
 
 import { OrderInventoryStatusEnum } from '../enums/order-inventory-status.enum';
 import { OrderPaymentStatusEnum } from '../enums/order-payment-status.enum';
@@ -342,3 +342,4 @@ export class OrderAggregate extends AggregateRoot {
     this.status = OrderStatusEnum.CANCELLED;
   }
 }
+

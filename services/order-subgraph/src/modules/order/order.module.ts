@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { CqrsModule } from '@nestjs/cqrs';
+import { CqrsModule } from '@nestjs/cqrs/dist';
 
 import { AuthModule } from '../auth/auth.module';
 import { OrderResolver } from './graphql/order.resolver';
@@ -17,6 +17,7 @@ import { CartReaderService } from './infrastructure/integrations/cart-reader.ser
 import { CartWriterService } from './infrastructure/integrations/cart-writer.service';
 import { ProductReaderService } from './infrastructure/integrations/product-reader.service';
 import { InventoryPublisherService } from './infrastructure/integrations/inventory-publisher.service';
+import { OrderRabbitMqPublisherService } from './infrastructure/integrations/order-rabbitmq-publisher.service';
 import { PaymentPublisherService } from './infrastructure/integrations/payment-publisher.service';
 import { OrderOutboxRepo } from './infrastructure/outbox/order-outbox.repo';
 import { OrderOutboxWorker } from './infrastructure/outbox/order-outbox.worker';
@@ -36,6 +37,7 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
     CartReaderService,
     CartWriterService,
     ProductReaderService,
+    OrderRabbitMqPublisherService,
     InventoryPublisherService,
     PaymentPublisherService,
     OrderOutboxRepo,
@@ -46,3 +48,4 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
   ],
 })
 export class OrderModule {}
+

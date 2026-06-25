@@ -1,4 +1,4 @@
-import { EventBus } from '@nestjs/cqrs';
+import { EventBus } from '@nestjs/cqrs/dist';
 
 import { SubmitOrderHandler } from '../application/commands/submit-order/submit-order.handler';
 import { SubmitOrderCommand } from '../application/commands/submit-order/submit-order.command';
@@ -245,3 +245,4 @@ describe('SubmitOrderHandler', () => {
     expect(events[1]).toBeInstanceOf(OrderSubmittedEvent);
   });
 });
+

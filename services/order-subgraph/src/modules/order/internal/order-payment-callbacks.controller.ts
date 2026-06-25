@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs';
+import { CommandBus } from '@nestjs/cqrs/dist';
 
 import { MarkPaymentAuthorizedCommand } from '../application/commands/mark-payment-authorized/mark-payment-authorized.command';
 import { MarkPaymentFailedCommand } from '../application/commands/mark-payment-failed/mark-payment-failed.command';
@@ -44,3 +44,4 @@ export class OrderPaymentCallbacksController {
     );
   }
 }
+
