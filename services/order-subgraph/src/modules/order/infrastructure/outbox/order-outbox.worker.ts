@@ -10,6 +10,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { InventoryPublisherService } from '../integrations/inventory-publisher.service';
 import { PaymentPublisherService } from '../integrations/payment-publisher.service';
 import { OrderOutboxRepo } from './order-outbox.repo';
+import { OrderSubmittedOutboxPayload } from './order-outbox-message.type';
 
 @Injectable()
 export class OrderOutboxWorker implements OnModuleInit, OnModuleDestroy {
@@ -106,9 +107,9 @@ export class OrderOutboxWorker implements OnModuleInit, OnModuleDestroy {
     payload: Record<string, unknown>,
   ): Promise<void> {
     if (eventType === 'order.submitted') {
-      const orderId = this.requireOrderId(payload);
-      await this.inventoryPublisher.publishReservationRequested(orderId);
-      await this.paymentPublisher.publishPaymentRequested(orderId);
+      const submittedPayload = this.asOrderSubmittedPayload(payload);
+      await this.inventoryPublisher.publishReservationRequested(submittedPayload);
+      await this.paymentPublisher.publishPaymentRequested(submittedPayload);
       return;
     }
 
@@ -128,5 +129,35 @@ export class OrderOutboxWorker implements OnModuleInit, OnModuleDestroy {
     }
 
     return payload.orderId;
+  }
+
+  private asOrderSubmittedPayload(
+    payload: Record<string, unknown>,
+  ): OrderSubmittedOutboxPayload {
+    const orderId = this.requireOrderId(payload);
+    const buyerId =
+      typeof payload.buyerId === 'string' ? payload.buyerId : '';
+    const sellerIds = Array.isArray(payload.sellerIds)
+      ? payload.sellerIds.filter((value): value is string => typeof value === 'string')
+      : [];
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const totalAmount =
+      typeof payload.totalAmount === 'number' ? payload.totalAmount : 0;
+    const currency =
+      typeof payload.currency === 'string' ? payload.currency : 'VND';
+    const submittedAt =
+      typeof payload.submittedAt === 'string'
+        ? payload.submittedAt
+        : new Date().toISOString();
+
+    return {
+      orderId,
+      buyerId,
+      sellerIds,
+      items: items as OrderSubmittedOutboxPayload['items'],
+      totalAmount,
+      currency,
+      submittedAt,
+    };
   }
 }
