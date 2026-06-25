@@ -36,6 +36,7 @@ export class OrderSubmittedOutboxHandler
       totalAmount: aggregate.totalAmount,
       currency: aggregate.currency,
       submittedAt,
+      orderVersion: aggregate.version,
     };
 
     const headers: OrderOutboxHeaders = {

@@ -33,6 +33,16 @@ export class ReserveInventoryRequestDto {
   @IsOptional()
   buyerId?: string;
 
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  expectedVersion?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  orderVersion?: number;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

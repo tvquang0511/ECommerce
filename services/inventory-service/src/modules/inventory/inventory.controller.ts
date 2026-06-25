@@ -6,11 +6,15 @@ import {
   ReserveInventoryRequestDto,
   UpsertStockRequestDto,
 } from './dto/inventory.dto';
+import { InventoryOrderCallbackService } from './inventory-order-callback.service';
 import { InventoryService } from './inventory.service';
 
 @Controller()
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(
+    private readonly inventoryService: InventoryService,
+    private readonly orderCallbackService: InventoryOrderCallbackService,
+  ) {}
 
   @Get('health')
   getHealth() {
@@ -38,8 +42,27 @@ export class InventoryController {
   }
 
   @Post('api/inventory/reserve')
-  reserve(@Body() input: ReserveInventoryRequestDto) {
-    return this.inventoryService.reserve(input);
+  async reserve(@Body() input: ReserveInventoryRequestDto) {
+    const result = this.inventoryService.reserve(input);
+
+    if (result.status === 'RESERVED') {
+      await this.orderCallbackService.sendReserved({
+        orderId: result.orderId,
+        expectedVersion: result.expectedVersion,
+        correlationId: result.correlationId,
+      });
+    }
+
+    if (result.status === 'REJECTED') {
+      await this.orderCallbackService.sendRejected({
+        orderId: result.orderId,
+        expectedVersion: result.expectedVersion,
+        correlationId: result.correlationId,
+        reason: result.reason,
+      });
+    }
+
+    return result;
   }
 
   @Get('api/inventory/reservations/:orderId')

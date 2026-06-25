@@ -19,4 +19,5 @@ export interface OrderSubmittedOutboxPayload extends Record<string, unknown> {
   totalAmount: number;
   currency: string;
   submittedAt: string;
+  orderVersion: number;
 }

@@ -16,6 +16,8 @@ interface InventoryStockRecord {
 interface InventoryReservationRecord {
   orderId: string;
   buyerId?: string;
+  expectedVersion: number;
+  correlationId: string;
   status: 'RESERVED' | 'REJECTED' | 'RELEASED';
   items: Array<{
     productId: string;
@@ -103,6 +105,8 @@ export class InventoryService {
       return {
         orderId: existing.orderId,
         status: existing.status,
+        expectedVersion: existing.expectedVersion,
+        correlationId: existing.correlationId,
         items: existing.items,
         reason: existing.reason ?? null,
         idempotentReplay: true,
@@ -116,9 +120,12 @@ export class InventoryService {
 
     if (insufficientItem) {
       const reason = `Insufficient stock for product ${insufficientItem.productId}`;
+      const expectedVersion = this.resolveExpectedVersion(input);
       this.reservations.set(input.orderId, {
         orderId: input.orderId,
         buyerId: input.buyerId,
+        expectedVersion,
+        correlationId: input.orderId,
         status: 'REJECTED',
         items: input.items,
         reason,
@@ -127,6 +134,8 @@ export class InventoryService {
       return {
         orderId: input.orderId,
         status: 'REJECTED' as const,
+        expectedVersion,
+        correlationId: input.orderId,
         items: input.items,
         reason,
         idempotentReplay: false,
@@ -139,9 +148,12 @@ export class InventoryService {
       stock.reserved += item.quantity;
     });
 
+    const expectedVersion = this.resolveExpectedVersion(input);
     this.reservations.set(input.orderId, {
       orderId: input.orderId,
       buyerId: input.buyerId,
+      expectedVersion,
+      correlationId: input.orderId,
       status: 'RESERVED',
       items: input.items,
     });
@@ -149,6 +161,8 @@ export class InventoryService {
     return {
       orderId: input.orderId,
       status: 'RESERVED' as const,
+      expectedVersion,
+      correlationId: input.orderId,
       items: input.items,
       reason: null,
       idempotentReplay: false,
@@ -212,5 +226,26 @@ export class InventoryService {
     } satisfies InventoryStockRecord;
     this.stock.set(productId, created);
     return created;
+  }
+
+  private resolveExpectedVersion(input: ReserveInventoryRequestDto): number {
+    const candidate = (input as ReserveInventoryRequestDto & {
+      expectedVersion?: number;
+      orderVersion?: number;
+    }).expectedVersion;
+
+    if (typeof candidate === 'number') {
+      return candidate;
+    }
+
+    const orderVersion = (input as ReserveInventoryRequestDto & {
+      orderVersion?: number;
+    }).orderVersion;
+
+    if (typeof orderVersion === 'number') {
+      return orderVersion;
+    }
+
+    return 1;
   }
 }

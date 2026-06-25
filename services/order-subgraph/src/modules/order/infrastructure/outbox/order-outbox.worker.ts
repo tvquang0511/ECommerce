@@ -149,6 +149,8 @@ export class OrderOutboxWorker implements OnModuleInit, OnModuleDestroy {
       typeof payload.submittedAt === 'string'
         ? payload.submittedAt
         : new Date().toISOString();
+    const orderVersion =
+      typeof payload.orderVersion === 'number' ? payload.orderVersion : 0;
 
     return {
       orderId,
@@ -158,6 +160,7 @@ export class OrderOutboxWorker implements OnModuleInit, OnModuleDestroy {
       totalAmount,
       currency,
       submittedAt,
+      orderVersion,
     };
   }
 }

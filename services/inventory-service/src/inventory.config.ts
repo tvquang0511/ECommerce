@@ -6,4 +6,6 @@ export const inventoryConfig = registerAs('inventory', () => ({
     | 'development'
     | 'production'
     | 'test',
+  orderSubgraphBaseUrl:
+    process.env.ORDER_SUBGRAPH_BASE_URL ?? 'http://localhost:4004',
 }));

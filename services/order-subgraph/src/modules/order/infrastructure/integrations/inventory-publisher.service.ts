@@ -22,6 +22,8 @@ export class InventoryPublisherService {
       body: JSON.stringify({
         orderId: payload.orderId,
         buyerId: payload.buyerId,
+        expectedVersion: payload.orderVersion,
+        orderVersion: payload.orderVersion,
         items: payload.items.map((item) => ({
           productId: item.productId,
           sellerId: item.sellerId,
