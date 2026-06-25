@@ -6,4 +6,7 @@ export const appConfig = registerAs('app', () => ({
     | 'development'
     | 'production'
     | 'test',
+  outboxWorkerEnabled: process.env.OUTBOX_WORKER_ENABLED !== 'false',
+  outboxWorkerIntervalMs: Number(process.env.OUTBOX_WORKER_INTERVAL_MS ?? 1000),
+  outboxWorkerBatchSize: Number(process.env.OUTBOX_WORKER_BATCH_SIZE ?? 20),
 }));
