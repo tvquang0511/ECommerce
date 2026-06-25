@@ -6,6 +6,47 @@
 
 ---
 
+## Định Hướng Hiện Tại Của Project (Tháng 6/2026)
+
+Repo hiện tại đã đi qua giai đoạn skeleton ban đầu. Hướng chính hiện tại là:
+
+- giữ `user-service`, `product-subgraph`, `cart-subgraph` ở mức dùng được thật
+- hoàn thiện `order-subgraph` theo hướng `CQRS + DDD + Event Sourcing + outbox`
+- demo được workflow event-driven qua RabbitMQ
+
+Trong hướng này:
+
+- `inventory-service` sẽ được xây dựng ở mức cơ bản nhưng có giá trị dùng thật:
+  - cung cấp trạng thái tồn kho
+  - reserve/reject hàng cho order
+
+- `payment-service` hiện tại chưa cần thanh toán thật:
+  - chỉ cần nhận được event từ RabbitMQ
+  - phát lại callback kết quả cho order
+  - phase sau mới mở rộng thành service để học blockchain
+
+### Mục tiêu demo event-driven
+
+Demo hiện tại cần đi được luồng sau:
+
+```text
+create order draft
+  -> submit order
+  -> ghi order_outbox
+  -> outbox worker publish RabbitMQ
+  -> inventory/payment nhan event
+  -> inventory/payment publish ket qua
+  -> order append event moi + cap nhat read model
+```
+
+### Tài liệu nên đọc trước
+
+- [docs/README.md](docs/README.md)
+- [docs/architecture/current-focus.md](docs/architecture/current-focus.md)
+- [services/order-subgraph/docs/README.md](services/order-subgraph/docs/README.md)
+
+---
+
 ## 0) Phạm vi đề xuất (MVP để học)
 
 ### MVP user journey (demo được)
