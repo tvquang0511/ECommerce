@@ -4,6 +4,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { AuthModule } from '../auth/auth.module';
 import { OrderResolver } from './graphql/order.resolver';
 import { OrderInventoryCallbacksController } from './internal/order-inventory-callbacks.controller';
+import { OrderPaymentCallbacksController } from './internal/order-payment-callbacks.controller';
 import { OrderCommandHandlers } from './application/commands';
 import { OrderQueryHandlers } from './application/queries';
 import { OrderEventHandlers } from './application/events';
@@ -23,7 +24,7 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
 
 @Module({
   imports: [CqrsModule, AuthModule],
-  controllers: [OrderInventoryCallbacksController],
+  controllers: [OrderInventoryCallbacksController, OrderPaymentCallbacksController],
   providers: [
     OrderResolver,
     CheckoutPricingService,

@@ -9,7 +9,7 @@ Tài liệu này dùng để test tay `order-subgraph` theo luồng hiện tại
 - đẩy outbox
 - nhận callback từ inventory
 
-Guide này tập trung vào phần nội bộ của `order-subgraph` và `inventory-service`. `payment` hiện vẫn là stub.
+Guide này tập trung vào phần nội bộ của `order-subgraph` và `inventory-service`. `payment` hiện chưa cần service thật, ta sẽ giả lập callback thủ công để hoàn thiện flow event-driven.
 
 ---
 
@@ -299,11 +299,65 @@ Nếu các bước trên chạy đúng, nghĩa là:
 
 ---
 
-## 10. Phần chưa hoàn thiện
+## 10. Giả lập payment callback để test nhánh confirm/fail
+
+Hiện tại chưa bắt buộc phải scaffold `payment-service`.
+
+Lý do:
+
+- `order-subgraph` đã có đầy đủ command, aggregate event và projector cho `payment`
+- để demo event-driven, chỉ cần callback quay ngược về order là đủ
+- khi nào bạn muốn học sâu hơn về blockchain hoặc payment orchestration thì mới tách thành service riêng
+
+### 10.1 Giả lập payment authorized
+
+Gọi REST vào order-subgraph:
+
+```powershell
+curl -X POST http://localhost:4004/internal/order-callbacks/payment/authorized `
+  -H "Content-Type: application/json" `
+  -d "{\"orderId\":\"REPLACE_WITH_ORDER_ID\",\"expectedVersion\":2,\"correlationId\":\"payment-auth-001\"}"
+```
+
+`expectedVersion` ở đây phải là version hiện tại của order sau bước inventory callback.
+
+Kỳ vọng:
+
+- nếu order đã `inventoryStatus = RESERVED` thì callback này sẽ làm order đi tiếp sang `CONFIRMED`
+- event store có thêm:
+  - `OrderPaymentAuthorized`
+  - `OrderConfirmed`
+
+Query lại order, bạn nên thấy:
+
+- `status = CONFIRMED`
+- `inventoryStatus = RESERVED`
+- `paymentStatus = AUTHORIZED`
+
+### 10.2 Giả lập payment failed
+
+```powershell
+curl -X POST http://localhost:4004/internal/order-callbacks/payment/failed `
+  -H "Content-Type: application/json" `
+  -d "{\"orderId\":\"REPLACE_WITH_ORDER_ID\",\"expectedVersion\":2,\"correlationId\":\"payment-fail-001\",\"reason\":\"card declined\"}"
+```
+
+Kỳ vọng:
+
+- event store có thêm:
+  - `OrderPaymentFailed`
+  - `OrderCancelled`
+- read model chuyển sang:
+  - `paymentStatus = FAILED`
+  - `status = CANCELLED`
+
+---
+
+## 11. Phần chưa hoàn thiện
 
 Hiện tại guide này chưa cover đầy đủ:
 
-- payment callback thật
+- payment service thật
 - confirm order khi cả inventory và payment đều xong
 - release inventory khi cancel sau bước reserve
 - RabbitMQ publisher/consumer thật thay cho HTTP callback demo
