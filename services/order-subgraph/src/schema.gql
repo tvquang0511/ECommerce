@@ -18,6 +18,7 @@ input CreateOrderDirectInput {
 input CreateOrderFromCartInput {
   cartId: String
   idempotencyKey: String!
+  selectedItemIds: [String!]!
 }
 
 type Money {

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import amqp, { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
+import * as amqp from 'amqplib';
+import { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
 
 import { InventoryOrderCallbackService } from './inventory-order-callback.service';
 import { InventoryService } from './inventory.service';

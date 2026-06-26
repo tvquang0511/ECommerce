@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import amqp, { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
+import * as amqp from 'amqplib';
+import { Channel, ChannelModel, ConsumeMessage } from 'amqplib';
 
 import { PaymentCallbackService } from './payment-callback.service';
 import { PaymentService } from './payment.service';
