@@ -14,3 +14,5 @@ export class OrderPaymentFailedProjectorHandler
     await this.projectionRepo.markPaymentFailed(event.orderId, getEventSequenceOrThrow(event));
   }
 }
+
+

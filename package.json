@@ -3,6 +3,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "postinstall": "node scripts/patch-broken-nest-packages.mjs",
     "gateway": "pnpm --filter graphql-gateway dev",
     "product": "pnpm --filter product-subgraph dev",
     "product:lint": "pnpm --filter product-subgraph lint",

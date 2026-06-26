@@ -14,3 +14,5 @@ export class OrderSubmittedProjectorHandler
     await this.projectionRepo.markSubmitted(event.orderId, getEventSequenceOrThrow(event));
   }
 }
+
+

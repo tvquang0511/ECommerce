@@ -14,3 +14,5 @@ export class OrderConfirmedProjectorHandler
     await this.projectionRepo.markConfirmed(event.orderId, getEventSequenceOrThrow(event));
   }
 }
+
+

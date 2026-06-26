@@ -1,6 +1,6 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "./generated"
+  output   = "./.client"
 }
 
 datasource db {
@@ -69,8 +69,9 @@ model OrderOutbox {
   retryCount  Int       @default(0) @map("retry_count")
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  @@index([publishedAt])
+  @@index([publishedAt, createdAt])
   @@index([aggregateId])
+  @@index([eventType])
   @@index([createdAt])
   @@map("order_outbox")
 }

@@ -105,6 +105,12 @@ cart:
 order:
 	pnpm --filter order-subgraph dev
 
+payment:
+	pnpm --filter payment-service dev
+
+inventory:
+	pnpm --filter inventory-service dev
+
 product-g:
 	$(MAKE) service-g SVC=product-subgraph KIND="$(KIND)" NAME="$(NAME)" OPTS="$(OPTS)" ARGS="$(ARGS)"
 

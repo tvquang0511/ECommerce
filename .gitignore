@@ -43,7 +43,7 @@ yarn-error.log*
 .idea/
 
 # prisma
-services/*/prisma/generated/
+services/*/prisma/.client/
 
 # OS
 .DS_Store

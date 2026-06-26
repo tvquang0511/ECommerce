@@ -7,6 +7,10 @@ BEGIN
     CREATE DATABASE "user" OWNER ecommerce;
   END IF;
 
+  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'order') THEN
+    CREATE DATABASE "order" OWNER ecommerce;
+  END IF;
+
   IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'payments') THEN
     CREATE DATABASE payments OWNER ecommerce;
   END IF;

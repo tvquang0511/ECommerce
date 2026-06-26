@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import bcrypt from "bcryptjs";
 import dotenv from "dotenv";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "./generated/index.js";
+import { PrismaClient } from "./.client/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

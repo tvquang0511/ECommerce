@@ -7,6 +7,7 @@ RUN corepack enable
 
 # Workspace manifests
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY scripts scripts
 
 # Copy workspace packages that user-service depends on
 COPY packages/tsconfig packages/tsconfig

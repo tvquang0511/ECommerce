@@ -3,6 +3,8 @@ import { CqrsModule } from '@nestjs/cqrs';
 
 import { AuthModule } from '../auth/auth.module';
 import { OrderResolver } from './graphql/order.resolver';
+import { OrderInventoryCallbacksController } from './internal/order-inventory-callbacks.controller';
+import { OrderPaymentCallbacksController } from './internal/order-payment-callbacks.controller';
 import { OrderCommandHandlers } from './application/commands';
 import { OrderQueryHandlers } from './application/queries';
 import { OrderEventHandlers } from './application/events';
@@ -15,6 +17,7 @@ import { CartReaderService } from './infrastructure/integrations/cart-reader.ser
 import { CartWriterService } from './infrastructure/integrations/cart-writer.service';
 import { ProductReaderService } from './infrastructure/integrations/product-reader.service';
 import { InventoryPublisherService } from './infrastructure/integrations/inventory-publisher.service';
+import { OrderRabbitMqPublisherService } from './infrastructure/integrations/order-rabbitmq-publisher.service';
 import { PaymentPublisherService } from './infrastructure/integrations/payment-publisher.service';
 import { OrderOutboxRepo } from './infrastructure/outbox/order-outbox.repo';
 import { OrderOutboxWorker } from './infrastructure/outbox/order-outbox.worker';
@@ -22,6 +25,7 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
 
 @Module({
   imports: [CqrsModule, AuthModule],
+  controllers: [OrderInventoryCallbacksController, OrderPaymentCallbacksController],
   providers: [
     OrderResolver,
     CheckoutPricingService,
@@ -33,6 +37,7 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
     CartReaderService,
     CartWriterService,
     ProductReaderService,
+    OrderRabbitMqPublisherService,
     InventoryPublisherService,
     PaymentPublisherService,
     OrderOutboxRepo,
@@ -43,3 +48,5 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
   ],
 })
 export class OrderModule {}
+
+

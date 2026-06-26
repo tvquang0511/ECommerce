@@ -13,6 +13,53 @@ Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức
 
 ---
 
+## 0) Định hướng hiện tại (Tháng 6/2026)
+
+Hướng hiện tại của repo đã rõ hơn so với roadmap skeleton ban đầu:
+
+- `user-service`, `product-subgraph`, `cart-subgraph` đã có flow dùng thật để test
+- `order-subgraph` đang là trung tâm học `CQRS + DDD + Event Sourcing + outbox`
+- mục tiêu ngắn hạn là hoàn thiện demo `event-driven order flow` qua RabbitMQ
+
+Trong hướng này:
+
+- `inventory-service` sẽ được xây dựng ở mức cơ bản nhưng dùng được thật
+- `payment-service` chưa cần thanh toán thật, chỉ cần consume/publish event để demo workflow bất đồng bộ
+
+### 0.1 Inventory sẽ dùng để làm gì
+
+Inventory không phải product catalog. Inventory tồn tại để:
+
+- cấp stock status cho product/UI ở mức tham khảo
+- reserve hàng thật tại lúc `submitOrder`
+- reject nếu không đủ hàng
+
+Nó giải quyết bài toán concurrency và oversell, không chỉ là bài toán hiển thị "còn hàng/hết hàng".
+
+### 0.2 Payment sẽ dùng để làm gì trong phase này
+
+Payment hiện tại không nhắm đến integration thật ngay. Mục tiêu phase này chỉ là:
+
+- nhận được event từ order qua RabbitMQ
+- phát lại kết quả `authorized` hoặc `failed`
+- giúp order demo được callback event-driven end-to-end
+
+Sau khi flow này ổn, payment mới là nơi để học blockchain ở phase sau.
+
+### 0.3 Outbox worker sẽ chạy thế nào
+
+Lựa chọn hiện tại:
+
+- dùng `NestJS Schedule`
+- worker poll `order_outbox`
+- đề xuất khởi đầu:
+  - `interval = 1000ms`
+  - `batch = 20`
+
+Event store và outbox vẫn có thể dùng chung Postgres, nhưng phải là hai bảng riêng và có index đúng.
+
+---
+
 ## 1) Tổng quan hệ thống
 
 ### 1.1 Mục tiêu

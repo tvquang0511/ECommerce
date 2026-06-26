@@ -342,3 +342,5 @@ export class OrderAggregate extends AggregateRoot {
     this.status = OrderStatusEnum.CANCELLED;
   }
 }
+
+

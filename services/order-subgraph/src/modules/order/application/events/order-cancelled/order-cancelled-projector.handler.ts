@@ -14,3 +14,5 @@ export class OrderCancelledProjectorHandler
     await this.projectionRepo.markCancelled(event.orderId, getEventSequenceOrThrow(event));
   }
 }
+
+

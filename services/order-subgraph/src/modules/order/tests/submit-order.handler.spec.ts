@@ -245,3 +245,5 @@ describe('SubmitOrderHandler', () => {
     expect(events[1]).toBeInstanceOf(OrderSubmittedEvent);
   });
 });
+
+

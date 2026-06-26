@@ -11,6 +11,30 @@ Chuẩn kiến trúc và quy ước viết docs nằm ở [architecture-standard
 
 ---
 
+## 0) Phạm vi hiện tại của service cho bản demo event-driven
+
+Để tránh lệch với roadmap cũ, phạm vi hiện tại của từng service nên hiểu như sau:
+
+- `user-service`: đã dùng thật cho auth, RBAC, seller onboarding, admin workflows.
+- `product-subgraph`: đã dùng thật cho product catalog, moderation states, media metadata.
+- `cart-subgraph`: đã dùng thật cho buyer cart trên Redis.
+- `order-subgraph`: đang hoàn thiện luồng order event-driven với outbox.
+- `inventory-service`: sắp được xây dựng ở mức cơ bản để cấp stock status và reserve stock.
+- `payment-service`: phase này chỉ cần consume/publish event để demo RabbitMQ, chưa cần payment thật.
+
+Mục tiêu quan trọng nhất hiện tại là:
+
+```text
+submitOrder
+  -> ghi order_outbox
+  -> outbox worker publish RabbitMQ
+  -> inventory/payment nhan event
+  -> inventory/payment phan hoi ket qua
+  -> order cap nhat state va projection
+```
+
+---
+
 ## 1) `product-subgraph` (Catalog)
 
 ### 1.1 Queries (public qua gateway)
@@ -99,6 +123,27 @@ Chuẩn kiến trúc và quy ước viết docs nằm ở [architecture-standard
 - Publish: `order.created.v1`, `order.confirmed.v1`, `order.cancelled.v1`
 - Consume: `inventory.*`, `payment.*`
 
+### 3.6 Hướng hiện tại của order
+- `createOrderDirect`, `createOrderFromCart`, `submitOrder` đã có flow CQRS + event store.
+- `submitOrder` đã được chốt theo hướng re-price trước submit.
+- Bước tiếp theo của order là:
+  - hoàn thiện `order_outbox`
+  - worker publish RabbitMQ
+  - nhận callback từ inventory/payment
+
+### 3.7 Phạm vi outbox hiện tại
+Phase hiện tại nên bắt đầu tối thiểu với:
+
+- outbox event: `order.submitted`
+- worker fan-out sang:
+  - inventory reservation request
+  - payment authorization request
+
+Sau đó mới mở rộng:
+
+- `order.confirmed`
+- `order.cancelled`
+
 ---
 
 ## 4) `inventory-service` (REST internal)
@@ -113,6 +158,19 @@ Chuẩn kiến trúc và quy ước viết docs nằm ở [architecture-standard
 
 ### 4.3 Events
 - Publish: `inventory.reserved.v1`, `inventory.reserve_failed.v1`, `inventory.released.v1`
+
+### 4.4 Phạm vi hiện tại cần làm
+Inventory-service trong phase này không cần trở thành warehouse system đầy đủ.
+
+Chỉ cần đủ để:
+
+- trả về stock status cơ bản cho product/UI
+- reserve stock theo `orderId`
+- reject nếu không đủ stock
+- release reservation nếu order bị cancel/fail
+- publish kết quả về order qua RabbitMQ
+
+Nó là service "dùng được thật" cho bài toán commerce, không chỉ là mock.
 
 ---
 
@@ -129,6 +187,21 @@ Chuẩn kiến trúc và quy ước viết docs nằm ở [architecture-standard
 
 ### 5.3 Events
 - Publish: `payment.authorized.v1`, `payment.failed.v1`, `payment.captured.v1`
+
+### 5.4 Phạm vi hiện tại cần làm
+Payment-service trong phase hiện tại không cần thanh toán thật.
+
+Chỉ cần đủ để:
+
+- consume event từ order
+- tạo payment record/mock intent nếu cần
+- publish lại:
+  - `payment.authorized.v1`
+  - hoặc `payment.failed.v1`
+
+Mục tiêu là demo event-driven flow hoàn chỉnh trước.
+
+Phase sau mới biến payment thành nơi để học blockchain.
 
 ---
 
