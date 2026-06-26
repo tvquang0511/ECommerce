@@ -35,6 +35,12 @@ services:
       - "15672:15672"
     volumes:
       - ecommerce_rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
 
   minio:
     image: minio/minio:latest
@@ -126,11 +132,16 @@ services:
       ORDER_DATABASE_URL: postgresql://ecommerce:ecommerce@postgres:5432/order
       RABBITMQ_URL: amqp://rabbit:rabbit@rabbitmq:5672
       RABBITMQ_EXCHANGE: order.integration
+    restart: unless-stopped
     depends_on:
-      - postgres
-      - rabbitmq
-      - product-subgraph
-      - user-service
+      postgres:
+        condition: service_started
+      rabbitmq:
+        condition: service_healthy
+      product-subgraph:
+        condition: service_started
+      user-service:
+        condition: service_started
 
   inventory-service:
     build:
@@ -144,9 +155,12 @@ services:
       ORDER_SUBGRAPH_BASE_URL: http://order-subgraph:4004
       RABBITMQ_URL: amqp://rabbit:rabbit@rabbitmq:5672
       RABBITMQ_EXCHANGE: order.integration
+    restart: unless-stopped
     depends_on:
-      - rabbitmq
-      - order-subgraph
+      rabbitmq:
+        condition: service_healthy
+      order-subgraph:
+        condition: service_started
 
   payment-service:
     build:
@@ -160,9 +174,12 @@ services:
       ORDER_SUBGRAPH_BASE_URL: http://order-subgraph:4004
       RABBITMQ_URL: amqp://rabbit:rabbit@rabbitmq:5672
       RABBITMQ_EXCHANGE: order.integration
+    restart: unless-stopped
     depends_on:
-      - rabbitmq
-      - order-subgraph
+      rabbitmq:
+        condition: service_healthy
+      order-subgraph:
+        condition: service_started
 
   nginx:
     image: nginx:1.27-alpine

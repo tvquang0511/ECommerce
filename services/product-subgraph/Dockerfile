@@ -8,6 +8,7 @@ RUN corepack enable
 
 # Copy only what we need to install dependencies for this workspace
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY scripts scripts
 COPY packages/tsconfig packages/tsconfig
 COPY packages/eslint-config packages/eslint-config
 COPY services/product-subgraph/package.json services/product-subgraph/package.json

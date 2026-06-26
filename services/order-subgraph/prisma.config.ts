@@ -1,8 +1,12 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 
 import { defineConfig } from 'prisma/config';
 
-process.loadEnvFile(path.resolve(__dirname, '.env'));
+const envPath = path.resolve(__dirname, '.env');
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',

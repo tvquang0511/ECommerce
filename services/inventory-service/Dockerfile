@@ -5,6 +5,7 @@ WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY scripts scripts
 COPY packages/tsconfig packages/tsconfig
 COPY packages/eslint-config packages/eslint-config
 COPY services/inventory-service/package.json services/inventory-service/package.json

@@ -22,6 +22,7 @@ export class PaymentRabbitMqConsumer implements OnModuleInit, OnModuleDestroy {
   private connection?: ChannelModel;
   private channel?: Channel;
   private consumerTag?: string;
+  private connectPromise?: Promise<Channel>;
 
   constructor(
     private readonly configService: ConfigService,
@@ -30,35 +31,15 @@ export class PaymentRabbitMqConsumer implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const url =
-      this.configService.get<string>('payment.rabbitmqUrl') ??
-      'amqp://rabbit:rabbit@localhost:5672';
-    const exchange =
-      this.configService.get<string>('payment.rabbitmqExchange') ??
-      'order.integration';
-    const queue =
-      this.configService.get<string>('payment.authorizationQueue') ??
-      'payment.authorization.requested.q';
-
-    const connection = await amqp.connect(url);
-    const channel = await connection.createChannel();
-    await channel.assertExchange(exchange, 'topic', { durable: true });
-    await channel.assertQueue(queue, { durable: true });
-    await channel.bindQueue(queue, exchange, 'payment.authorization.requested');
-    await channel.prefetch(10);
-
-    const consumeResult = await channel.consume(
-      queue,
-      (message) => {
-        void this.handleMessage(message);
-      },
-      { noAck: false },
-    );
-
-    this.connection = connection;
-    this.channel = channel;
-    this.consumerTag = consumeResult.consumerTag;
-    this.logger.log(`Payment consumer is listening on queue ${queue}.`);
+    try {
+      await this.ensureConsumer();
+    } catch (error) {
+      this.logger.warn(
+        `RabbitMQ is not ready during payment startup. Consumer will retry on next restart. ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -95,5 +76,55 @@ export class PaymentRabbitMqConsumer implements OnModuleInit, OnModuleDestroy {
       );
       this.channel.nack(message, false, true);
     }
+  }
+
+  private async ensureConsumer(): Promise<Channel> {
+    if (this.channel) {
+      return this.channel;
+    }
+
+    if (this.connectPromise) {
+      return this.connectPromise;
+    }
+
+    const url =
+      this.configService.get<string>('payment.rabbitmqUrl') ??
+      'amqp://rabbit:rabbit@localhost:5672';
+    const exchange =
+      this.configService.get<string>('payment.rabbitmqExchange') ??
+      'order.integration';
+    const queue =
+      this.configService.get<string>('payment.authorizationQueue') ??
+      'payment.authorization.requested.q';
+
+    this.connectPromise = (async () => {
+      try {
+        const connection = await amqp.connect(url);
+        const channel = await connection.createChannel();
+        await channel.assertExchange(exchange, 'topic', { durable: true });
+        await channel.assertQueue(queue, { durable: true });
+        await channel.bindQueue(queue, exchange, 'payment.authorization.requested');
+        await channel.prefetch(10);
+
+        const consumeResult = await channel.consume(
+          queue,
+          (message) => {
+            void this.handleMessage(message);
+          },
+          { noAck: false },
+        );
+
+        this.connection = connection;
+        this.channel = channel;
+        this.consumerTag = consumeResult.consumerTag;
+        this.logger.log(`Payment consumer is listening on queue ${queue}.`);
+
+        return channel;
+      } finally {
+        this.connectPromise = undefined;
+      }
+    })();
+
+    return this.connectPromise;
   }
 }
