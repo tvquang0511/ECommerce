@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderCreatedDirectEvent } from '../../../domain/events/order-created-direct.event';
 import { OrderOutboxRepo } from '../../../infrastructure/outbox/order-outbox.repo';
@@ -20,4 +20,5 @@ export class OrderCreatedDirectOutboxHandler
     });
   }
 }
+
 

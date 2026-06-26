@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderInventoryRejectedEvent } from '../../../domain/events/order-inventory-rejected.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -17,4 +17,5 @@ export class OrderInventoryRejectedProjectorHandler
     );
   }
 }
+
 

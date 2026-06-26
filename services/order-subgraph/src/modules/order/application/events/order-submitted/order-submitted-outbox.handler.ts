@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderAggregate } from '../../../domain/aggregate/order.aggregate';
 import { OrderSubmittedEvent } from '../../../domain/events/order-submitted.event';
@@ -53,4 +53,5 @@ export class OrderSubmittedOutboxHandler
     await this.outboxRepo.enqueue('order.submitted', payload, headers);
   }
 }
+
 

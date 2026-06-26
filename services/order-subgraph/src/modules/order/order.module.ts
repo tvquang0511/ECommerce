@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { CqrsModule } from '@nestjs/cqrs/dist';
+import { CqrsModule } from '@nestjs/cqrs';
 
 import { AuthModule } from '../auth/auth.module';
 import { OrderResolver } from './graphql/order.resolver';
@@ -48,4 +48,5 @@ import { OrderPrismaService } from './infrastructure/prisma/order-prisma.service
   ],
 })
 export class OrderModule {}
+
 

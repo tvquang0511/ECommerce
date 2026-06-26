@@ -1,4 +1,4 @@
-import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs/dist';
+import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
 import { CheckoutPricingService } from '../../services/checkout-pricing.service';
 import { OrderCommandResult, OrderStatus } from '../../../graphql/order.gql.type';
@@ -103,4 +103,5 @@ export class SubmitOrderHandler
     });
   }
 }
+
 

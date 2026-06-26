@@ -3,11 +3,11 @@
   "private": true,
   "scripts": {
     "prebuild": "prisma generate",
-    "build": "nest build && node scripts/copy-generated-prisma.mjs",
+    "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
-    "start:dev": "prisma generate && nest build && node scripts/copy-generated-prisma.mjs && nest start --watch",
-    "start:debug": "prisma generate && nest build && node scripts/copy-generated-prisma.mjs && nest start --debug --watch",
+    "start:dev": "prisma generate && nest build && nest start --watch",
+    "start:debug": "prisma generate && nest build && nest start --debug --watch",
     "start:prod": "node dist/main",
     "outbox:flush": "tsx src/scripts/flush-order-outbox.ts",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
@@ -19,7 +19,7 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "dev": "prisma generate && nest build && node scripts/copy-generated-prisma.mjs && nest start --watch",
+    "dev": "prisma generate && nest build && nest start --watch",
     "g": "nest g"
   },
   "dependencies": {

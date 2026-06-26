@@ -1,4 +1,4 @@
-import { EventBus } from '@nestjs/cqrs/dist';
+import { EventBus } from '@nestjs/cqrs';
 
 import { CreateOrderDirectCommand } from '../application/commands/create-order-direct/create-order-direct.command';
 import { CreateOrderDirectHandler } from '../application/commands/create-order-direct/create-order-direct.handler';
@@ -73,4 +73,5 @@ describe('CreateOrderDirectHandler', () => {
     expect(result.orderId).toMatch(/^ord_/);
   });
 });
+
 

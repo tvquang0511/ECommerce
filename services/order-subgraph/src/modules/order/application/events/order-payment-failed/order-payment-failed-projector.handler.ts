@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderPaymentFailedEvent } from '../../../domain/events/order-payment-failed.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -14,4 +14,5 @@ export class OrderPaymentFailedProjectorHandler
     await this.projectionRepo.markPaymentFailed(event.orderId, getEventSequenceOrThrow(event));
   }
 }
+
 

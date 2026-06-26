@@ -5,7 +5,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { SchedulerRegistry } from '@nestjs/schedule/dist';
+import { SchedulerRegistry } from '@nestjs/schedule';
 
 import { InventoryPublisherService } from '../integrations/inventory-publisher.service';
 import { PaymentPublisherService } from '../integrations/payment-publisher.service';
@@ -164,4 +164,5 @@ export class OrderOutboxWorker implements OnModuleInit, OnModuleDestroy {
     };
   }
 }
+
 

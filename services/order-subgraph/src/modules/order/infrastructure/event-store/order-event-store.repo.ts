@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma as PrismaTypes } from '../../../../../prisma/generated';
+import type { Prisma as PrismaTypes } from '../../../../../prisma/.client';
 
 import { OrderDomainEvent } from '../../domain/events/order-domain-event';
 import { OrderEventMapper } from './order-event.mapper';

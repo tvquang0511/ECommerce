@@ -1,4 +1,4 @@
-import { EventsHandler, IEventHandler } from '@nestjs/cqrs/dist';
+import { EventsHandler, IEventHandler } from '@nestjs/cqrs';
 
 import { OrderRepricedEvent } from '../../../domain/events/order-repriced.event';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
@@ -23,4 +23,5 @@ export class OrderRepricedProjectorHandler
     );
   }
 }
+
 

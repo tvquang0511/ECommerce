@@ -1,5 +1,5 @@
 import { Body, Controller, Post } from '@nestjs/common';
-import { CommandBus } from '@nestjs/cqrs/dist';
+import { CommandBus } from '@nestjs/cqrs';
 
 import { MarkInventoryRejectedCommand } from '../application/commands/mark-inventory-rejected/mark-inventory-rejected.command';
 import { MarkInventoryReservedCommand } from '../application/commands/mark-inventory-reserved/mark-inventory-reserved.command';
@@ -44,4 +44,5 @@ export class OrderInventoryCallbacksController {
     );
   }
 }
+
 
