@@ -3,8 +3,6 @@ import type { IncomingHttpHeaders } from 'node:http';
 const FORWARDED_HEADER_ALLOWLIST = [
   'authorization',
   'x-request-id',
-
-  // Dev/test headers (subgraphs may gate these behind AUTH_ALLOW_TEST_HEADERS)
   'x-dev-user-id',
   'x-dev-roles',
   'x-dev-permissions',
