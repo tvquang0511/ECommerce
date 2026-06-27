@@ -30,7 +30,7 @@ help:
 	@echo "  make product-g KIND=controller NAME=products OPTS=--no-spec # nest generate in product-subgraph"
 	@echo "  make service-g SVC=product-subgraph KIND=controller NAME=products OPTS=--no-spec # generic nest generate"
 	@echo "  make user          # run user-service (dev)"
-	@echo "  make federation    # run product + gateway together"
+	@echo "  make federation    # run user + product + cart + order + gateway together"
 	@echo "  make edge-up       # start infra + nginx edge (optional)"
 	@echo "  make edge-down     # stop infra + nginx edge"
 	@echo "  make tool-up       # start infra + mongo/redis tool UIs"
@@ -138,9 +138,12 @@ app:
 	pnpm --filter web dev
 
 federation:
-	@echo "Starting product-subgraph + graphql-gateway (Ctrl+C to stop both)"
+	@echo "Starting user-service + product-subgraph + cart-subgraph + order-subgraph + graphql-gateway (Ctrl+C to stop all)"
 	@trap 'kill 0' INT; \
+	  pnpm --filter user-service dev & \
 	  pnpm --filter product-subgraph dev & \
+	  pnpm --filter cart-subgraph dev & \
+	  pnpm --filter order-subgraph dev & \
 	  pnpm --filter graphql-gateway dev & \
 	  wait
 

@@ -9,6 +9,12 @@ Apollo Federation Gateway viết bằng NestJS.
 
 Default port: `4000`.
 
+## Composed subgraphs
+
+- `product-subgraph`
+- `cart-subgraph`
+- `order-subgraph`
+
 ## Env
 
 - `PRODUCT_SUBGRAPH_URL` mặc định `http://127.0.0.1:4002/graphql`

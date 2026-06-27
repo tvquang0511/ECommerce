@@ -423,7 +423,7 @@ Tài liệu kiến trúc:
 3) Chạy 2 service GraphQL tối thiểu (hello federation)
   - Terminal A: `pnpm --filter product-subgraph dev` (port `4002`)
     - hoặc: `make product` / `pnpm run product`
-  - Terminal B: `pnpm --filter graphql-gateway dev` (port `4000`)
+  - Terminal B: `pnpm --filter graphql-gateway start:dev` (port `4000`)
     - hoặc: `make gateway` / `pnpm run gateway`
   - Một lệnh (chạy cả 2): `make federation` hoặc `pnpm run federation`
 4) Test nhanh gateway

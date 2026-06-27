@@ -42,8 +42,7 @@ Ngoài ra:
 Chỉ dùng đúng một cổng public là `8080`:
 
 - user REST: `http://localhost:8080/api/users/...`
-- product GraphQL: `http://localhost:8080/graphql/product`
-- order GraphQL: `http://localhost:8080/graphql/order`
+- GraphQL gateway: `http://localhost:8080/graphql`
 - inventory REST: `http://localhost:8080/api/inventory/...`
 - payment REST: `http://localhost:8080/api/payments/...`
 - RabbitMQ UI: `http://localhost:8080/rabbitmq/`
@@ -75,7 +74,7 @@ Kết quả mong đợi:
 Gọi vào endpoint product GraphQL:
 
 ```text
-http://localhost:8080/graphql/product
+http://localhost:8080/graphql
 ```
 
 Headers:
@@ -109,7 +108,7 @@ Kết quả mong đợi:
 Gọi vào endpoint order GraphQL:
 
 ```text
-http://localhost:8080/graphql/order
+http://localhost:8080/graphql
 ```
 
 Headers:

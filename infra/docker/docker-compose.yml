@@ -71,18 +71,86 @@ services:
       echo 'minio init done';
       "
 
+  user-service:
+    build:
+      context: ../..
+      dockerfile: services/user-service/Dockerfile
+    env_file:
+      - ../../services/user-service/.env
+    environment:
+      PORT: "4001"
+      NODE_ENV: development
+      DATABASE_URL: postgresql://ecommerce:ecommerce@postgres:5432/user?schema=public
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
+    ports:
+      - "4001:4001"
+    depends_on:
+      - postgres
+      - redis
+      - minio
+
   product-subgraph:
     build:
       context: ../..
       dockerfile: services/product-subgraph/Dockerfile
     environment:
       PORT: "4002"
+      NODE_ENV: development
+      MONGO_URI: mongodb://mongo:27017/product-subgraph
+      USER_SERVICE_BASE_URL: http://user-service:4001
+      REDIS_URL: redis://redis:6379
+      MINIO_ENDPOINT: minio
+      MINIO_PORT: "9000"
+      MINIO_USE_SSL: "false"
     ports:
       - "4002:4002"
     depends_on:
       - mongo
       - redis
       - minio
+      - user-service
+
+  cart-subgraph:
+    build:
+      context: ../..
+      dockerfile: services/cart-subgraph/Dockerfile
+    environment:
+      PORT: "4003"
+      NODE_ENV: development
+      PRODUCT_SUBGRAPH_URL: "http://product-subgraph:4002/graphql"
+      REDIS_URL: "redis://redis:6379"
+      USER_SERVICE_BASE_URL: "http://user-service:4001"
+    ports:
+      - "4003:4003"
+    depends_on:
+      - redis
+      - product-subgraph
+      - user-service
+
+  order-subgraph:
+    build:
+      context: ../..
+      dockerfile: services/order-subgraph/Dockerfile
+    env_file:
+      - ../../services/order-subgraph/.env
+    environment:
+      PORT: "4004"
+      NODE_ENV: development
+      USER_SERVICE_BASE_URL: http://user-service:4001
+      PRODUCT_SUBGRAPH_BASE_URL: http://product-subgraph:4002
+      ORDER_DATABASE_URL: postgresql://ecommerce:ecommerce@postgres:5432/order
+      RABBITMQ_URL: amqp://rabbit:rabbit@rabbitmq:5672
+      RABBITMQ_EXCHANGE: order.integration
+    ports:
+      - "4004:4004"
+    depends_on:
+      - postgres
+      - rabbitmq
+      - product-subgraph
+      - user-service
 
   graphql-gateway:
     build:
@@ -91,10 +159,14 @@ services:
     environment:
       PORT: "4000"
       PRODUCT_SUBGRAPH_URL: "http://product-subgraph:4002/graphql"
+      CART_SUBGRAPH_URL: "http://cart-subgraph:4003/graphql"
+      ORDER_SUBGRAPH_URL: "http://order-subgraph:4004/graphql"
     ports:
       - "4000:4000"
     depends_on:
       - product-subgraph
+      - cart-subgraph
+      - order-subgraph
 
 volumes:
   ecommerce_postgres_data:
