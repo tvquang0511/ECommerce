@@ -6,7 +6,7 @@ import {
   OrderItem,
   OrderPaymentStatus,
   OrderStatus,
-} from '../../graphql/order.gql.type';
+} from '../../interfaces/graphql/order.gql.type';
 import { OrderPrismaService } from '../prisma/order-prisma.service';
 import { OrderItemSnapshot } from '../../domain/value-objects/order-item.vo';
 

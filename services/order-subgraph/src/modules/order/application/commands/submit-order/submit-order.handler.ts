@@ -1,7 +1,10 @@
 import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
 import { CheckoutPricingService } from '../../services/checkout-pricing.service';
-import { OrderCommandResult, OrderStatus } from '../../../graphql/order.gql.type';
+import {
+  OrderCommandResult,
+  OrderStatus,
+} from '../../../interfaces/graphql/order.gql.type';
 import { OrderAggregate } from '../../../domain/aggregate/order.aggregate';
 import { OrderItemSnapshot } from '../../../domain/value-objects/order-item.vo';
 import { OrderEventStoreRepo } from '../../../infrastructure/event-store/order-event-store.repo';

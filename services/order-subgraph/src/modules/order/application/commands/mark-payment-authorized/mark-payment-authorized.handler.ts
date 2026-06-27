@@ -1,6 +1,9 @@
 import { CommandHandler, EventBus, ICommandHandler } from '@nestjs/cqrs';
 
-import { OrderCommandResult, OrderStatus } from '../../../graphql/order.gql.type';
+import {
+  OrderCommandResult,
+  OrderStatus,
+} from '../../../interfaces/graphql/order.gql.type';
 import { OrderAggregate } from '../../../domain/aggregate/order.aggregate';
 import { OrderPaymentStatusEnum } from '../../../domain/enums/order-payment-status.enum';
 import { OrderStatusEnum } from '../../../domain/enums/order-status.enum';

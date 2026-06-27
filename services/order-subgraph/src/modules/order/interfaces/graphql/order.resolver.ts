@@ -2,9 +2,9 @@ import { CommandBus, QueryBus } from '@nestjs/cqrs';
 import { Args, Context, ID, Mutation, Query, Resolver } from '@nestjs/graphql';
 import { NotFoundException, UseGuards } from '@nestjs/common';
 
-import { AuthGuard } from '../../auth/guards/auth.guard';
-import { CurrentActor } from '../../auth/decorators/current-actor.decorator';
-import { AuthActor } from '../../auth/auth.types';
+import { AuthGuard } from '../../../auth/guards/auth.guard';
+import { CurrentActor } from '../../../auth/decorators/current-actor.decorator';
+import { AuthActor } from '../../../auth/auth.types';
 import { Order, OrderCommandResult } from './order.gql.type';
 import {
   CancelOrderInput,
@@ -12,12 +12,12 @@ import {
   CreateOrderFromCartInput,
   SubmitOrderInput,
 } from './order.input';
-import { CreateOrderDirectCommand } from '../application/commands/create-order-direct/create-order-direct.command';
-import { CreateOrderFromCartCommand } from '../application/commands/create-order-from-cart/create-order-from-cart.command';
-import { SubmitOrderCommand } from '../application/commands/submit-order/submit-order.command';
-import { CancelOrderCommand } from '../application/commands/cancel-order/cancel-order.command';
-import { GetOrderQuery } from '../application/queries/get-order/get-order.query';
-import { ListMyOrdersQuery } from '../application/queries/list-my-orders/list-my-orders.query';
+import { CreateOrderDirectCommand } from '../../application/commands/create-order-direct/create-order-direct.command';
+import { CreateOrderFromCartCommand } from '../../application/commands/create-order-from-cart/create-order-from-cart.command';
+import { SubmitOrderCommand } from '../../application/commands/submit-order/submit-order.command';
+import { CancelOrderCommand } from '../../application/commands/cancel-order/cancel-order.command';
+import { GetOrderQuery } from '../../application/queries/get-order/get-order.query';
+import { ListMyOrdersQuery } from '../../application/queries/list-my-orders/list-my-orders.query';
 
 @Resolver(() => Order)
 export class OrderResolver {
@@ -43,7 +43,9 @@ export class OrderResolver {
     @Args('id', { type: () => ID }) id: string,
     @CurrentActor() actor: AuthActor,
   ): Promise<Order | null> {
-    const order = await this.queryBus.execute(new GetOrderQuery(id, actor.userId));
+    const order = await this.queryBus.execute(
+      new GetOrderQuery(id, actor.userId),
+    );
     if (!order) {
       throw new NotFoundException(`Order ${id} not found`);
     }
@@ -55,7 +57,9 @@ export class OrderResolver {
   async createOrderFromCart(
     @Args('input') input: CreateOrderFromCartInput,
     @CurrentActor() actor: AuthActor,
-    @Context('req') req: { headers?: Record<string, string | string[] | undefined> },
+    @Context('req') req: {
+      headers?: Record<string, string | string[] | undefined>;
+    },
   ): Promise<OrderCommandResult> {
     return this.commandBus.execute(
       new CreateOrderFromCartCommand(
@@ -89,7 +93,9 @@ export class OrderResolver {
   async submitOrder(
     @Args('input') input: SubmitOrderInput,
     @CurrentActor() actor: AuthActor,
-    @Context('req') req: { headers?: Record<string, string | string[] | undefined> },
+    @Context('req') req: {
+      headers?: Record<string, string | string[] | undefined>;
+    },
   ): Promise<OrderCommandResult> {
     return this.commandBus.execute(
       new SubmitOrderCommand(
@@ -123,7 +129,9 @@ export class OrderResolver {
     headers?: Record<string, string | string[] | undefined>;
   }): string | undefined {
     const authorization = req.headers?.authorization;
-    const headerValue = Array.isArray(authorization) ? authorization[0] : authorization;
+    const headerValue = Array.isArray(authorization)
+      ? authorization[0]
+      : authorization;
     if (!headerValue) {
       return undefined;
     }
@@ -132,5 +140,3 @@ export class OrderResolver {
     return match?.[1]?.trim() || undefined;
   }
 }
-
-

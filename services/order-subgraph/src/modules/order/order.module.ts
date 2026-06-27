@@ -2,9 +2,9 @@ import { Module } from '@nestjs/common';
 import { CqrsModule } from '@nestjs/cqrs';
 
 import { AuthModule } from '../auth/auth.module';
-import { OrderResolver } from './graphql/order.resolver';
-import { OrderInventoryCallbacksController } from './internal/order-inventory-callbacks.controller';
-import { OrderPaymentCallbacksController } from './internal/order-payment-callbacks.controller';
+import { OrderResolver } from './interfaces/graphql/order.resolver';
+import { OrderInventoryCallbacksController } from './interfaces/callbacks/order-inventory-callbacks.controller';
+import { OrderPaymentCallbacksController } from './interfaces/callbacks/order-payment-callbacks.controller';
 import { OrderCommandHandlers } from './application/commands';
 import { OrderQueryHandlers } from './application/queries';
 import { OrderEventHandlers } from './application/events';

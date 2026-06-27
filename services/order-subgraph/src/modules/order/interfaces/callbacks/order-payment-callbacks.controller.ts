@@ -2,8 +2,8 @@ import { Body, Controller, Post } from '@nestjs/common';
 import { CommandBus } from '@nestjs/cqrs';
 import { IsInt, IsOptional, IsString, Min } from 'class-validator';
 
-import { MarkPaymentAuthorizedCommand } from '../application/commands/mark-payment-authorized/mark-payment-authorized.command';
-import { MarkPaymentFailedCommand } from '../application/commands/mark-payment-failed/mark-payment-failed.command';
+import { MarkPaymentAuthorizedCommand } from '../../application/commands/mark-payment-authorized/mark-payment-authorized.command';
+import { MarkPaymentFailedCommand } from '../../application/commands/mark-payment-failed/mark-payment-failed.command';
 
 class PaymentAuthorizedCallbackDto {
   @IsString()
@@ -60,5 +60,3 @@ export class OrderPaymentCallbacksController {
     );
   }
 }
-
-

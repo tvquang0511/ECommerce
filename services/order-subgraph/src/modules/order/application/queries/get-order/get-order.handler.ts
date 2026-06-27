@@ -1,6 +1,6 @@
 import { IQueryHandler, QueryHandler } from '@nestjs/cqrs';
 
-import { Order } from '../../../graphql/order.gql.type';
+import { Order } from '../../../interfaces/graphql/order.gql.type';
 import { OrderProjectionRepo } from '../../../infrastructure/projections/order-projection.repo';
 import { GetOrderQuery } from './get-order.query';
 
