@@ -1,37 +1,25 @@
-# Product Subgraph Docs Index
+# product-subgraph Docs
 
-Mục lục chuẩn cho toàn bộ tài liệu của `product-subgraph`.
+Thư mục này chứa tài liệu domain và policy riêng của `product-subgraph`.
 
-## Reading order
-1. [Service README](../README.md)
-2. [Architecture Analysis](ARCHITECTURE_ANALYSIS.md)
-3. [E-commerce Marketplace Design](ECOMMERCE_MARKETPLACE_DESIGN.md)
-4. [Advanced RBAC and Workflows](ADVANCED_RBAC_AND_WORKFLOWS.md)
-5. [Implementation Sprint Plan](IMPLEMENTATION_SPRINT_PLAN.md)
-6. [Next Steps Plan](NEXT_STEPS_PLAN.md)
-7. [Sequential Weekly Roadmap](WEEKLY_ROADMAP.md)
+## Nên đọc theo thứ tự
 
-## What each file is for
+1. [../README.md](../README.md)
+2. [PRODUCT_OPERATION_POLICY.md](PRODUCT_OPERATION_POLICY.md)
+3. [ADVANCED_RBAC_AND_WORKFLOWS.md](ADVANCED_RBAC_AND_WORKFLOWS.md)
+4. [PRODUCT_TEST_GUIDE.md](PRODUCT_TEST_GUIDE.md)
+5. [PRODUCT_INTEGRATION_CHECKLIST.md](PRODUCT_INTEGRATION_CHECKLIST.md)
+6. [AUTH_GUARD_PROFESSIONAL_DESIGN.md](AUTH_GUARD_PROFESSIONAL_DESIGN.md)
 
-- `../README.md`: giới thiệu ngắn gọn service, endpoints, runtime config, core files.
-- `ARCHITECTURE_ANALYSIS.md`: phân tích cấu trúc hiện tại của service.
-- `ECOMMERCE_MARKETPLACE_DESIGN.md`: nghiệp vụ marketplace, role, product, search, workflow.
-- `ADVANCED_RBAC_AND_WORKFLOWS.md`: RBAC nhiều lớp, policy, workflow nâng cao.
-- `PRODUCT_OPERATION_POLICY.md`: rule thao tác product, visibility theo role, seller flow, admin moderation.
+## Mô tả từng tài liệu
+
+- `PRODUCT_OPERATION_POLICY.md`: rule thao tác product, visibility theo role, seller flow và admin moderation.
+- `ADVANCED_RBAC_AND_WORKFLOWS.md`: RBAC nhiều lớp, policy và workflow nâng cao.
 - `PRODUCT_TEST_GUIDE.md`: hướng dẫn test tay product bằng token thật.
-- `PRODUCT_INTEGRATION_CHECKLIST.md`: checklist xác nhận product-subgraph đang tích hợp đúng với user-service.
-- `IMPLEMENTATION_SPRINT_PLAN.md`: kế hoạch thực thi theo sprint.
-- `NEXT_STEPS_PLAN.md`: kế hoạch tiếp theo cho user-service, product, gateway, và web app.
-- `WEEKLY_ROADMAP.md`: roadmap theo tuần nhưng làm tuần tự từng service một, không chạy song song 4 mảng.
+- `PRODUCT_INTEGRATION_CHECKLIST.md`: checklist xác nhận product-subgraph tích hợp đúng với user-service.
+- `AUTH_GUARD_PROFESSIONAL_DESIGN.md`: ghi chú thiết kế guard và auth chain.
 
-## Standardization rules
+## Quy ước cho docs của product
 
-- Giữ một nguồn sự thật cho kiến trúc: code và schema.
-- Mọi tài liệu về product phải thống nhất các khái niệm: seller, buyer, admin, approval, status.
-- Nếu schema hoặc contract đổi, cập nhật README và docs index cùng lúc.
-
-## Suggested future cleanup
-
-Nếu sau này bạn muốn dọn gọn hơn nữa, có thể gộp 4 tài liệu bên trên thành 2 file:
-- một file cho **architecture/current state**
-- một file cho **marketplace domain/RBAC**
+- Tài liệu nên phân biệt rõ quyền của guest, buyer, seller và admin.
+- Khi đổi status flow hoặc product visibility, phải cập nhật lại policy docs và test guide.

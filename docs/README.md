@@ -1,133 +1,121 @@
-# Mục Lục Tài Liệu
+# Tài Liệu Dự Án
 
-Đây là mục lục chuẩn cho toàn bộ repo. Nếu bạn mới bắt đầu đọc dự án, hãy đi theo thứ tự:
+Thư mục `docs/` là nơi chứa tài liệu tổng của toàn bộ repo. Mục tiêu của khu vực này là:
 
-1. [Repository README](../README.md)
-2. [Trọng Tâm Hiện Tại - Tháng 6/2026](architecture/current-focus.md)
-3. [Architecture Standard](architecture/architecture-standard.md)
-4. [System Overview](architecture/overview.md)
-5. [Auth Architecture](architecture/auth.md)
-6. [RBAC Marketplace Access Control](architecture/rbac-marketplace-access-control.md)
-7. [Services Specification](architecture/services.md)
-8. [Component Diagram](diagrams/component-diagram.md)
-9. [User Service Database Diagram](diagrams/database-diagram/user-service.md)
-10. README riêng của từng service
-11. Tài liệu thiết kế của `order-subgraph`
-12. Tài liệu thiết kế của `product-subgraph`
+- mô tả kiến trúc hệ thống ở mức tổng quan,
+- ghi lại các quyết định thiết kế quan trọng,
+- hướng dẫn cách chạy, test và vận hành backend,
+- chuẩn hóa cách viết tài liệu để nhiều người cùng làm vẫn thống nhất.
 
----
+Nếu bạn mới vào repo, nên đọc theo thứ tự sau:
 
-## 1) Tài liệu kiến trúc
+1. [README của repo](../README.md)
+2. [Tổng quan tài liệu kiến trúc](architecture/README.md)
+3. [Báo cáo hiện trạng backend](reports/BACKEND_STATUS_REPORT_AND_NEXT_STEPS.md)
+4. [Tổng quan sơ đồ](diagrams/README.md)
+5. Tài liệu trong `docs/standards/`
+6. README và docs riêng của từng service
 
-### Kiến trúc cốt lõi
-- [Trọng Tâm Hiện Tại - Tháng 6/2026](architecture/current-focus.md)
-- [Architecture Standard](architecture/architecture-standard.md)
-- [System Overview](architecture/overview.md)
-- [Services Specification](architecture/services.md)
-- [Auth Architecture](architecture/auth.md)
-- [RBAC Marketplace Access Control](architecture/rbac-marketplace-access-control.md)
-- [Next.js Web Proxy](architecture/next-web-proxy.md)
-- [Apollo + NestJS Learning Roadmap](architecture/apollo-nestjs-learning-roadmap.md)
+## Cấu trúc chuẩn của `docs`
 
-### Mỗi file dùng để làm gì
-- `current-focus.md`: nguồn sự thật ngắn gọn về trạng thái hiện tại của đồ án, nhất là hướng order/outbox/inventory/payment.
-- `architecture-standard.md`: nguồn sự thật chuẩn cho toàn repo.
-- `overview.md`: bức tranh tổng quan service boundaries, sync/async, infra.
-- `services.md`: danh sách chức năng chi tiết của từng service/subgraph/worker.
-- `auth.md`: authn/authz của `user-service`.
-- `rbac-marketplace-access-control.md`: role, permission, scope, seller tier, approval flow.
-- `next-web-proxy.md`: lý do và cách proxy auth qua Next.js.
-- `apollo-nestjs-learning-roadmap.md`: roadmap học Apollo/NestJS theo giai đoạn.
+```text
+docs/
+  README.md
+  architecture/
+  diagrams/
+  guides/
+  reports/
+  standards/
+  templates/
+```
 
----
+## Ý nghĩa từng khu vực
 
-## 2) Sơ đồ
+### `architecture/`
 
-- [Component Diagram](diagrams/component-diagram.md)
-- [User Service Database Diagram](diagrams/database-diagram/user-service.md)
+Chứa tài liệu kiến trúc tổng của hệ thống:
 
-### Ghi chú về sơ đồ
-- `component-diagram.md`: sơ đồ component-level của toàn hệ thống.
-- `database-diagram/user-service.md`: ER-style diagram cho auth + RBAC schema của `user-service`.
+- service boundaries,
+- auth/RBAC,
+- event-driven flow,
+- định hướng kỹ thuật,
+- các quyết định ở mức toàn repo.
 
----
+### `diagrams/`
 
-## 3) Tài liệu theo từng service
+Chứa sơ đồ và tài liệu giải thích sơ đồ:
 
-### `product-subgraph`
-- [Architecture Analysis](../services/product-subgraph/docs/ARCHITECTURE_ANALYSIS.md)
-- [E-commerce Marketplace Design](../services/product-subgraph/docs/ECOMMERCE_MARKETPLACE_DESIGN.md)
-- [Advanced RBAC and Workflows](../services/product-subgraph/docs/ADVANCED_RBAC_AND_WORKFLOWS.md)
-- [Implementation Sprint Plan](../services/product-subgraph/docs/IMPLEMENTATION_SPRINT_PLAN.md)
-- [product-subgraph README](../services/product-subgraph/README.md)
+- component diagram,
+- database diagram,
+- sequence diagram,
+- integration flow.
 
-### `order-subgraph`
-- [order-subgraph README](../services/order-subgraph/docs/README.md)
-- [Order Lifecycle and Outbox Rules](../services/order-subgraph/docs/ORDER_LIFECYCLE_AND_OUTBOX_RULES.md)
-- [Order Creation Design](../services/order-subgraph/docs/ORDER_CREATION_DESIGN.md)
-- [Order Outbox Design](../services/order-subgraph/docs/ORDER_OUTBOX_DESIGN.md)
+### `guides/`
 
-### `user-service`
-- [user-service README](../services/user-service/README.md)
+Chứa tài liệu thao tác:
 
-### `graphql-gateway`
-- [graphql-gateway README](../services/graphql-gateway/README.md)
+- chạy local,
+- seed/reset dữ liệu,
+- test tay,
+- debug,
+- chạy demo bằng Docker Compose.
 
-### `web`
-- [apps/web README](../apps/web/README.md)
+### `reports/`
 
----
+Chứa báo cáo theo giai đoạn:
 
-## 4) Tài liệu package và tooling
+- hiện trạng backend,
+- kế hoạch DevOps,
+- kế hoạch blockchain,
+- roadmap học tập hoặc triển khai.
 
-- [Root README](../README.md)
-- [packages/eslint-config README](../packages/eslint-config/README.md)
+### `standards/`
 
----
+Chứa quy ước làm việc:
 
-## 5) Lộ trình đọc gợi ý
+- quy ước đặt tên tài liệu,
+- cấu trúc file docs,
+- git workflow,
+- commit convention,
+- checklist review,
+- logging/observability convention nếu cần.
 
-### Nếu bạn muốn xem kiến trúc trước
-1. [Architecture Standard](architecture/architecture-standard.md)
-2. [Trọng Tâm Hiện Tại - Tháng 6/2026](architecture/current-focus.md)
-3. [System Overview](architecture/overview.md)
-4. [Auth Architecture](architecture/auth.md)
-5. [RBAC Marketplace Access Control](architecture/rbac-marketplace-access-control.md)
-6. [Services Specification](architecture/services.md)
-7. [Component Diagram](diagrams/component-diagram.md)
+### `templates/`
 
-### Nếu bạn muốn đi thẳng vào hướng order/event-driven hiện tại
-1. [Trọng Tâm Hiện Tại - Tháng 6/2026](architecture/current-focus.md)
-2. [order-subgraph README](../services/order-subgraph/docs/README.md)
-3. [Order Lifecycle and Outbox Rules](../services/order-subgraph/docs/ORDER_LIFECYCLE_AND_OUTBOX_RULES.md)
-4. [Order Creation Design](../services/order-subgraph/docs/ORDER_CREATION_DESIGN.md)
-5. [Order Outbox Design](../services/order-subgraph/docs/ORDER_OUTBOX_DESIGN.md)
+Chứa mẫu tài liệu để viết nhanh và thống nhất:
 
-### Nếu bạn muốn xem bài toán marketplace trước
-1. [E-commerce Marketplace Design](../services/product-subgraph/docs/ECOMMERCE_MARKETPLACE_DESIGN.md)
-2. [Advanced RBAC and Workflows](../services/product-subgraph/docs/ADVANCED_RBAC_AND_WORKFLOWS.md)
-3. [Implementation Sprint Plan](../services/product-subgraph/docs/IMPLEMENTATION_SPRINT_PLAN.md)
-4. [Architecture Analysis](../services/product-subgraph/docs/ARCHITECTURE_ANALYSIS.md)
+- technical design,
+- runbook,
+- test guide,
+- postmortem,
+- release checklist.
 
----
+## Quy tắc tổ chức tài liệu
 
-## 6) Quy ước viết tài liệu cho repo này
+- `docs/` chỉ chứa tài liệu ở mức toàn repo hoặc dùng chung nhiều service.
+- Tài liệu chỉ liên quan đến một service nên đặt trong `services/<service-name>/docs/`.
+- Pull request template và issue template không đặt trong `docs/`, mà đặt trong `.github/`.
+- `docs/README.md` đóng vai trò mục lục điều hướng, không nên biến thành nơi chứa quá nhiều nội dung chi tiết.
 
-- Tài liệu kiến trúc giải thích **vì sao** và **ranh giới**.
-- Tài liệu service giải thích **service hoạt động như thế nào**.
-- Tài liệu domain giải thích **luồng nghiệp vụ và vai trò**.
-- Sơ đồ là phần tóm tắt trực quan của nguồn sự thật, không phải logic tách riêng.
-- Nếu schema thay đổi, hãy cập nhật cả sơ đồ database và docs liên quan trong cùng một task.
+## Quy tắc đặt tên file
 
----
+- Ưu tiên `kebab-case` cho file tài liệu tổng: ví dụ `SYSTEM_OVERVIEW.md`, `GIT_WORKFLOW.md`.
+- Nếu tài liệu là một “artefact tên riêng” hoặc đã dùng ổn định lâu dài, có thể giữ dạng uppercase rõ nghĩa như:
+  - `BACKEND_STATUS_REPORT_AND_NEXT_STEPS.md`
+  - `DEVOPS_PLAN.md`
+- Không trộn nhiều kiểu đặt tên ngẫu hứng trong cùng một khu vực.
+- Với tài liệu mới từ bây giờ:
+  - `architecture/`, `guides/`, `standards/`, `templates/` nên ưu tiên `kebab-case`.
+  - `reports/` có thể dùng uppercase nếu đó là báo cáo/plan chính thức.
 
-## 7) Thứ tự nguồn sự thật
+## Nguồn sự thật theo thứ tự ưu tiên
+
+Khi có mâu thuẫn giữa các tài liệu:
 
 1. Code
-2. File schema
-3. Sơ đồ database
-4. Architecture standard
-5. Tài liệu kiến trúc / service
-6. Các README tóm tắt
+2. Schema/migration
+3. Diagram gắn trực tiếp với schema hoặc flow
+4. Tài liệu kiến trúc
+5. README và các tài liệu tóm tắt
 
-If there is a conflict, the code and schema win.
+Tài liệu phải phản ánh code, không được thay thế code.

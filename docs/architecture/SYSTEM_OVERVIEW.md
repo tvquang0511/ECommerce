@@ -2,7 +2,7 @@
 
 Tài liệu này mô tả kiến trúc mục tiêu cho repo (monorepo) ở mức **system design + chức năng**. Đây là tài liệu tổng quan, còn nguồn sự thật chuẩn nằm ở:
 
-- [architecture-standard.md](architecture-standard.md)
+- [ARCHITECTURE_PRINCIPLES.md](ARCHITECTURE_PRINCIPLES.md)
 
 Ưu tiên của tài liệu này là giúp bạn:
 - Nắm rõ “mỗi service làm gì / không làm gì” (service boundaries)
@@ -146,7 +146,7 @@ Event store và outbox vẫn có thể dùng chung Postgres, nhưng phải là h
 - Refresh token: opaque random token (không phải JWT) lưu hash trong DB, gửi qua HttpOnly cookie (rotation + reuse detection).
 - (Optional) 2FA: email OTP (TTL ngắn) qua mail worker.
 
-Chi tiết: xem `docs/architecture/auth.md`.
+Chi tiết: xem `docs/architecture/AUTHENTICATION_AND_AUTHORIZATION.md`.
 
 **Events (RabbitMQ)**
 - Publish (optional): `user.registered.v1`
@@ -422,8 +422,8 @@ Redis trong hệ này có **2 vai trò khác nhau** (đừng trộn khái niệm
 ---
 
 ## 7) Tài liệu liên quan
-- Component diagram (PlantUML): xem trong [docs/diagrams/component-diagram.md](../diagrams/component-diagram.md).
+- Component diagram (PlantUML): xem trong [docs/diagrams/COMPONENT_DIAGRAM.md](../diagrams/COMPONENT_DIAGRAM.md).
 - Roadmap/milestones: xem [README.md](../../README.md).
-- Chức năng chi tiết từng service: xem [docs/architecture/services.md](services.md).
+- Chức năng chi tiết từng service: xem [docs/architecture/SERVICE_BOUNDARIES_AND_RESPONSIBILITIES.md](SERVICE_BOUNDARIES_AND_RESPONSIBILITIES.md).
 - Template cây thư mục (NestJS-first + Express user-service): xem [docs/architecture/folder-structure.md](folder-structure.md).
 - pnpm guide: xem [docs/pnpm.md](../pnpm.md).

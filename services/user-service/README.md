@@ -68,4 +68,4 @@ Bạn có thể import `openapi.json` vào Postman để test nhanh.
 
 Default port: `4001`.
 
-Xem spec: `docs/architecture/services.md` và template folder: `docs/architecture/folder-structure.md`.
+Xem spec: `docs/architecture/SERVICE_BOUNDARIES_AND_RESPONSIBILITIES.md`.

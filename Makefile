@@ -111,9 +111,6 @@ payment:
 inventory:
 	pnpm --filter inventory-service dev
 
-product-g:
-	$(MAKE) service-g SVC=product-subgraph KIND="$(KIND)" NAME="$(NAME)" OPTS="$(OPTS)" ARGS="$(ARGS)"
-
 service-g:
 	@if [ -z "$(SVC)" ]; then \
 		echo "Usage: make service-g SVC=<service-name> KIND=<type> NAME=<name> OPTS=<options>"; \

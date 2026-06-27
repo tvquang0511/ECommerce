@@ -42,7 +42,7 @@ create order draft
 ### Tài liệu nên đọc trước
 
 - [docs/README.md](docs/README.md)
-- [docs/architecture/current-focus.md](docs/architecture/current-focus.md)
+- [docs/architecture/CURRENT_FOCUS.md](docs/architecture/CURRENT_FOCUS.md)
 - [services/order-subgraph/docs/README.md](services/order-subgraph/docs/README.md)
 
 ---
@@ -312,7 +312,7 @@ server {
 
 ## 6) Component diagram (PlantUML)
 
-Xem sơ đồ component (đã bổ sung Redis cache + MinIO) tại: [docs/diagrams/component-diagram.md](docs/diagrams/component-diagram.md).
+Xem sơ đồ component (đã bổ sung Redis cache + MinIO) tại: [docs/diagrams/COMPONENT_DIAGRAM.md](docs/diagrams/COMPONENT_DIAGRAM.md).
 
 ---
 
@@ -400,8 +400,8 @@ Tài liệu pnpm chi tiết: [docs/pnpm.md](docs/pnpm.md).
   - Redis Insight: `http://localhost:5540`
 
 Tài liệu kiến trúc:
-- Overview: [docs/architecture/overview.md](docs/architecture/overview.md)
-- Chức năng từng service: [docs/architecture/services.md](docs/architecture/services.md)
+- Overview: [docs/architecture/SYSTEM_OVERVIEW.md](docs/architecture/SYSTEM_OVERVIEW.md)
+- Chức năng từng service: [docs/architecture/SERVICE_BOUNDARIES_AND_RESPONSIBILITIES.md](docs/architecture/SERVICE_BOUNDARIES_AND_RESPONSIBILITIES.md)
 - Template cây thư mục (NestJS-first): [docs/architecture/folder-structure.md](docs/architecture/folder-structure.md)
 - Lộ trình học Apollo + NestJS (tách biệt product plan): [docs/architecture/apollo-nestjs-learning-roadmap.md](docs/architecture/apollo-nestjs-learning-roadmap.md)
 
