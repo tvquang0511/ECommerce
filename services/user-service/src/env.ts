@@ -54,6 +54,10 @@ export const env = {
     process.env.TWO_FACTOR_OTP_TTL_SECONDS,
     120,
   ),
+  EMAIL_VERIFICATION_TTL_SECONDS: parseIntEnv(
+    process.env.EMAIL_VERIFICATION_TTL_SECONDS,
+    15 * 60,
+  ),
 
   // Redis (BullMQ + optional rate limiting)
   REDIS_URL: process.env.REDIS_URL ?? "redis://localhost:6379",

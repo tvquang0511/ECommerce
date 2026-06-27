@@ -1,5 +1,12 @@
 export type MailJob =
   | {
+      type: "email-verification";
+      to: string;
+      displayName?: string | null;
+      verificationUrl: string;
+      expiresAtIso: string;
+    }
+  | {
       type: "forgot-password";
       to: string;
       displayName?: string | null;

@@ -39,9 +39,8 @@ const verifyTwoFactorBodySchema = z.object({
   code: z.string().min(6).max(6),
 });
 
-const verifyEmailBodySchema = z.object({
-  challengeId: z.string().min(1),
-  code: z.string().min(6).max(6),
+const verifyEmailQuerySchema = z.object({
+  token: z.string().min(1),
 });
 
 const twoFactorToggleBodySchema = z.object({
@@ -105,12 +104,51 @@ export const verifyTwoFactor = async (req: Request, res: Response) => {
 };
 
 export const verifyEmail = async (req: Request, res: Response) => {
-  const input = verifyEmailBodySchema.parse(req.body);
-  const result = await authService.verifyEmail(input, {
-    ip: req.ip,
-    userAgent: req.headers["user-agent"],
-  });
-  return res.json(result);
+  try {
+    const input = verifyEmailQuerySchema.parse(req.query);
+    const result = await authService.verifyEmail(input, {
+      ip: req.ip,
+      userAgent: req.headers["user-agent"],
+    });
+
+    const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Email Verified</title>
+</head>
+<body style="font-family:Arial,sans-serif;background:#f6f7fb;color:#111827;padding:32px;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+    <h1 style="margin:0 0 12px 0;font-size:24px;">Email verified</h1>
+    <p style="margin:0;line-height:1.6;">Your email address has been verified successfully. You can now return to the app and sign in.</p>
+  </div>
+</body>
+</html>`;
+
+    return res.status(result.ok ? 200 : 400).type("html").send(html);
+  } catch (error) {
+    if (error instanceof ApiError) {
+      const html = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Verification Failed</title>
+</head>
+<body style="font-family:Arial,sans-serif;background:#f6f7fb;color:#111827;padding:32px;">
+  <div style="max-width:520px;margin:0 auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:24px;">
+    <h1 style="margin:0 0 12px 0;font-size:24px;">Verification failed</h1>
+    <p style="margin:0;line-height:1.6;">${error.message}</p>
+  </div>
+</body>
+</html>`;
+
+      return res.status(error.status).type("html").send(html);
+    }
+
+    throw error;
+  }
 };
 
 export const resendEmailVerification = async (req: Request, res: Response) => {

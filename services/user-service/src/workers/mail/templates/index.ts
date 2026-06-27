@@ -1,3 +1,4 @@
+import { buildEmailVerificationMail } from "./emailVerification.js";
 import type { MailJob } from "../../../modules/mail/mail.types.js";
 import { buildForgotPasswordMail } from "./forgotPassword.js";
 import { buildOtpMail } from "./otp.js";
@@ -8,6 +9,7 @@ export function buildMail(job: MailJob): {
   text: string;
   html: string;
 } {
+  if (job.type === "email-verification") return buildEmailVerificationMail(job);
   if (job.type === "forgot-password") return buildForgotPasswordMail(job);
   if (job.type === "password-reset-success")
     return buildPasswordResetSuccessMail(job);

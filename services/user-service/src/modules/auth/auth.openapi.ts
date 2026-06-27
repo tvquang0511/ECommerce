@@ -104,12 +104,11 @@ export function authOpenApi() {
       type: "object",
       properties: {
         requiresEmailVerification: { type: "boolean", enum: [true] },
-        challengeId: { type: "string", format: "uuid" },
         expiresAt: { type: "string", format: "date-time" },
-        devOtp: { type: "string" },
+        devVerificationUrl: { type: "string", format: "uri" },
         user: { $ref: "#/components/schemas/PublicUser" },
       },
-      required: ["requiresEmailVerification", "challengeId", "expiresAt", "user"],
+      required: ["requiresEmailVerification", "expiresAt", "user"],
       additionalProperties: false,
     },
 
@@ -139,16 +138,6 @@ export function authOpenApi() {
         code: { type: "string", minLength: 6, maxLength: 6 },
       },
       required: ["challengeId", "code"],
-    },
-
-    VerifyEmailRequest: {
-      type: "object",
-      properties: {
-        challengeId: { type: "string", format: "uuid" },
-        code: { type: "string", minLength: 6, maxLength: 6 },
-      },
-      required: ["challengeId", "code"],
-      additionalProperties: false,
     },
 
     TwoFactorStatusResponse: {
@@ -268,6 +257,17 @@ export function authOpenApi() {
       additionalProperties: false,
     },
 
+    ResendEmailVerificationResponse: {
+      type: "object",
+      properties: {
+        ok: { type: "boolean" },
+        expiresAt: { type: "string", format: "date-time" },
+        devVerificationUrl: { type: "string", format: "uri" },
+      },
+      required: ["ok"],
+      additionalProperties: false,
+    },
+
     ResetPasswordRequest: {
       type: "object",
       properties: {
@@ -354,31 +354,31 @@ export function authOpenApi() {
     },
 
     "/api/users/auth/verify-email": {
-      post: {
+      get: {
         tags: ["Auth"],
-        summary: "Verify email ownership with OTP",
-        requestBody: {
-          required: true,
-          content: {
-            "application/json": {
-              schema: { $ref: "#/components/schemas/VerifyEmailRequest" },
-            },
+        summary: "Verify email ownership with verification link",
+        parameters: [
+          {
+            name: "token",
+            in: "query",
+            required: true,
+            schema: { type: "string", minLength: 1 },
           },
-        },
+        ],
         responses: {
           "200": {
-            description: "OK",
+            description: "Email verified successfully",
             content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ForgotPasswordResponse" },
+              "text/html": {
+                schema: { type: "string" },
               },
             },
           },
           "400": {
-            description: "Invalid/expired OTP",
+            description: "Invalid/expired verification link",
             content: {
-              "application/json": {
-                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              "text/html": {
+                schema: { type: "string" },
               },
             },
           },
@@ -389,7 +389,7 @@ export function authOpenApi() {
     "/api/users/auth/verify-email/resend": {
       post: {
         tags: ["Auth"],
-        summary: "Resend email verification OTP",
+        summary: "Resend email verification link",
         requestBody: {
           required: true,
           content: {
@@ -403,7 +403,9 @@ export function authOpenApi() {
             description: "OK",
             content: {
               "application/json": {
-                schema: { $ref: "#/components/schemas/ForgotPasswordResponse" },
+                schema: {
+                  $ref: "#/components/schemas/ResendEmailVerificationResponse",
+                },
               },
             },
           },

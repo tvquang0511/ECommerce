@@ -27,7 +27,7 @@ import {
 const router = Router();
 
 router.post("/register", asyncHandler(register));
-router.post(
+router.get(
   "/verify-email",
   rateLimit({
     name: "auth_verify_email_ip",

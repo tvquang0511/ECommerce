@@ -141,6 +141,10 @@ function makeResetToken() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
+function makeEmailVerificationToken() {
+  return crypto.randomBytes(32).toString("base64url");
+}
+
 function makeOtpCode(): string {
   return crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
 }
@@ -150,6 +154,11 @@ function hashOtpCode(code: string): string {
     .createHash("sha256")
     .update(`${code}.${env.REFRESH_TOKEN_PEPPER}`)
     .digest("hex");
+}
+
+function buildEmailVerificationUrl(token: string) {
+  const base = env.APP_WEB_URL.replace(/\/$/, "");
+  return `${base}/api/users/auth/verify-email?token=${encodeURIComponent(token)}`;
 }
 
 function publicUser(user: UserWithRbac) {
@@ -255,24 +264,26 @@ export const authService = {
       passwordHash,
       displayName: input.displayName,
     });
-    const code = makeOtpCode();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const otp = await authRepo.createEmailOtp({
+    const token = makeEmailVerificationToken();
+    const expiresAt = new Date(
+      Date.now() + env.EMAIL_VERIFICATION_TTL_SECONDS * 1000,
+    );
+    await authRepo.markAllActiveEmailVerificationTokensUsed(user.id);
+    await authRepo.createEmailVerificationToken({
       userId: user.id,
-      purpose: "EMAIL_VERIFICATION",
-      codeHash: hashOtpCode(code),
+      tokenHash: hashToken(token),
       expiresAt,
       requestedIp: meta?.ip,
       userAgent: meta?.userAgent,
     });
+    const verificationUrl = buildEmailVerificationUrl(token);
 
     const enq = await mailQueue.enqueue({
-      type: "otp",
+      type: "email-verification",
       to: user.email,
       displayName: user.displayName,
-      code,
-      expiresInSeconds: 15 * 60,
-      purpose: "email-verification",
+      verificationUrl,
+      expiresAtIso: expiresAt.toISOString(),
     });
 
     if (!enq.enqueued && env.NODE_ENV === "production") {
@@ -285,10 +296,9 @@ export const authService = {
 
     return {
       requiresEmailVerification: true as const,
-      challengeId: otp.id,
       expiresAt: expiresAt.toISOString(),
       user: publicUser(user),
-      ...(enq.enqueued ? {} : { devOtp: code }),
+      ...(enq.enqueued ? {} : { devVerificationUrl: verificationUrl }),
     };
   },
 
@@ -494,26 +504,22 @@ export const authService = {
   },
 
   async verifyEmail(
-    input: { challengeId: string; code: string },
+    input: { token: string },
     meta?: RequestMeta,
   ) {
-    const otp = await authRepo.findEmailOtpById(input.challengeId);
-    if (!otp || otp.purpose !== "EMAIL_VERIFICATION") {
-      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
+    const verificationToken = await authRepo.findValidEmailVerificationToken(
+      hashToken(input.token),
+    );
+    if (!verificationToken) {
+      throw new ApiError(
+        400,
+        "AUTH_EMAIL_VERIFICATION_INVALID",
+        "Verification link is invalid or expired",
+      );
     }
 
-    if (otp.consumedAt || otp.expiresAt.getTime() <= Date.now() || otp.attempts >= 5) {
-      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
-    }
-
-    const got = hashOtpCode(input.code);
-    if (otp.codeHash !== got) {
-      await authRepo.incrementEmailOtpAttempts(otp.id);
-      throw new ApiError(400, "AUTH_OTP_INVALID", "OTP invalid or expired");
-    }
-
-    await authRepo.consumeEmailOtp(otp.id);
-    const user = await authRepo.verifyUserEmail(otp.userId);
+    await authRepo.markEmailVerificationTokenUsed(verificationToken.id);
+    const user = await authRepo.verifyUserEmail(verificationToken.userId);
 
     await writeAuditSafe({
       eventType: "EMAIL_VERIFIED",
@@ -537,40 +543,41 @@ export const authService = {
       return { ok: true };
     }
 
-    const latest = await authRepo.findLatestActiveEmailOtpForUser({
-      userId: user.id,
-      purpose: "EMAIL_VERIFICATION",
-    });
+    const latest = await authRepo.findLatestActiveEmailVerificationTokenForUser(
+      user.id,
+    );
     if (latest) {
       const secondsSince = (Date.now() - latest.createdAt.getTime()) / 1000;
       if (secondsSince < 30) {
         throw new ApiError(
           429,
-          "AUTH_OTP_TOO_MANY_REQUESTS",
-          "Please wait before requesting another code",
+          "AUTH_EMAIL_VERIFICATION_TOO_MANY_REQUESTS",
+          "Please wait before requesting another verification email",
           { retryAfterSeconds: Math.ceil(30 - secondsSince) },
         );
       }
     }
 
-    const code = makeOtpCode();
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
-    const otp = await authRepo.createEmailOtp({
+    const token = makeEmailVerificationToken();
+    const expiresAt = new Date(
+      Date.now() + env.EMAIL_VERIFICATION_TTL_SECONDS * 1000,
+    );
+    await authRepo.markAllActiveEmailVerificationTokensUsed(user.id);
+    await authRepo.createEmailVerificationToken({
       userId: user.id,
-      purpose: "EMAIL_VERIFICATION",
-      codeHash: hashOtpCode(code),
+      tokenHash: hashToken(token),
       expiresAt,
       requestedIp: input.requestedIp ?? null,
       userAgent: input.userAgent ?? null,
     });
+    const verificationUrl = buildEmailVerificationUrl(token);
 
     const enq = await mailQueue.enqueue({
-      type: "otp",
+      type: "email-verification",
       to: user.email,
       displayName: user.displayName,
-      code,
-      expiresInSeconds: 15 * 60,
-      purpose: "email-verification",
+      verificationUrl,
+      expiresAtIso: expiresAt.toISOString(),
     });
 
     if (!enq.enqueued && env.NODE_ENV === "production") {
@@ -583,9 +590,8 @@ export const authService = {
 
     return {
       ok: true as const,
-      challengeId: otp.id,
       expiresAt: expiresAt.toISOString(),
-      ...(enq.enqueued ? {} : { devOtp: code }),
+      ...(enq.enqueued ? {} : { devVerificationUrl: verificationUrl }),
     };
   },
 
