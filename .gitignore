@@ -52,3 +52,5 @@ Thumbs.db
 # runtime uploads (local filesystem)
 uploads/
 services/**/uploads/
+
+drafts/
