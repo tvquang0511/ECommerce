@@ -1,18 +1,23 @@
-import { Client } from "minio";
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 
 import { env } from "../../env.js";
 
-let clientSingleton: Client | null = null;
+let clientSingleton: S3Client | null = null;
 
-function getClient(): Client {
+function getClient(): S3Client {
   if (clientSingleton) return clientSingleton;
 
-  clientSingleton = new Client({
-    endPoint: env.MINIO_ENDPOINT,
-    port: env.MINIO_PORT,
-    useSSL: env.MINIO_USE_SSL,
-    accessKey: env.MINIO_ACCESS_KEY,
-    secretKey: env.MINIO_SECRET_KEY,
+  const protocol = env.MINIO_USE_SSL ? "https" : "http";
+  const endpoint = `${protocol}://${env.MINIO_ENDPOINT}${env.MINIO_PORT && env.MINIO_PORT !== 80 && env.MINIO_PORT !== 443 ? `:${env.MINIO_PORT}` : ""}`;
+
+  clientSingleton = new S3Client({
+    region: 'ap-northeast-1',
+    endpoint,
+    forcePathStyle: true,
+    credentials: {
+      accessKeyId: env.MINIO_ACCESS_KEY,
+      secretAccessKey: env.MINIO_SECRET_KEY,
+    },
   });
 
   return clientSingleton;
@@ -80,16 +85,15 @@ export async function putPublicObject(input: {
 }) {
   const client = getClient();
 
-  await client.putObject(
-    env.MINIO_PUBLIC_BUCKET,
-    input.objectName,
-    input.body,
-    input.size,
-    {
-      "Content-Type": input.contentType,
-      "Cache-Control": "public, max-age=86400",
-    },
-  );
+  const command = new PutObjectCommand({
+    Bucket: env.MINIO_PUBLIC_BUCKET,
+    Key: input.objectName,
+    Body: input.body,
+    ContentType: input.contentType,
+    CacheControl: "public, max-age=86400",
+  });
+
+  await client.send(command);
 
   return {
     url: minioPublicObjectUrl(input.objectName),
@@ -98,5 +102,9 @@ export async function putPublicObject(input: {
 
 export async function removePublicObject(objectName: string) {
   const client = getClient();
-  await client.removeObject(env.MINIO_PUBLIC_BUCKET, objectName);
+  const command = new DeleteObjectCommand({
+    Bucket: env.MINIO_PUBLIC_BUCKET,
+    Key: objectName,
+  });
+  await client.send(command);
 }
