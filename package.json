@@ -22,9 +22,12 @@
     "tools:logs": "docker compose -f infra/docker/docker-compose.dev.yml -f infra/docker/docker-compose.tool.yml logs -f --tail=200 mongo-express redis-commander redis-insight",
     "full:up": "docker compose -f infra/docker/docker-compose.yml up -d",
     "full:down": "docker compose -f infra/docker/docker-compose.yml down",
-    "full:build": "docker compose -f infra/docker/docker-compose.yml build"
+    "full:build": "docker compose -f infra/docker/docker-compose.yml build",
+    "build:all": "pnpm -r build",
+    "start:all": "concurrently \"pnpm --filter graphql-gateway start\" \"PORT=4001 pnpm --filter user-service start\" \"PORT=4002 pnpm --filter product-subgraph start\" \"PORT=4003 pnpm --filter cart-subgraph start\" \"PORT=4004 pnpm --filter order-subgraph start\" \"PORT=4010 pnpm --filter inventory-service start\" \"PORT=4020 pnpm --filter payment-service start\""
   },
   "dependencies": {
+    "concurrently": "^10.0.5",
     "minio": "^8.0.7"
   }
 }
